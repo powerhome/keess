@@ -66,6 +66,10 @@ func (c SecretEvent) Sync(sourceContext string, kubeClients *map[string]*kuberne
 			}
 		}
 
+		if c.Type == Deleted {
+			delete(EntitiesToAllNamespaces["Secrets"], secret.Name)
+		}
+
 		for _, destinationNamespace := range namespaces {
 			if secret.Namespace == destinationNamespace {
 				continue

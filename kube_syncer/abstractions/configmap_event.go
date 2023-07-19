@@ -66,6 +66,10 @@ func (c ConfigMapEvent) Sync(sourceContext string, kubeClients *map[string]*kube
 			}
 		}
 
+		if c.Type == Deleted {
+			delete(EntitiesToAllNamespaces["ConfigMaps"], configMap.Name)
+		}
+
 		for _, destinationNamespace := range namespaces {
 			if configMap.Namespace == destinationNamespace {
 				continue
