@@ -46,8 +46,6 @@ func (n NamespaceEvent) addConfigMaps(sourceContext string, kubeClients map[stri
 			} else {
 				Logger.Debugf("The configmap '%s' already exists in namespace '%s' on context '%s'.", configMap.Name, namespace, sourceContext)
 			}
-		} else {
-			Logger.Infof("The configmap '%s' was added in the namespace '%s' on context '%s'.", configMap.Name, namespace, sourceContext)
 		}
 	}
 
@@ -57,9 +55,9 @@ func (n NamespaceEvent) addConfigMaps(sourceContext string, kubeClients map[stri
 		label, value, _ := strings.Cut(namespaceLabelAnnotation, "=")
 
 		namespaceEntity := n.Entity.(*corev1.Namespace)
-		currentNamespaceLabelAnnotation := namespaceEntity.Annotations[label]
+		currentNamespaceLabel := namespaceEntity.Labels[label]
 
-		if currentNamespaceLabelAnnotation != value {
+		if currentNamespaceLabel != strings.Trim(value, "\"") {
 			continue
 		}
 
@@ -73,8 +71,6 @@ func (n NamespaceEvent) addConfigMaps(sourceContext string, kubeClients map[stri
 			} else {
 				Logger.Debugf("The configmap '%s' already exists in namespace '%s' on context '%s'.", configMap.Name, namespace, sourceContext)
 			}
-		} else {
-			Logger.Infof("The configmap '%s' was added in the namespace '%s' on context '%s'.", configMap.Name, namespace, sourceContext)
 		}
 	}
 }
@@ -95,8 +91,6 @@ func (n NamespaceEvent) addSecrets(sourceContext string, kubeClients map[string]
 			} else {
 				Logger.Debugf("The secret '%s' already exists in namespace '%s' on context '%s'.", secret.Name, namespace, sourceContext)
 			}
-		} else {
-			Logger.Infof("The secret '%s' was added in the namespace '%s' on context '%s'.", secret.Name, namespace, sourceContext)
 		}
 	}
 
@@ -106,9 +100,9 @@ func (n NamespaceEvent) addSecrets(sourceContext string, kubeClients map[string]
 		label, value, _ := strings.Cut(namespaceLabelAnnotation, "=")
 
 		namespaceEntity := n.Entity.(*corev1.Namespace)
-		currentNamespaceLabelAnnotation := namespaceEntity.Annotations[label]
+		currentNamespaceLabel := namespaceEntity.Labels[label]
 
-		if currentNamespaceLabelAnnotation != value {
+		if currentNamespaceLabel != strings.Trim(value, "\"") {
 			continue
 		}
 
@@ -122,8 +116,6 @@ func (n NamespaceEvent) addSecrets(sourceContext string, kubeClients map[string]
 			} else {
 				Logger.Debugf("The secret '%s' already exists in namespace '%s' on context '%s'.", secret.Name, namespace, sourceContext)
 			}
-		} else {
-			Logger.Infof("The secret '%s' was added in the namespace '%s' on context '%s'.", secret.Name, namespace, sourceContext)
 		}
 	}
 }
