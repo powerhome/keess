@@ -169,6 +169,7 @@ func (e *KubernetesEntity) Delete() error {
 func getNewConfigMap(sourceConfigMap *corev1.ConfigMap, namespace, sourceContext string) *corev1.ConfigMap {
 	destinationConfigMap := sourceConfigMap.DeepCopy()
 
+	destinationConfigMap.UID = ""
 	destinationConfigMap.Labels[ManagegLabelSelector] = "true"
 	destinationConfigMap.Annotations[SourceClusterAnnotation] = sourceContext
 	destinationConfigMap.Annotations[SourceNamespaceAnnotation] = sourceConfigMap.Namespace
@@ -188,6 +189,7 @@ func getNewConfigMap(sourceConfigMap *corev1.ConfigMap, namespace, sourceContext
 func getNewSecret(sourceSecret *corev1.Secret, namespace, sourceContext string) *corev1.Secret {
 	destinationSecret := sourceSecret.DeepCopy()
 
+	destinationSecret.UID = ""
 	destinationSecret.Labels[ManagegLabelSelector] = "true"
 	destinationSecret.Annotations[SourceClusterAnnotation] = sourceContext
 	destinationSecret.Annotations[SourceNamespaceAnnotation] = sourceSecret.Namespace
