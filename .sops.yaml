@@ -1,0 +1,13 @@
+creation_rules:
+  - path_regex: production
+    key_groups:
+      - kms:
+          - arn: "arn:aws:kms:us-east-1:205083374951:key/9a82ad9e-470b-4dee-b124-99cf9ce50c66"
+          - arn: "arn:aws:kms:us-east-1:205083374951:key/9a82ad9e-470b-4dee-b124-99cf9ce50c66"
+            role: "arn:aws:iam::205083374951:role/watchtower"
+
+  - key_groups:
+      - kms:
+          - arn: "arn:aws:kms:us-east-1:205083374951:key/e3d99581-2f53-4934-b9da-b917f14f67cc"
+          - arn: "arn:aws:kms:us-east-1:205083374951:key/e3d99581-2f53-4934-b9da-b917f14f67cc"
+            role: "arn:aws:iam::205083374951:role/watchtower"
