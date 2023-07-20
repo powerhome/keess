@@ -60,14 +60,9 @@ func (c ConfigMapEvent) Sync(sourceContext string, kubeClients *map[string]*kube
 					} else {
 						//Logger.Debugf("The namespace '%s' doesn't contains the synchronization label '%s'. The configmap '%s' will not be synchronized.", namespaceName, namespaceLabelAnnotation, configMap.Name)
 					}
-
 				}
 				EntitiesToLabeledNamespaces["ConfigMaps"][configMap.Name] = configMap
 			}
-		}
-
-		if c.Type == Deleted {
-			delete(EntitiesToAllNamespaces["ConfigMaps"], configMap.Name)
 		}
 
 		for _, destinationNamespace := range namespaces {
@@ -110,5 +105,22 @@ func (c ConfigMapEvent) Sync(sourceContext string, kubeClients *map[string]*kube
 				kubeEntity.Delete()
 			}
 		}
+	}
+
+	if c.Type == Modified {
+		namespaceNameAnnotation := configMap.Annotations[NamespaceNameAnnotation]
+		if namespaceNameAnnotation != All {
+			delete(EntitiesToAllNamespaces["ConfigMaps"], configMap.Name)
+		}
+
+		namespaceLabelAnnotation := configMap.Annotations[NamespaceLabelAnnotation]
+		if namespaceLabelAnnotation == "" {
+			delete(EntitiesToLabeledNamespaces["ConfigMaps"], configMap.Name)
+		}
+	}
+
+	if c.Type == Deleted {
+		delete(EntitiesToAllNamespaces["ConfigMaps"], configMap.Name)
+		delete(EntitiesToLabeledNamespaces["ConfigMaps"], configMap.Name)
 	}
 }

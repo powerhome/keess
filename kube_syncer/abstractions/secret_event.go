@@ -111,4 +111,21 @@ func (c SecretEvent) Sync(sourceContext string, kubeClients *map[string]*kuberne
 			}
 		}
 	}
+
+	if c.Type == Modified {
+		namespaceNameAnnotation := secret.Annotations[NamespaceNameAnnotation]
+		if namespaceNameAnnotation != All {
+			delete(EntitiesToAllNamespaces["Secrets"], secret.Name)
+		}
+
+		namespaceLabelAnnotation := secret.Annotations[NamespaceLabelAnnotation]
+		if namespaceLabelAnnotation == "" {
+			delete(EntitiesToLabeledNamespaces["Secrets"], secret.Name)
+		}
+	}
+
+	if c.Type == Deleted {
+		delete(EntitiesToAllNamespaces["Secrets"], secret.Name)
+		delete(EntitiesToLabeledNamespaces["Secrets"], secret.Name)
+	}
 }
