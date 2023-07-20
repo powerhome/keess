@@ -58,7 +58,7 @@ func (c SecretEvent) Sync(sourceContext string, kubeClients *map[string]*kuberne
 						namespaces = append(namespaces, namespaceName)
 						Logger.Debugf("The namespace '%s' contains the synchronization label '%s'. The secret '%s' will be synchronized.", namespaceName, namespaceLabelAnnotation, secret.Name)
 					} else {
-						Logger.Debugf("The namespace '%s' doesn't contains the synchronization label '%s'. The secret '%s' will not be synchronized.", namespaceName, namespaceLabelAnnotation, secret.Name)
+						//Logger.Debugf("The namespace '%s' doesn't contains the synchronization label '%s'. The secret '%s' will not be synchronized.", namespaceName, namespaceLabelAnnotation, secret.Name)
 					}
 
 				}

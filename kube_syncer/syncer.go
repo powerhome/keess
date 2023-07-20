@@ -43,8 +43,8 @@ func init() {
 
 // Load the kubeClient based in the given configuration.
 func (s *Syncer) Start(kubeConfigPath string, sourceContext string, destinationContexts []string) error {
-	loggerConfig := zap.NewProductionConfig()
-	//loggerConfig := zap.NewDevelopmentConfig()
+	//loggerConfig := zap.NewProductionConfig()
+	loggerConfig := zap.NewDevelopmentConfig()
 	loggerConfig.EncoderConfig.TimeKey = "timestamp"
 	loggerConfig.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.RFC3339)
 
@@ -187,93 +187,96 @@ func (s *Syncer) Run() error {
 		}
 	}
 
-	// Now list all ConfigMaps that are manageg by Keess.
-	managedConfigMapList, err := kubeClient.CoreV1().ConfigMaps(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: abstractions.ManagegLabelSelector,
-	})
-	if err != nil {
-		return err
-	}
+	for currentContext, kubeClient := range s.kubeClients {
 
-	for _, configMap := range managedConfigMapList.Items {
-		var entity abstractions.KubernetesEntity
-
-		// Get the source namespace name.
-		sourceNamespace := configMap.Annotations[abstractions.SourceNamespaceAnnotation]
-		sourceConfigMap, err := kubeClient.CoreV1().ConfigMaps(sourceNamespace).Get(context.TODO(), configMap.Name, metav1.GetOptions{})
-
-		if err != nil && !errorsTypes.IsNotFound(err) {
+		// Now list all ConfigMaps that are manageg by Keess.
+		managedConfigMapList, err := kubeClient.CoreV1().ConfigMaps(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
+			LabelSelector: abstractions.ManagegLabelSelector,
+		})
+		if err != nil {
 			return err
 		}
 
-		// Check if source configmap was deleted.
-		if errorsTypes.IsNotFound(err) {
-			entity = abstractions.NewKubernetesEntity(s.kubeClients, &configMap, abstractions.ConfigMapEntity, sourceNamespace, configMap.Namespace, s.sourceContext, s.sourceContext)
+		for _, configMap := range managedConfigMapList.Items {
+			var entity abstractions.KubernetesEntity
 
-			err := entity.Delete()
+			// Get the source namespace name.
+			sourceNamespace := configMap.Annotations[abstractions.SourceNamespaceAnnotation]
+			sourceContext := configMap.Annotations[abstractions.SourceClusterAnnotation]
+			sourceConfigMap, err := kubeClient.CoreV1().ConfigMaps(sourceNamespace).Get(context.TODO(), configMap.Name, metav1.GetOptions{})
+
 			if err != nil && !errorsTypes.IsNotFound(err) {
 				return err
-			} else {
-				s.logger.Infof("The ConfigMap '%s' was deleted in namespace '%s' on context '%s' because It was deleted in the source namespace '%s'.", configMap.Name, configMap.Namespace, s.sourceContext, sourceNamespace)
 			}
-		}
 
-		if err == nil {
-			entity = abstractions.NewKubernetesEntity(s.kubeClients, sourceConfigMap, abstractions.ConfigMapEntity, sourceNamespace, configMap.Namespace, s.sourceContext, s.sourceContext)
+			// Check if source configmap was deleted.
+			if errorsTypes.IsNotFound(err) {
+				entity = abstractions.NewKubernetesEntity(s.kubeClients, &configMap, abstractions.ConfigMapEntity, sourceNamespace, configMap.Namespace, sourceContext, currentContext)
 
-			// Check if source configmap was changed.
-			if sourceConfigMap.ResourceVersion != configMap.Annotations[abstractions.SourceResourceVersionAnnotation] {
-				err := entity.Update()
-				if err != nil {
+				err := entity.Delete()
+				if err != nil && !errorsTypes.IsNotFound(err) {
 					return err
 				} else {
-					s.logger.Infof("The ConfigMap '%s' was updated in namespace '%s' on context '%s' because It was updated in the source namespace '%s'.", configMap.Name, configMap.Namespace, s.sourceContext, sourceNamespace)
+					s.logger.Infof("The ConfigMap '%s' was deleted in namespace '%s' on context '%s' because It was deleted in the source namespace '%s'.", configMap.Name, configMap.Namespace, currentContext, sourceNamespace)
+				}
+			}
+
+			if err == nil {
+				// Check if source configmap was changed.
+				if sourceConfigMap.ResourceVersion != configMap.Annotations[abstractions.SourceResourceVersionAnnotation] {
+					entity = abstractions.NewKubernetesEntity(s.kubeClients, sourceConfigMap, abstractions.ConfigMapEntity, sourceNamespace, configMap.Namespace, sourceContext, currentContext)
+					err := entity.Update()
+					if err != nil {
+						return err
+					} else {
+						s.logger.Infof("The ConfigMap '%s' was updated in namespace '%s' on context '%s' because It was updated in the source namespace '%s'.", configMap.Name, configMap.Namespace, currentContext, sourceNamespace)
+					}
 				}
 			}
 		}
-	}
 
-	// Now list all Secrets that are manageg by Keess.
-	managedSecretList, err := kubeClient.CoreV1().Secrets(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: abstractions.ManagegLabelSelector,
-	})
-	if err != nil {
-		return err
-	}
-
-	for _, secret := range managedSecretList.Items {
-		var entity abstractions.KubernetesEntity
-
-		// Get the source namespace name.
-		sourceNamespace := secret.Annotations[abstractions.SourceNamespaceAnnotation]
-		sourceSecret, err := kubeClient.CoreV1().Secrets(sourceNamespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
-
-		if err != nil && !errorsTypes.IsNotFound(err) {
+		// Now list all Secrets that are manageg by Keess.
+		managedSecretList, err := kubeClient.CoreV1().Secrets(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
+			LabelSelector: abstractions.ManagegLabelSelector,
+		})
+		if err != nil {
 			return err
 		}
 
-		// Check if source secret was deleted.
-		if errorsTypes.IsNotFound(err) {
-			entity = abstractions.NewKubernetesEntity(s.kubeClients, &secret, abstractions.SecretEntity, sourceNamespace, secret.Namespace, s.sourceContext, s.sourceContext)
+		for _, secret := range managedSecretList.Items {
+			var entity abstractions.KubernetesEntity
 
-			err := entity.Delete()
+			// Get the source namespace name.
+			sourceNamespace := secret.Annotations[abstractions.SourceNamespaceAnnotation]
+			sourceContext := secret.Annotations[abstractions.SourceClusterAnnotation]
+			sourceSecret, err := kubeClient.CoreV1().Secrets(sourceNamespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
+
 			if err != nil && !errorsTypes.IsNotFound(err) {
 				return err
-			} else {
-				s.logger.Infof("The Secret '%s' was deleted in namespace '%s' on context '%s' because It was deleted in the source namespace '%s'.", secret.Name, secret.Namespace, s.sourceContext, sourceNamespace)
 			}
-		}
 
-		if err == nil {
-			entity = abstractions.NewKubernetesEntity(s.kubeClients, sourceSecret, abstractions.SecretEntity, sourceNamespace, secret.Namespace, s.sourceContext, s.sourceContext)
+			// Check if source secret was deleted.
+			if errorsTypes.IsNotFound(err) {
+				entity = abstractions.NewKubernetesEntity(s.kubeClients, &secret, abstractions.SecretEntity, sourceNamespace, secret.Namespace, sourceContext, currentContext)
 
-			// Check if source secret was changed.
-			if sourceSecret.ResourceVersion != secret.Annotations[abstractions.SourceResourceVersionAnnotation] {
-				err := entity.Update()
-				if err != nil {
+				err := entity.Delete()
+				if err != nil && !errorsTypes.IsNotFound(err) {
 					return err
 				} else {
-					s.logger.Infof("The Secret '%s' was updated in namespace '%s' on context '%s' because It was updated in the source namespace '%s'.", secret.Name, secret.Namespace, s.sourceContext, sourceNamespace)
+					s.logger.Infof("The Secret '%s' was deleted in namespace '%s' on context '%s' because It was deleted in the source namespace '%s'.", secret.Name, secret.Namespace, currentContext, sourceNamespace)
+				}
+			}
+
+			if err == nil {
+				// Check if source secret was changed.
+				if sourceSecret.ResourceVersion != secret.Annotations[abstractions.SourceResourceVersionAnnotation] {
+					entity = abstractions.NewKubernetesEntity(s.kubeClients, sourceSecret, abstractions.SecretEntity, sourceNamespace, secret.Namespace, sourceContext, currentContext)
+					err := entity.Update()
+					if err != nil {
+						return err
+					} else {
+						s.logger.Infof("The Secret '%s' was updated in namespace '%s' on context '%s' because It was updated in the source namespace '%s'.", secret.Name, secret.Namespace, currentContext, sourceNamespace)
+					}
 				}
 			}
 		}
