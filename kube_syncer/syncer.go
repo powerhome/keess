@@ -42,9 +42,15 @@ func init() {
 }
 
 // Load the kubeClient based in the given configuration.
-func (s *Syncer) Start(kubeConfigPath string, sourceContext string, destinationContexts []string) error {
-	//loggerConfig := zap.NewProductionConfig()
-	loggerConfig := zap.NewDevelopmentConfig()
+func (s *Syncer) Start(kubeConfigPath string, developmentMode bool, sourceContext string, destinationContexts []string) error {
+	var loggerConfig zap.Config
+
+	if developmentMode {
+		loggerConfig = zap.NewDevelopmentConfig()
+	} else {
+		loggerConfig = zap.NewProductionConfig()
+	}
+
 	loggerConfig.EncoderConfig.TimeKey = "timestamp"
 	loggerConfig.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.RFC3339)
 

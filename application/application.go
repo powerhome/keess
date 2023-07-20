@@ -37,6 +37,11 @@ func New() *cli.App {
 			Usage:    "A list with the contexts where the events will by synched to",
 			Required: false,
 		},
+		&cli.BoolFlag{
+			Name:     "developmentMode",
+			Usage:    "A list with the contexts where the events will by synched to",
+			Required: false,
+		},
 	}
 
 	app.Commands = []*cli.Command{
@@ -56,9 +61,10 @@ func run(c *cli.Context) error {
 	kubeConfigPath := c.String("config")
 	sourceContext := c.String("sourceContext")
 	destinationContexts := c.StringSlice("destinationContexts")
+	developmentMode := c.Bool("developmentMode")
 
 	var syncer kube_syncer.Syncer
-	err := syncer.Start(kubeConfigPath, sourceContext, destinationContexts)
+	err := syncer.Start(kubeConfigPath, developmentMode, sourceContext, destinationContexts)
 
 	if err == nil {
 		return syncer.Run()
