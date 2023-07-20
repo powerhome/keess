@@ -157,7 +157,7 @@ func (s *Syncer) Run() error {
 		abstractions.Namespaces[namespace.Name] = namespace.DeepCopy()
 	}
 
-	// Now list all ConfigMaps that should be present in every namespace.
+	// Now list all ConfigMaps that must be synchronized.
 	configMapList, err := kubeClient.CoreV1().ConfigMaps(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: abstractions.LabelSelector,
 	})
@@ -169,13 +169,13 @@ func (s *Syncer) Run() error {
 		if configMap.Annotations[abstractions.NamespaceNameAnnotation] == abstractions.All {
 			abstractions.EntitiesToAllNamespaces["ConfigMaps"][configMap.Name] = configMap.DeepCopyObject()
 		}
-		namespaceLabelAnnotation := configMap.Annotations[abstractions.NamespaceNameAnnotation]
-		if strings.IsEmpty(&namespaceLabelAnnotation) {
-			abstractions.EntitiesToAllNamespaces["ConfigMaps"][configMap.Name] = configMap.DeepCopyObject()
+		namespaceLabelAnnotation := configMap.Annotations[abstractions.NamespaceLabelAnnotation]
+		if !strings.IsEmpty(&namespaceLabelAnnotation) {
+			abstractions.EntitiesToLabeledNamespaces["ConfigMaps"][configMap.Name] = configMap.DeepCopyObject()
 		}
 	}
 
-	// Now list all Secrets that should be present in every namespace.
+	// Now list all Secrets that must be synchronized.
 	secretList, err := kubeClient.CoreV1().Secrets(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: abstractions.LabelSelector,
 	})
@@ -188,8 +188,8 @@ func (s *Syncer) Run() error {
 			abstractions.EntitiesToAllNamespaces["Secrets"][secret.Name] = secret.DeepCopyObject()
 		}
 		namespaceLabelAnnotation := secret.Annotations[abstractions.NamespaceLabelAnnotation]
-		if strings.IsEmpty(&namespaceLabelAnnotation) {
-			abstractions.EntitiesToAllNamespaces["Secrets"][secret.Name] = secret.DeepCopyObject()
+		if !strings.IsEmpty(&namespaceLabelAnnotation) {
+			abstractions.EntitiesToLabeledNamespaces["Secrets"][secret.Name] = secret.DeepCopyObject()
 		}
 	}
 
@@ -209,7 +209,9 @@ func (s *Syncer) Run() error {
 			// Get the source namespace name.
 			sourceNamespace := configMap.Annotations[abstractions.SourceNamespaceAnnotation]
 			sourceContext := configMap.Annotations[abstractions.SourceClusterAnnotation]
-			sourceConfigMap, err := kubeClient.CoreV1().ConfigMaps(sourceNamespace).Get(context.TODO(), configMap.Name, metav1.GetOptions{})
+
+			sourceKubeClient := s.kubeClients[sourceContext]
+			sourceConfigMap, err := sourceKubeClient.CoreV1().ConfigMaps(sourceNamespace).Get(context.TODO(), configMap.Name, metav1.GetOptions{})
 
 			if err != nil && !errorsTypes.IsNotFound(err) {
 				return err
@@ -223,7 +225,7 @@ func (s *Syncer) Run() error {
 				if err != nil && !errorsTypes.IsNotFound(err) {
 					return err
 				} else {
-					s.logger.Infof("The ConfigMap '%s' was deleted in namespace '%s' on context '%s' because It was deleted in the source namespace '%s'.", configMap.Name, configMap.Namespace, currentContext, sourceNamespace)
+					s.logger.Infof("The ConfigMap '%s' was deleted in namespace '%s' on context '%s' because It was deleted in the source namespace '%s' on the source context '%s'.", configMap.Name, configMap.Namespace, currentContext, sourceNamespace, sourceContext)
 				}
 			}
 
@@ -235,7 +237,7 @@ func (s *Syncer) Run() error {
 					if err != nil {
 						return err
 					} else {
-						s.logger.Infof("The ConfigMap '%s' was updated in namespace '%s' on context '%s' because It was updated in the source namespace '%s'.", configMap.Name, configMap.Namespace, currentContext, sourceNamespace)
+						s.logger.Infof("The ConfigMap '%s' was updated in namespace '%s' on context '%s' because It was updated in the source namespace '%s' on the source context '%s'.", configMap.Name, configMap.Namespace, currentContext, sourceNamespace, sourceContext)
 					}
 				}
 			}
@@ -255,7 +257,9 @@ func (s *Syncer) Run() error {
 			// Get the source namespace name.
 			sourceNamespace := secret.Annotations[abstractions.SourceNamespaceAnnotation]
 			sourceContext := secret.Annotations[abstractions.SourceClusterAnnotation]
-			sourceSecret, err := kubeClient.CoreV1().Secrets(sourceNamespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
+
+			sourceKubeClient := s.kubeClients[sourceContext]
+			sourceSecret, err := sourceKubeClient.CoreV1().Secrets(sourceNamespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
 
 			if err != nil && !errorsTypes.IsNotFound(err) {
 				return err
@@ -269,7 +273,7 @@ func (s *Syncer) Run() error {
 				if err != nil && !errorsTypes.IsNotFound(err) {
 					return err
 				} else {
-					s.logger.Infof("The Secret '%s' was deleted in namespace '%s' on context '%s' because It was deleted in the source namespace '%s'.", secret.Name, secret.Namespace, currentContext, sourceNamespace)
+					s.logger.Infof("The Secret '%s' was deleted in namespace '%s' on context '%s' because It was deleted in the source namespace '%s' on the source context '%s'.", secret.Name, secret.Namespace, currentContext, sourceNamespace, sourceContext)
 				}
 			}
 
@@ -281,7 +285,7 @@ func (s *Syncer) Run() error {
 					if err != nil {
 						return err
 					} else {
-						s.logger.Infof("The Secret '%s' was updated in namespace '%s' on context '%s' because It was updated in the source namespace '%s'.", secret.Name, secret.Namespace, currentContext, sourceNamespace)
+						s.logger.Infof("The Secret '%s' was updated in namespace '%s' on context '%s' because It was updated in the source namespace '%s' on the source context '%s'.", secret.Name, secret.Namespace, currentContext, sourceNamespace, sourceContext)
 					}
 				}
 			}
