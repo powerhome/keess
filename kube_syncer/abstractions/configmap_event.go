@@ -57,8 +57,6 @@ func (c ConfigMapEvent) Sync(sourceContext string, kubeClients *map[string]*kube
 					if namespace.Labels[label] == strings.Trim(value, "\"") {
 						namespaces = append(namespaces, namespaceName)
 						Logger.Debugf("The namespace '%s' contains the synchronization label '%s'. The configmap '%s' will be synchronized.", namespaceName, namespaceLabelAnnotation, configMap.Name)
-					} else {
-						//Logger.Debugf("The namespace '%s' doesn't contains the synchronization label '%s'. The configmap '%s' will not be synchronized.", namespaceName, namespaceLabelAnnotation, configMap.Name)
 					}
 				}
 				EntitiesToLabeledNamespaces["ConfigMaps"][configMap.Name] = configMap
