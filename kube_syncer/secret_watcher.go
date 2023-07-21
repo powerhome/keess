@@ -11,7 +11,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// Represents a base structure for any syncer.
+// The secret watcher.
 type SecretWatcher struct {
 	// The kubeapi client.
 	kubeClient *kubernetes.Clientset

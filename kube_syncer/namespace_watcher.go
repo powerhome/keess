@@ -10,7 +10,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// Represents a base structure for any syncer.
+// The namespace watcher.
 type NamespaceWatcher struct {
 	// The kubeapi client.
 	kubeClient *kubernetes.Clientset
