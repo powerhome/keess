@@ -33,7 +33,7 @@ func (w ConfigMapWatcher) Watch() <-chan abstractions.ISynchronizable {
 
 			// If it's not a valid event jumps to the next.
 			if !abstractions.IsAValidEvent(string(event.Type)) {
-				w.logger.Debug("Invalid event type.")
+				w.logger.Debugf("Invalid event type '%s'.", event.Type)
 				continue
 			}
 
