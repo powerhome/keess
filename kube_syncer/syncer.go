@@ -210,6 +210,11 @@ func (s *Syncer) Run() error {
 			sourceNamespace := configMap.Annotations[abstractions.SourceNamespaceAnnotation]
 			sourceContext := configMap.Annotations[abstractions.SourceClusterAnnotation]
 
+			if sourceNamespace == "" || sourceContext == "" {
+				s.logger.Warnf("The managed configmap contains invalid annotations values.")
+				continue
+			}
+
 			sourceKubeClient := s.kubeClients[sourceContext]
 			sourceConfigMap, err := sourceKubeClient.CoreV1().ConfigMaps(sourceNamespace).Get(context.TODO(), configMap.Name, metav1.GetOptions{})
 
@@ -257,6 +262,11 @@ func (s *Syncer) Run() error {
 			// Get the source namespace name.
 			sourceNamespace := secret.Annotations[abstractions.SourceNamespaceAnnotation]
 			sourceContext := secret.Annotations[abstractions.SourceClusterAnnotation]
+
+			if sourceNamespace == "" || sourceContext == "" {
+				s.logger.Warnf("The managed secret contains invalid annotations values.")
+				continue
+			}
 
 			sourceKubeClient := s.kubeClients[sourceContext]
 			sourceSecret, err := sourceKubeClient.CoreV1().Secrets(sourceNamespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
