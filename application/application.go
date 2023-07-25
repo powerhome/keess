@@ -61,15 +61,26 @@ func run(c *cli.Context) error {
 	viper.SetEnvPrefix("KEESS")
 	viper.AutomaticEnv()
 
-	kubeConfigPath := viper.GetString("CONFIG_PATH")
-	sourceContext := viper.GetString("SOURCE_CONTEXT")
-	destinationContexts := viper.GetStringSlice("DESTINATION_CONTEXTS")
-	developmentMode := viper.GetBool("DEVELOPMENT_MODE")
+	kubeConfigPath := c.String("config")
+	sourceContext := c.String("sourceContext")
+	destinationContexts := c.StringSlice("destinationContexts")
+	developmentMode := c.Bool("developmentMode")
 
-	kubeConfigPath = c.String("config")
-	sourceContext = c.String("sourceContext")
-	destinationContexts = c.StringSlice("destinationContexts")
-	developmentMode = c.Bool("developmentMode")
+	if kubeConfigPath == "" {
+		kubeConfigPath = viper.GetString("CONFIG_PATH")
+	}
+
+	if sourceContext == "" {
+		sourceContext = viper.GetString("SOURCE_CONTEXT")
+	}
+
+	if destinationContexts == nil {
+		destinationContexts = viper.GetStringSlice("DESTINATION_CONTEXTS")
+	}
+
+	if !developmentMode {
+		developmentMode = viper.GetBool("DEVELOPMENT_MODE")
+	}
 
 	var syncer kube_syncer.Syncer
 	err := syncer.Start(kubeConfigPath, developmentMode, sourceContext, destinationContexts)
