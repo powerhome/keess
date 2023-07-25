@@ -98,10 +98,23 @@ func (s *Syncer) Start(kubeConfigPath string, developmentMode bool, sourceContex
 		}
 	}
 
-	// create the clientset
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return err
+	inClusterConfig, err := rest.InClusterConfig()
+	var client *kubernetes.Clientset
+
+	if err == nil {
+		// create the clientset
+		client, err = kubernetes.NewForConfig(inClusterConfig)
+		if err != nil {
+			return err
+		}
+		s.logger.Info("Config loaded from service account.")
+	} else {
+		// create the clientset
+		client, err = kubernetes.NewForConfig(config)
+		if err != nil {
+			return err
+		}
+		s.logger.Info("Config loaded from kube config.")
 	}
 
 	s.kubeClients = map[string]*kubernetes.Clientset{}
@@ -123,6 +136,8 @@ func (s *Syncer) Start(kubeConfigPath string, developmentMode bool, sourceContex
 	}
 
 	s.logger.Info("Starting Keess.")
+	s.logger.Infof("Watching source cluster '%s'.", s.sourceContext)
+	s.logger.Infof("Connected to destination clusters %s.", s.destinationContexts)
 
 	return nil
 }
