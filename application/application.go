@@ -3,6 +3,7 @@ package application
 import (
 	"keess/kube_syncer"
 
+	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
 )
 
@@ -28,19 +29,16 @@ func New() *cli.App {
 			Usage: "Path to the kubeconfig file",
 		},
 		&cli.StringFlag{
-			Name:     "sourceContext",
-			Usage:    "The context to be watched.",
-			Required: true,
+			Name:  "sourceContext",
+			Usage: "The context to be watched.",
 		},
 		&cli.StringSliceFlag{
-			Name:     "destinationContexts",
-			Usage:    "A list with the contexts where the events will by synched to",
-			Required: false,
+			Name:  "destinationContexts",
+			Usage: "A list with the contexts where the events will by synched to",
 		},
 		&cli.BoolFlag{
-			Name:     "developmentMode",
-			Usage:    "A list with the contexts where the events will by synched to",
-			Required: false,
+			Name:  "developmentMode",
+			Usage: "A list with the contexts where the events will by synched to",
 		},
 	}
 
@@ -58,10 +56,20 @@ func New() *cli.App {
 
 // Run the program.
 func run(c *cli.Context) error {
-	kubeConfigPath := c.String("config")
-	sourceContext := c.String("sourceContext")
-	destinationContexts := c.StringSlice("destinationContexts")
-	developmentMode := c.Bool("developmentMode")
+
+	viper := viper.New()
+	viper.SetEnvPrefix("KEESS")
+	viper.AutomaticEnv()
+
+	kubeConfigPath := viper.GetString("CONFIG_PATH")
+	sourceContext := viper.GetString("SOURCE_CONTEXT")
+	destinationContexts := viper.GetStringSlice("DESTINATION_CONTEXTS")
+	developmentMode := viper.GetBool("DEVELOPMENT_MODE")
+
+	kubeConfigPath = c.String("config")
+	sourceContext = c.String("sourceContext")
+	destinationContexts = c.StringSlice("destinationContexts")
+	developmentMode = c.Bool("developmentMode")
 
 	var syncer kube_syncer.Syncer
 	err := syncer.Start(kubeConfigPath, developmentMode, sourceContext, destinationContexts)
