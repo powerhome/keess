@@ -90,14 +90,6 @@ func (s *Syncer) Start(kubeConfigPath string, developmentMode bool, sourceContex
 		panic(err.Error())
 	}
 
-	// use the source context if it's passed
-	if len(s.sourceContext) > 0 {
-		config, err = buildConfigWithContextFromFlags(s.sourceContext, *kubeconfig)
-		if err != nil {
-			panic(err)
-		}
-	}
-
 	inClusterConfig, err := rest.InClusterConfig()
 	var client *kubernetes.Clientset
 
