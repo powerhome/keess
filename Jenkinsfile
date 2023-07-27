@@ -1,16 +1,37 @@
 #!/usr/bin/env groovy
 
-library 'github.com/powerhome/ci-kubed@v6.9.0'
+node('docker') {
+  def imageTag
+  def image
 
-app.build([:]) {
-  app.composeBuild(
-    appRepo: "image-registry.powerapp.cloud/keess/keess",
-  ) { compose ->    
-    stage('Run image Build') {
-      shell "docker build -t image-registry.powerapp.cloud/keess/keess:${APP_IMAGE_TAG} ."
+  stage('Git Checkout') {
+    def scmVars = checkout scm
+    imageTag = "${env.BRANCH_NAME.replaceAll('/', '_')}-${scmVars.GIT_COMMIT}-${env.BUILD_ID}"
+    image = "image-registry.powerapp.cloud/keess/keess:${imageTag}"
+    env.image = image
+  }
+
+  stage('Build image') {
+    withCredentials([
+      usernamePassword(
+        credentialsId: 'app-registry-global',
+        usernameVariable: 'APP_REGISTRY_USERNAME',
+        passwordVariable: 'APP_REGISTRY_PASSWORD'
+      )
+    ]) {
+      // https://issues.jenkins.io/browse/JENKINS-59777
+      sh "docker login https://image-registry.powerapp.cloud -u $APP_REGISTRY_USERNAME -p $APP_REGISTRY_PASSWORD"
     }
-    stage('Run image Push') {
-      shell "docker push image-registry.powerapp.cloud/keess/keess:${APP_IMAGE_TAG}"
-    }    
+
+    shell "docker build -t image-registry.powerapp.cloud/keess/keess:${imageTag} ."
+    shell "docker push image-registry.powerapp.cloud/keess/keess:${imageTag}"
   }
 }
+
+
+
+
+
+
+
+
