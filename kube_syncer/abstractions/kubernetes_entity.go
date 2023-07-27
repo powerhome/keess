@@ -170,7 +170,7 @@ func getNewConfigMap(sourceConfigMap *corev1.ConfigMap, namespace, sourceContext
 	destinationConfigMap := sourceConfigMap.DeepCopy()
 
 	destinationConfigMap.UID = ""
-	destinationConfigMap.Labels[ManagegLabelSelector] = "true"
+	destinationConfigMap.Labels[ManagedLabelSelector] = "true"
 	destinationConfigMap.Annotations[SourceClusterAnnotation] = sourceContext
 	destinationConfigMap.Annotations[SourceNamespaceAnnotation] = sourceConfigMap.Namespace
 	destinationConfigMap.Annotations[SourceResourceVersionAnnotation] = sourceConfigMap.ResourceVersion
@@ -190,7 +190,7 @@ func getNewSecret(sourceSecret *corev1.Secret, namespace, sourceContext string) 
 	destinationSecret := sourceSecret.DeepCopy()
 
 	destinationSecret.UID = ""
-	destinationSecret.Labels[ManagegLabelSelector] = "true"
+	destinationSecret.Labels[ManagedLabelSelector] = "true"
 	destinationSecret.Annotations[SourceClusterAnnotation] = sourceContext
 	destinationSecret.Annotations[SourceNamespaceAnnotation] = sourceSecret.Namespace
 	destinationSecret.Annotations[SourceResourceVersionAnnotation] = sourceSecret.ResourceVersion

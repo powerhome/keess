@@ -9,7 +9,7 @@ import (
 )
 
 // Label that must be applied to the Secrets and ConfigMaps that are managed by the keess.
-const ManagegLabelSelector string = "keess.powerhrg.com/managed"
+const ManagedLabelSelector string = "keess.powerhrg.com/managed"
 
 // Label that must be applied to the Secrets and ConfigMaps that will be synchronized.
 const LabelSelector string = "keess.powerhrg.com/sync"
