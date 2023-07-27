@@ -9,14 +9,14 @@ app.build([:]) {
     stage('Image Build') {
 
         try {
-            reportBuildState('PENDING')
-            withEnv(env) {
+            compose.reportBuildState('PENDING')
+            withEnv(compose.environment()) {
                 shell "docker build -t ${compose.fullImageName()}"
             }
-            pushAll()
-            reportBuildState('SUCCESS')
+            compose.pushAll()
+            compose.reportBuildState('SUCCESS')
         } catch (e) {
-            reportBuildState('FAILURE')
+            compose.reportBuildState('FAILURE')
             throw e
         }
 
