@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-// Label that must be applied to the Secrets and ConfigMaps that are managed by the keess.
+// Label that must be applied to the Secrets and ConfigMaps that are managed by keess.
 const ManagedLabelSelector string = "keess.powerhrg.com/managed"
 
 // Label that must be applied to the Secrets and ConfigMaps that will be synchronized.
