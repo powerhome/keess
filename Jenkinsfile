@@ -11,7 +11,7 @@ app.build([:]) {
         try {
             compose.reportBuildState('PENDING')
             withEnv(compose.environment()) {
-                shell "docker build -t ${compose.fullImageName()}"
+                shell "docker build -t ${compose.fullImageName()} ."
             }
             compose.pushAll()
             compose.reportBuildState('SUCCESS')
