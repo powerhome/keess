@@ -202,7 +202,7 @@ func (s *Syncer) Run() error {
 
 	for currentContext, kubeClient := range s.kubeClients {
 
-		// Now list all ConfigMaps that are manageg by Keess.
+		// Now list all ConfigMaps that are managed by Keess.
 		managedConfigMapList, err := kubeClient.CoreV1().ConfigMaps(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
 			LabelSelector: abstractions.ManagedLabelSelector,
 		})
@@ -255,7 +255,7 @@ func (s *Syncer) Run() error {
 			}
 		}
 
-		// Now list all Secrets that are manageg by Keess.
+		// Now list all Secrets that are managed by Keess.
 		managedSecretList, err := kubeClient.CoreV1().Secrets(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
 			LabelSelector: abstractions.ManagedLabelSelector,
 		})
