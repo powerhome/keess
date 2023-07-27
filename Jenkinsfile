@@ -15,7 +15,7 @@ app.build([:]) {
             }
             compose.pushAll()
             compose.reportBuildState('SUCCESS')
-        } catch (e) {
+        } catch (e) { 
             compose.reportBuildState('FAILURE')
             throw e
         }
