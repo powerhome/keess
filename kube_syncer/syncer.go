@@ -237,7 +237,7 @@ func (s *Syncer) Run() error {
 				if err != nil && !errorsTypes.IsNotFound(err) {
 					return err
 				} else {
-					s.logger.Infof("The ConfigMap '%s' was deleted in namespace '%s' on context '%s' because It was deleted in the source namespace '%s' on the source context '%s'.", configMap.Name, configMap.Namespace, currentContext, sourceNamespace, sourceContext)
+					s.logger.Infof("The ConfigMap '%s' was deleted in namespace '%s' on context '%s' because it was deleted in the source namespace '%s' on the source context '%s'.", configMap.Name, configMap.Namespace, currentContext, sourceNamespace, sourceContext)
 				}
 			}
 
