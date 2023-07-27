@@ -19,9 +19,6 @@ app.build([:]) {
             compose.reportBuildState('FAILURE')
             throw e
         }
-
-        // shell "docker build -t image-registry.powerapp.cloud/keess/keess:${GIT_COMMIT} ."
-        // shell "docker push image-registry.powerapp.cloud/keess/keess:${GIT_COMMIT}"
     }
   }
 }
