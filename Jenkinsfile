@@ -7,8 +7,8 @@ app.build([:]) {
     appRepo: "image-registry.powerapp.cloud/keess/keess",
   ) { compose ->
     stage('Image Build') {
-        shell "docker build -t ${compose.fullImageName()} ."
-        shell "docker push ${compose.fullImageName()}"
+        compose.buildAndPush()
     }
   }
 }
+
