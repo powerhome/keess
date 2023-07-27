@@ -11,7 +11,7 @@ import (
 func New() *cli.App {
 	app := cli.NewApp()
 	app.Name = "Keess"
-	app.Version = "v.0.0.1"
+	app.Version = "v.0.1.4"
 	app.Usage = "Keep stuffs synchronized."
 	app.Description = "Keep secrets and configmaps synchronized."
 	app.Suggest = true
@@ -38,7 +38,7 @@ func New() *cli.App {
 		},
 		&cli.BoolFlag{
 			Name:  "developmentMode",
-			Usage: "A list with the contexts where the events will by synched to",
+			Usage: "If true, the logs will be shown as text plain instead of json inline",
 		},
 	}
 
