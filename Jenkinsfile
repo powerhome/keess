@@ -7,8 +7,21 @@ app.build([:]) {
     appRepo: "image-registry.powerapp.cloud/keess/keess",
   ) { compose ->
     stage('Image Build') {
-        compose.buildAndPush()
+
+        try {
+            reportBuildState('PENDING')
+            withEnv(env) {
+                shell "docker build -t ${compose.fullImageName()}"
+            }
+            pushAll()
+            reportBuildState('SUCCESS')
+        } catch (e) {
+            reportBuildState('FAILURE')
+            throw e
+        }
+
+        // shell "docker build -t image-registry.powerapp.cloud/keess/keess:${GIT_COMMIT} ."
+        // shell "docker push image-registry.powerapp.cloud/keess/keess:${GIT_COMMIT}"
     }
   }
 }
-
