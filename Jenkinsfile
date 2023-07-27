@@ -7,8 +7,8 @@ app.build([:]) {
     appRepo: "image-registry.powerapp.cloud/keess/keess",
   ) { compose ->
     stage('Image Build') {
-        shell "docker build -t image-registry.powerapp.cloud/keess/keess:${APP_IMAGE_TAG} ."
-        shell "docker push image-registry.powerapp.cloud/keess/keess:${APP_IMAGE_TAG}"
+        shell "docker build -t image-registry.powerapp.cloud/keess/keess:${GIT_COMMIT} ."
+        shell "docker push image-registry.powerapp.cloud/keess/keess:${GIT_COMMIT}"
     }
   }
 }
