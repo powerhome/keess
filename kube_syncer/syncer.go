@@ -311,7 +311,7 @@ func (s *Syncer) Run() error {
 
 	s.logger.Info("The bootstrap process was finished.")
 
-	// Than starting watching for changes on configmpas, secrets, and namespaces.
+	// Start watching for changes on configmaps, secrets, and namespaces.
 	configMapChan := configMapWatcher.Watch()
 	secretChan := secretWatcher.Watch()
 	namespaceChan := namespaceWatcher.Watch()
