@@ -12,7 +12,7 @@ func New() *cli.App {
 	app := cli.NewApp()
 	app.Name = "Keess"
 	app.Version = "v.0.1.4"
-	app.Usage = "Keep stuffs synchronized."
+	app.Usage = "Keep stuff synchronized."
 	app.Description = "Keep secrets and configmaps synchronized."
 	app.Suggest = true
 	app.Authors = []*cli.Author{
