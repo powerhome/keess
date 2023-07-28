@@ -21,7 +21,7 @@ func New() *cli.App {
 			Email: "mvleandro@gmail.com",
 		},
 	}
-	app.Copyright = "Powerhrg"
+	app.Copyright = "Power Home Remodeling Group, LLC\nAll rights reserved"
 
 	flags := []cli.Flag{
 		&cli.StringFlag{
@@ -30,7 +30,7 @@ func New() *cli.App {
 		},
 		&cli.StringFlag{
 			Name:  "sourceContext",
-			Usage: "The context to be watched.",
+			Usage: "The context to be watched",
 		},
 		&cli.StringSliceFlag{
 			Name:  "destinationContexts",
