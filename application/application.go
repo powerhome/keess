@@ -21,7 +21,7 @@ func New() *cli.App {
 			Email: "mvleandro@gmail.com",
 		},
 	}
-	app.Copyright = "Powerhrg"
+	app.Copyright = "Power Home Remodeling Group, LLC"
 
 	flags := []cli.Flag{
 		&cli.StringFlag{
