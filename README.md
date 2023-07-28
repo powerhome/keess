@@ -33,3 +33,7 @@ The cluster synchronization occurs across different clusters and the same namesp
 You need to specify the cluster names using the annotation below:
 
 `keess.powerhrg.com/clusters: clustera, clusterb, clusterc`
+
+## Known flaws
+
+Changes made to synchronised resources while Keess is bootstrapping may not be detected and synchronised. Restarting the service should catch up if synchronisation is found to be behind as a result.
