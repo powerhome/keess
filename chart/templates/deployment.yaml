@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "keess.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keess.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "keess.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "keess.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "keess.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+      - name: config
+        secret:
+          secretName: {{ template "keess.fullname" . }}
+          defaultMode: 420        
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          env:
+          - name: KEESS_SOURCE_CONTEXT
+            value: "{{ .Values.clusterName }}"
+          {{- if .Values.remoteClusters }}  
+          - name: KEESS_DESTINATION_CONTEXTS
+            value: "{{ .Values.remoteClusters }}"
+          {{- end }}
+          {{- if .Values.developmentMode }}
+          - name: KEESS_DEVELOPMENT_MODE
+            value: "{{ .Values.developmentMode }}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+          - name: config
+            mountPath: /root/.kube
+            readOnly: true
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

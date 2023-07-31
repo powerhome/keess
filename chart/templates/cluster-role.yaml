@@ -1,0 +1,26 @@
+{{- if .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ template "keess.fullname" . }}
+  labels:
+    {{- include "keess.labels" . | nindent 4 }}
+rules:
+- apiGroups: [""]
+  resources:
+  - configmaps
+  - secrets
+  verbs: ["get", "create", "patch", "delete", "list", "watch"]
+- apiGroups: [""]
+  resources:
+  - namespaces
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources:
+  - nodes
+  verbs: ["list"]
+- apiGroups: [""]
+  resources:
+  - events
+  verbs: ["create"]
+{{- end }}
