@@ -10,7 +10,7 @@ rules:
   resources:
   - configmaps
   - secrets
-  verbs: ["get", "create", "patch", "delete", "list", "watch"]
+  verbs: ["get", "create", "update", "patch", "delete", "list", "watch"]
 - apiGroups: [""]
   resources:
   - namespaces
