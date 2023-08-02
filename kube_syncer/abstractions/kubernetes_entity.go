@@ -45,12 +45,18 @@ func (e *KubernetesEntity) Create() error {
 		_, error := client.Create(context.TODO(), entity, v1.CreateOptions{})
 
 		if error == nil {
-			Logger.Infof("The configmap '%s' was added in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
+			Logger.Infof("The configMap '%s' was added in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
 		} else {
 			if !errorsTypes.IsAlreadyExists(error) {
 				Logger.Error(error)
 			} else {
-				Logger.Debugf("The configmap '%s' already exists in namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
+				// If alredy exists it need to be updated.
+				_, error := client.Update(context.TODO(), entity, v1.UpdateOptions{})
+				if error == nil {
+					Logger.Infof("The configMap '%s' was updated in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
+				} else {
+					Logger.Error(error)
+				}
 			}
 		}
 
@@ -71,7 +77,13 @@ func (e *KubernetesEntity) Create() error {
 			if !errorsTypes.IsAlreadyExists(error) {
 				Logger.Error(error)
 			} else {
-				Logger.Debugf("The secret '%s' already exists in namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
+				// If alredy exists it need to be updated.
+				_, error := client.Update(context.TODO(), entity, v1.UpdateOptions{})
+				if error == nil {
+					Logger.Infof("The secret '%s' was updated in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
+				} else {
+					Logger.Error(error)
+				}
 			}
 		}
 
@@ -151,7 +163,7 @@ func (e *KubernetesEntity) Delete() error {
 		error := client.Delete(context.TODO(), entity.Name, v1.DeleteOptions{})
 
 		if error == nil {
-			Logger.Infof("The secret '%s' was delete from namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
+			Logger.Infof("The secret '%s' was deleted from namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
 		} else {
 			if !errorsTypes.IsNotFound(error) {
 				Logger.Error(error)
@@ -170,17 +182,13 @@ func getNewConfigMap(sourceConfigMap *corev1.ConfigMap, namespace, sourceContext
 	destinationConfigMap := sourceConfigMap.DeepCopy()
 
 	destinationConfigMap.UID = ""
+	destinationConfigMap.Labels = map[string]string{}
 	destinationConfigMap.Labels[ManagedLabelSelector] = "true"
+	destinationConfigMap.Annotations = map[string]string{}
 	destinationConfigMap.Annotations[SourceClusterAnnotation] = sourceContext
 	destinationConfigMap.Annotations[SourceNamespaceAnnotation] = sourceConfigMap.Namespace
 	destinationConfigMap.Annotations[SourceResourceVersionAnnotation] = sourceConfigMap.ResourceVersion
 	destinationConfigMap.Namespace = namespace
-
-	delete(destinationConfigMap.Labels, LabelSelector)
-	delete(destinationConfigMap.Annotations, NamespaceNameAnnotation)
-	delete(destinationConfigMap.Annotations, ClusterAnnotation)
-	delete(destinationConfigMap.Annotations, "creationTimestamp")
-	delete(destinationConfigMap.Annotations, KubectlApplyAnnotation)
 	destinationConfigMap.ResourceVersion = ""
 
 	return destinationConfigMap
@@ -190,17 +198,13 @@ func getNewSecret(sourceSecret *corev1.Secret, namespace, sourceContext string) 
 	destinationSecret := sourceSecret.DeepCopy()
 
 	destinationSecret.UID = ""
+	destinationSecret.Labels = map[string]string{}
 	destinationSecret.Labels[ManagedLabelSelector] = "true"
+	destinationSecret.Annotations = map[string]string{}
 	destinationSecret.Annotations[SourceClusterAnnotation] = sourceContext
 	destinationSecret.Annotations[SourceNamespaceAnnotation] = sourceSecret.Namespace
 	destinationSecret.Annotations[SourceResourceVersionAnnotation] = sourceSecret.ResourceVersion
 	destinationSecret.Namespace = namespace
-
-	delete(destinationSecret.Labels, LabelSelector)
-	delete(destinationSecret.Annotations, NamespaceNameAnnotation)
-	delete(destinationSecret.Annotations, ClusterAnnotation)
-	delete(destinationSecret.Annotations, "creationTimestamp")
-	delete(destinationSecret.Annotations, KubectlApplyAnnotation)
 	destinationSecret.ResourceVersion = ""
 
 	return destinationSecret
