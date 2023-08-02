@@ -11,7 +11,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// The configmap watcher.
+// The configMap watcher.
 type ConfigMapWatcher struct {
 	// The kubeapi client.
 	kubeClient *kubernetes.Clientset
@@ -24,10 +24,11 @@ func (w ConfigMapWatcher) Watch() <-chan abstractions.ISynchronizable {
 	configMapsChan := make(chan abstractions.ISynchronizable)
 
 	go func() {
-		watcher, _ := w.kubeClient.CoreV1().ConfigMaps(metav1.NamespaceAll).Watch(context.Background(), metav1.ListOptions{
+		watcher, _ := w.kubeClient.CoreV1().ConfigMaps(metav1.NamespaceAll).Watch(context.TODO(), metav1.ListOptions{
 			LabelSelector: abstractions.LabelSelector,
 		})
-		w.logger.Info("Watching configmaps events.")
+
+		w.logger.Info("Watching configMaps events.")
 
 		for event := range watcher.ResultChan() {
 
