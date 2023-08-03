@@ -106,7 +106,17 @@ func (e *KubernetesEntity) Update() error {
 		if error == nil {
 			Logger.Infof("The configmap '%s' was updated in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
 		} else {
-			Logger.Debug(error)
+			if !errorsTypes.IsNotFound(error) {
+				Logger.Error(error)
+			} else {
+				// If not exists it need to be updated.
+				_, error := client.Create(context.TODO(), entity, v1.CreateOptions{})
+				if error == nil {
+					Logger.Infof("The configmap '%s' was created in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
+				} else {
+					Logger.Error(error)
+				}
+			}
 		}
 
 		return error
@@ -123,7 +133,17 @@ func (e *KubernetesEntity) Update() error {
 		if error == nil {
 			Logger.Infof("The secret '%s' was updated in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
 		} else {
-			Logger.Debug(error)
+			if !errorsTypes.IsNotFound(error) {
+				Logger.Error(error)
+			} else {
+				// If not exists it need to be updated.
+				_, error := client.Create(context.TODO(), entity, v1.CreateOptions{})
+				if error == nil {
+					Logger.Infof("The secret '%s' was created in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
+				} else {
+					Logger.Error(error)
+				}
+			}
 		}
 
 		return error
