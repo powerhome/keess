@@ -136,7 +136,7 @@ func (e *KubernetesEntity) Update() error {
 			if !errorsTypes.IsNotFound(error) {
 				Logger.Error(error)
 			} else {
-				// If not exists it need to be updated.
+				// If not exists it need to be created.
 				_, error := client.Create(context.TODO(), entity, v1.CreateOptions{})
 				if error == nil {
 					Logger.Infof("The secret '%s' was created in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
