@@ -9,8 +9,8 @@ app.build(
     limitCpu: "5",
     requestMemory: "2Gi",
     limitMemory: "2Gi",
-    requestStorage: '50Gi',
-    limitStorage: '50Gi',
+    requestStorage: '10Gi',
+    limitStorage: '10Gi',
   ],
   agentResources: [
     limitCpu: "1.5",
