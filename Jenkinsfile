@@ -7,8 +7,8 @@ app.build(
   resources: [
     requestCpu: "3",
     limitCpu: "5",
-    requestMemory: "8Gi",
-    limitMemory: "8Gi",
+    requestMemory: "2Gi",
+    limitMemory: "2Gi",
     requestStorage: '50Gi',
     limitStorage: '50Gi',
   ],
