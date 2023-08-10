@@ -22,6 +22,9 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
+// Slice containing the connected clusters.
+var ConnectedClusters []string = []string{}
+
 // Represents a base structure for any syncer.
 type Syncer struct {
 	kubeClients map[string]*kubernetes.Clientset
@@ -111,6 +114,7 @@ func (s *Syncer) Start(kubeConfigPath string, developmentMode bool, sourceContex
 
 	s.kubeClients = map[string]*kubernetes.Clientset{}
 	s.kubeClients[s.sourceContext] = client
+	abstractions.ConnectedClusters = destinationContexts
 
 	for _, context := range destinationContexts {
 		config, err := buildConfigWithContextFromFlags(context, *kubeconfig)

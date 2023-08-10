@@ -92,6 +92,17 @@ func (c SecretEvent) Sync(sourceContext string, kubeClients *map[string]*kuberne
 		annotation := secret.Annotations[ClusterAnnotation]
 		clusters := StringToSlice(annotation)
 
+		var removedClusters []string = []string{}
+		for _, destinationContext := range ConnectedClusters {
+			contains := false
+			for _, cluster := range clusters {
+				contains = contains || cluster == destinationContext
+			}
+			if !contains {
+				removedClusters = append(removedClusters, destinationContext)
+			}
+		}
+
 		for _, destinationContext := range clusters {
 			if sourceContext == destinationContext {
 				continue
@@ -107,6 +118,11 @@ func (c SecretEvent) Sync(sourceContext string, kubeClients *map[string]*kuberne
 			case Deleted:
 				kubeEntity.Delete()
 			}
+		}
+
+		for _, removedCluster := range removedClusters {
+			kubeEntity := NewKubernetesEntity(*kubeClients, secret, SecretEntity, sourceNamespace, sourceNamespace, sourceContext, removedCluster)
+			kubeEntity.Delete()
 		}
 	}
 
