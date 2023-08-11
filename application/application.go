@@ -11,7 +11,7 @@ import (
 func New() *cli.App {
 	app := cli.NewApp()
 	app.Name = "Keess"
-	app.Version = "v0.1.8"
+	app.Version = "v0.1.10"
 	app.Usage = "Keep stuff synchronized."
 	app.Description = "Keep secrets and configmaps synchronized."
 	app.Suggest = true
