@@ -50,9 +50,6 @@ var EntitiesToAllNamespaces map[string]map[string]runtime.Object = make(map[stri
 // A map containing the ConfigMaps that sould be present in every Namespace that matches with the configured label
 var EntitiesToLabeledNamespaces map[string]map[string]runtime.Object = make(map[string]map[string]runtime.Object)
 
-// Slice containing the connected clusters.
-var ConnectedClusters []string = []string{}
-
 // === Functions === //
 
 // Check if exists a valid annotation in an annotation map.
