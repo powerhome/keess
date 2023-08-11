@@ -22,9 +22,6 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-// Slice containing the connected clusters.
-var ConnectedClusters []string = []string{}
-
 // Represents a base structure for any syncer.
 type Syncer struct {
 	kubeClients map[string]*kubernetes.Clientset
@@ -59,7 +56,7 @@ func (s *Syncer) Start(kubeConfigPath string, developmentMode bool, sourceContex
 
 	zapLogger, err := loggerConfig.Build()
 	if err != nil {
-		s.logger.Error(err)
+		return err
 	}
 	abstractions.Logger = zapLogger.Sugar()
 	s.logger = abstractions.Logger
@@ -90,7 +87,7 @@ func (s *Syncer) Start(kubeConfigPath string, developmentMode bool, sourceContex
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
-		s.logger.Error(err)
+		panic(err.Error())
 	}
 
 	inClusterConfig, err := rest.InClusterConfig()
@@ -100,32 +97,31 @@ func (s *Syncer) Start(kubeConfigPath string, developmentMode bool, sourceContex
 		// create the clientset
 		client, err = kubernetes.NewForConfig(inClusterConfig)
 		if err != nil {
-			s.logger.Error(err)
+			return err
 		}
 		s.logger.Info("Config loaded from service account.")
 	} else {
 		// create the clientset
 		client, err = kubernetes.NewForConfig(config)
 		if err != nil {
-			s.logger.Error(err)
+			return err
 		}
 		s.logger.Info("Config loaded from kube config.")
 	}
 
 	s.kubeClients = map[string]*kubernetes.Clientset{}
 	s.kubeClients[s.sourceContext] = client
-	abstractions.ConnectedClusters = destinationContexts
 
 	for _, context := range destinationContexts {
 		config, err := buildConfigWithContextFromFlags(context, *kubeconfig)
 		if err != nil {
-			s.logger.Error(err)
+			panic(err)
 		}
 
 		// create the clientset
 		client, err := kubernetes.NewForConfig(config)
 		if err != nil {
-			s.logger.Error(err)
+			return err
 		}
 
 		s.kubeClients[context] = client
@@ -161,7 +157,7 @@ func (s *Syncer) Run() error {
 	// First of all we need to load all namespaces.
 	namespaceList, err := kubeClient.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		s.logger.Error(err)
+		return err
 	}
 
 	for _, namespace := range namespaceList.Items {
@@ -173,7 +169,7 @@ func (s *Syncer) Run() error {
 		LabelSelector: abstractions.LabelSelector,
 	})
 	if err != nil {
-		s.logger.Error(err)
+		return err
 	}
 
 	for _, configMap := range configMapList.Items {
@@ -191,7 +187,7 @@ func (s *Syncer) Run() error {
 		LabelSelector: abstractions.LabelSelector,
 	})
 	if err != nil {
-		s.logger.Error(err)
+		return err
 	}
 
 	for _, secret := range secretList.Items {
@@ -211,7 +207,7 @@ func (s *Syncer) Run() error {
 			LabelSelector: abstractions.ManagedLabelSelector,
 		})
 		if err != nil {
-			s.logger.Error(err)
+			return err
 		}
 
 		for _, configMap := range managedConfigMapList.Items {
@@ -230,7 +226,7 @@ func (s *Syncer) Run() error {
 			sourceConfigMap, err := sourceKubeClient.CoreV1().ConfigMaps(sourceNamespace).Get(context.TODO(), configMap.Name, metav1.GetOptions{})
 
 			if err != nil && !errorsTypes.IsNotFound(err) {
-				s.logger.Error(err)
+				return err
 			}
 
 			// Check if source configmap was deleted.
@@ -239,7 +235,7 @@ func (s *Syncer) Run() error {
 
 				err := entity.Delete()
 				if err != nil && !errorsTypes.IsNotFound(err) {
-					s.logger.Error(err)
+					return err
 				} else {
 					s.logger.Infof("The ConfigMap '%s' was deleted in namespace '%s' on context '%s' because it was deleted in the source namespace '%s' on the source context '%s'.", configMap.Name, configMap.Namespace, currentContext, sourceNamespace, sourceContext)
 				}
@@ -251,7 +247,7 @@ func (s *Syncer) Run() error {
 					entity = abstractions.NewKubernetesEntity(s.kubeClients, sourceConfigMap, abstractions.ConfigMapEntity, sourceNamespace, configMap.Namespace, sourceContext, currentContext)
 					err := entity.Update()
 					if err != nil {
-						s.logger.Error(err)
+						return err
 					} else {
 						s.logger.Infof("The ConfigMap '%s' was updated in namespace '%s' on context '%s' because It was updated in the source namespace '%s' on the source context '%s'.", configMap.Name, configMap.Namespace, currentContext, sourceNamespace, sourceContext)
 					}
@@ -264,7 +260,7 @@ func (s *Syncer) Run() error {
 			LabelSelector: abstractions.ManagedLabelSelector,
 		})
 		if err != nil {
-			s.logger.Error(err)
+			return err
 		}
 
 		for _, secret := range managedSecretList.Items {
@@ -283,7 +279,7 @@ func (s *Syncer) Run() error {
 			sourceSecret, err := sourceKubeClient.CoreV1().Secrets(sourceNamespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
 
 			if err != nil && !errorsTypes.IsNotFound(err) {
-				s.logger.Error(err)
+				return err
 			}
 
 			// Check if source secret was deleted.
@@ -292,7 +288,7 @@ func (s *Syncer) Run() error {
 
 				err := entity.Delete()
 				if err != nil && !errorsTypes.IsNotFound(err) {
-					s.logger.Error(err)
+					return err
 				} else {
 					s.logger.Infof("The Secret '%s' was deleted in namespace '%s' on context '%s' because It was deleted in the source namespace '%s' on the source context '%s'.", secret.Name, secret.Namespace, currentContext, sourceNamespace, sourceContext)
 				}
@@ -304,7 +300,7 @@ func (s *Syncer) Run() error {
 					entity = abstractions.NewKubernetesEntity(s.kubeClients, sourceSecret, abstractions.SecretEntity, sourceNamespace, secret.Namespace, sourceContext, currentContext)
 					err := entity.Update()
 					if err != nil {
-						s.logger.Error(err)
+						return err
 					} else {
 						s.logger.Infof("The Secret '%s' was updated in namespace '%s' on context '%s' because It was updated in the source namespace '%s' on the source context '%s'.", secret.Name, secret.Namespace, currentContext, sourceNamespace, sourceContext)
 					}

@@ -56,16 +56,11 @@ func (c ConfigMapEvent) Sync(sourceContext string, kubeClients *map[string]*kube
 
 					if namespace.Labels[label] == strings.Trim(value, "\"") {
 						namespaces = append(namespaces, namespaceName)
-						Logger.Debugf("The namespace '%s' contains the synchronization label '%s'. The configMap '%s' will be synchronized.", namespaceName, namespaceLabelAnnotation, configMap.Name)
+						Logger.Debugf("The namespace '%s' contains the synchronization label '%s'. The configmap '%s' will be synchronized.", namespaceName, namespaceLabelAnnotation, configMap.Name)
 					}
-
 				}
 				EntitiesToLabeledNamespaces["ConfigMaps"][configMap.Name] = configMap
 			}
-		}
-
-		if c.Type == Deleted {
-			delete(EntitiesToAllNamespaces["ConfigMaps"], configMap.Name)
 		}
 
 		for _, destinationNamespace := range namespaces {
@@ -92,17 +87,6 @@ func (c ConfigMapEvent) Sync(sourceContext string, kubeClients *map[string]*kube
 		annotation := configMap.Annotations[ClusterAnnotation]
 		clusters := StringToSlice(annotation)
 
-		var removedClusters []string = []string{}
-		for _, destinationContext := range ConnectedClusters {
-			contains := false
-			for _, cluster := range clusters {
-				contains = contains || cluster == destinationContext
-			}
-			if !contains {
-				removedClusters = append(removedClusters, destinationContext)
-			}
-		}
-
 		for _, destinationContext := range clusters {
 			if sourceContext == destinationContext {
 				continue
@@ -118,11 +102,6 @@ func (c ConfigMapEvent) Sync(sourceContext string, kubeClients *map[string]*kube
 			case Deleted:
 				kubeEntity.Delete()
 			}
-		}
-
-		for _, removedCluster := range removedClusters {
-			kubeEntity := NewKubernetesEntity(*kubeClients, configMap, ConfigMapEntity, sourceNamespace, sourceNamespace, sourceContext, removedCluster)
-			kubeEntity.Delete()
 		}
 	}
 
