@@ -6,7 +6,7 @@ image:
   repository: image-registry.powerapp.cloud/keess/keess
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "main-ac9216aa814aeb57daa35d7c758968da44e1407c-10"
+  tag: "main-e25d1f9a8370a1cbef0b5f06020bc2478d761934-13"
 
 imagePullSecrets: []
 nameOverride: ""
