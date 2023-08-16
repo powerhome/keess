@@ -224,6 +224,11 @@ func (s *Syncer) Run() error {
 				continue
 			}
 
+			// Only do back synchronization between namespaces of the same cluster.
+			if sourceContext != currentContext {
+				continue
+			}
+
 			sourceKubeClient := s.kubeClients[sourceContext]
 			sourceConfigMap, err := sourceKubeClient.CoreV1().ConfigMaps(sourceNamespace).Get(context.TODO(), configMap.Name, metav1.GetOptions{})
 
@@ -274,6 +279,11 @@ func (s *Syncer) Run() error {
 
 			if sourceNamespace == "" || sourceContext == "" {
 				s.logger.Warnf("The managed secret contains invalid annotations values.")
+				continue
+			}
+
+			// Only do back synchronization between namespaces of the same cluster.
+			if sourceContext != currentContext {
 				continue
 			}
 
