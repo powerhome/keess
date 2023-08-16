@@ -25,7 +25,8 @@ func (w ConfigMapWatcher) Watch() <-chan abstractions.ISynchronizable {
 
 	go func() {
 		watcher, _ := w.kubeClient.CoreV1().ConfigMaps(metav1.NamespaceAll).Watch(context.TODO(), metav1.ListOptions{
-			LabelSelector: abstractions.LabelSelector,
+			LabelSelector:  abstractions.LabelSelector,
+			TimeoutSeconds: &abstractions.WatchTimeOut,
 		})
 
 		w.logger.Info("Watching configMaps events.")

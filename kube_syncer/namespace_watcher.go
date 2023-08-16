@@ -23,7 +23,9 @@ func (w NamespaceWatcher) Watch() <-chan abstractions.ISynchronizable {
 	namespacesChan := make(chan abstractions.ISynchronizable)
 
 	go func() {
-		watcher, _ := w.kubeClient.CoreV1().Namespaces().Watch(context.TODO(), metav1.ListOptions{})
+		watcher, _ := w.kubeClient.CoreV1().Namespaces().Watch(context.TODO(), metav1.ListOptions{
+			TimeoutSeconds: &abstractions.WatchTimeOut,
+		})
 
 		w.logger.Info("Watching namespaces events.")
 

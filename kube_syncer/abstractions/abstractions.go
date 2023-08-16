@@ -38,6 +38,9 @@ const All string = "all"
 // Constant with the annotation created by the kubectl apply command
 const KubectlApplyAnnotation string = "kubectl.kubernetes.io/last-applied-configuration"
 
+// The timeout for watching.
+var WatchTimeOut int64 = 9223372036854775807
+
 // Logger object.
 var Logger *zap.SugaredLogger
 
