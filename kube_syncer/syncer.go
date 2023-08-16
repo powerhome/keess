@@ -109,6 +109,7 @@ func (s *Syncer) Start(kubeConfigPath string, developmentMode bool, sourceContex
 		s.logger.Info("Config loaded from kube config.")
 	}
 
+	client.RESTClient().Get().Timeout(time.Duration(abstractions.WatchTimeOut))
 	s.kubeClients = map[string]*kubernetes.Clientset{}
 	s.kubeClients[s.sourceContext] = client
 
@@ -124,6 +125,7 @@ func (s *Syncer) Start(kubeConfigPath string, developmentMode bool, sourceContex
 			s.logger.Error(err)
 		}
 
+		client.RESTClient().Get().Timeout(time.Duration(abstractions.WatchTimeOut))
 		s.kubeClients[context] = client
 	}
 

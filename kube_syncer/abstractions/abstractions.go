@@ -2,6 +2,7 @@ package abstractions
 
 import (
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
@@ -39,7 +40,7 @@ const All string = "all"
 const KubectlApplyAnnotation string = "kubectl.kubernetes.io/last-applied-configuration"
 
 // The timeout for watching.
-var WatchTimeOut int64 = 9223372036854775807
+var WatchTimeOut int64 = int64(time.Duration(60 * 60 * 24 * 365 * 10))
 
 // Logger object.
 var Logger *zap.SugaredLogger
