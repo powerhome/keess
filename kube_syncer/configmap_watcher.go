@@ -24,9 +24,14 @@ func (w ConfigMapWatcher) Watch() <-chan abstractions.ISynchronizable {
 	configMapsChan := make(chan abstractions.ISynchronizable)
 
 	go func() {
-		watcher, _ := w.kubeClient.CoreV1().ConfigMaps(metav1.NamespaceAll).Watch(context.TODO(), metav1.ListOptions{
-			LabelSelector: abstractions.LabelSelector,
+		watcher, err := w.kubeClient.CoreV1().ConfigMaps(metav1.NamespaceAll).Watch(context.TODO(), metav1.ListOptions{
+			LabelSelector:  abstractions.LabelSelector,
+			TimeoutSeconds: &abstractions.WatchTimeOut,
 		})
+
+		if err != nil {
+			panic(err)
+		}
 
 		w.logger.Info("Watching configMaps events.")
 

@@ -109,6 +109,7 @@ func (s *Syncer) Start(kubeConfigPath string, developmentMode bool, sourceContex
 		s.logger.Info("Config loaded from kube config.")
 	}
 
+	client.RESTClient().Get().Timeout(time.Duration(abstractions.WatchTimeOut))
 	s.kubeClients = map[string]*kubernetes.Clientset{}
 	s.kubeClients[s.sourceContext] = client
 
@@ -124,6 +125,7 @@ func (s *Syncer) Start(kubeConfigPath string, developmentMode bool, sourceContex
 			s.logger.Error(err)
 		}
 
+		client.RESTClient().Get().Timeout(time.Duration(abstractions.WatchTimeOut))
 		s.kubeClients[context] = client
 	}
 
@@ -202,6 +204,11 @@ func (s *Syncer) Run() error {
 
 	for currentContext, kubeClient := range s.kubeClients {
 
+		// Don't look to another clusters on backward synchronization.
+		if currentContext != s.sourceContext {
+			continue
+		}
+
 		// Now list all ConfigMaps that are managed by Keess.
 		managedConfigMapList, err := kubeClient.CoreV1().ConfigMaps(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
 			LabelSelector: abstractions.ManagedLabelSelector,
@@ -219,6 +226,11 @@ func (s *Syncer) Run() error {
 
 			if sourceNamespace == "" || sourceContext == "" {
 				s.logger.Warnf("The managed configmap contains invalid annotations values.")
+				continue
+			}
+
+			// Only do back synchronization between namespaces of the same cluster.
+			if sourceContext != currentContext {
 				continue
 			}
 
@@ -272,6 +284,11 @@ func (s *Syncer) Run() error {
 
 			if sourceNamespace == "" || sourceContext == "" {
 				s.logger.Warnf("The managed secret contains invalid annotations values.")
+				continue
+			}
+
+			// Only do back synchronization between namespaces of the same cluster.
+			if sourceContext != currentContext {
 				continue
 			}
 

@@ -40,9 +40,9 @@ func (e *KubernetesEntity) Create() error {
 		client := e.Client.CoreV1().ConfigMaps(e.DestinationNamespace)
 
 		sourceEntity := e.Entity.(*corev1.ConfigMap)
-		entity := getNewConfigMap(sourceEntity, e.DestinationNamespace, e.SourceContext)
+		entity := getNewConfigMap(*sourceEntity, e.DestinationNamespace, e.SourceContext)
 
-		_, error := client.Create(context.TODO(), entity, v1.CreateOptions{})
+		_, error := client.Create(context.TODO(), &entity, v1.CreateOptions{})
 
 		if error == nil {
 			Logger.Infof("The configMap '%s' was added in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
@@ -51,7 +51,7 @@ func (e *KubernetesEntity) Create() error {
 				Logger.Error(error)
 			} else {
 				// If alredy exists it need to be updated.
-				_, error := client.Update(context.TODO(), entity, v1.UpdateOptions{})
+				_, error := client.Update(context.TODO(), &entity, v1.UpdateOptions{})
 				if error == nil {
 					Logger.Infof("The configMap '%s' was updated in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
 				} else {
@@ -67,9 +67,9 @@ func (e *KubernetesEntity) Create() error {
 		client := e.Client.CoreV1().Secrets(e.DestinationNamespace)
 
 		sourceEntity := e.Entity.(*corev1.Secret)
-		entity := getNewSecret(sourceEntity, e.DestinationNamespace, e.SourceContext)
+		entity := getNewSecret(*sourceEntity, e.DestinationNamespace, e.SourceContext)
 
-		_, error := client.Create(context.TODO(), entity, v1.CreateOptions{})
+		_, error := client.Create(context.TODO(), &entity, v1.CreateOptions{})
 
 		if error == nil {
 			Logger.Infof("The secret '%s' was added in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
@@ -78,7 +78,7 @@ func (e *KubernetesEntity) Create() error {
 				Logger.Error(error)
 			} else {
 				// If alredy exists it need to be updated.
-				_, error := client.Update(context.TODO(), entity, v1.UpdateOptions{})
+				_, error := client.Update(context.TODO(), &entity, v1.UpdateOptions{})
 				if error == nil {
 					Logger.Infof("The secret '%s' was updated in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
 				} else {
@@ -99,9 +99,9 @@ func (e *KubernetesEntity) Update() error {
 		client := e.Client.CoreV1().ConfigMaps(e.DestinationNamespace)
 
 		sourceEntity := e.Entity.(*corev1.ConfigMap)
-		entity := getNewConfigMap(sourceEntity, e.DestinationNamespace, e.SourceContext)
+		entity := getNewConfigMap(*sourceEntity, e.DestinationNamespace, e.SourceContext)
 
-		_, error := client.Update(context.TODO(), entity, v1.UpdateOptions{})
+		_, error := client.Update(context.TODO(), &entity, v1.UpdateOptions{})
 
 		if error == nil {
 			Logger.Infof("The configmap '%s' was updated in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
@@ -110,7 +110,7 @@ func (e *KubernetesEntity) Update() error {
 				Logger.Error(error)
 			} else {
 				// If not exists it need to be created.
-				_, error := client.Create(context.TODO(), entity, v1.CreateOptions{})
+				_, error := client.Create(context.TODO(), &entity, v1.CreateOptions{})
 				if error == nil {
 					Logger.Infof("The configmap '%s' was created in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
 				} else {
@@ -126,9 +126,9 @@ func (e *KubernetesEntity) Update() error {
 		client := e.Client.CoreV1().Secrets(e.DestinationNamespace)
 
 		sourceEntity := e.Entity.(*corev1.Secret)
-		entity := getNewSecret(sourceEntity, e.DestinationNamespace, e.SourceContext)
+		entity := getNewSecret(*sourceEntity, e.DestinationNamespace, e.SourceContext)
 
-		_, error := client.Update(context.TODO(), entity, v1.UpdateOptions{})
+		_, error := client.Update(context.TODO(), &entity, v1.UpdateOptions{})
 
 		if error == nil {
 			Logger.Infof("The secret '%s' was updated in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
@@ -137,7 +137,7 @@ func (e *KubernetesEntity) Update() error {
 				Logger.Error(error)
 			} else {
 				// If not exists it need to be created.
-				_, error := client.Create(context.TODO(), entity, v1.CreateOptions{})
+				_, error := client.Create(context.TODO(), &entity, v1.CreateOptions{})
 				if error == nil {
 					Logger.Infof("The secret '%s' was created in the namespace '%s' on context '%s'.", entity.Name, entity.Namespace, e.DestinationContext)
 				} else {
@@ -157,7 +157,7 @@ func (e *KubernetesEntity) Delete() error {
 		client := e.Client.CoreV1().ConfigMaps(e.DestinationNamespace)
 
 		sourceEntity := e.Entity.(*corev1.ConfigMap)
-		entity := getNewConfigMap(sourceEntity, e.DestinationNamespace, e.SourceContext)
+		entity := getNewConfigMap(*sourceEntity, e.DestinationNamespace, e.SourceContext)
 
 		error := client.Delete(context.TODO(), entity.Name, v1.DeleteOptions{})
 
@@ -178,7 +178,7 @@ func (e *KubernetesEntity) Delete() error {
 		client := e.Client.CoreV1().Secrets(e.DestinationNamespace)
 
 		sourceEntity := e.Entity.(*corev1.Secret)
-		entity := getNewSecret(sourceEntity, e.DestinationNamespace, e.SourceContext)
+		entity := getNewSecret(*sourceEntity, e.DestinationNamespace, e.SourceContext)
 
 		error := client.Delete(context.TODO(), entity.Name, v1.DeleteOptions{})
 
@@ -198,7 +198,7 @@ func (e *KubernetesEntity) Delete() error {
 	return errors.New("unsuported type")
 }
 
-func getNewConfigMap(sourceConfigMap *corev1.ConfigMap, namespace, sourceContext string) *corev1.ConfigMap {
+func getNewConfigMap(sourceConfigMap corev1.ConfigMap, namespace, sourceContext string) corev1.ConfigMap {
 	destinationConfigMap := sourceConfigMap.DeepCopy()
 
 	destinationConfigMap.UID = ""
@@ -211,10 +211,10 @@ func getNewConfigMap(sourceConfigMap *corev1.ConfigMap, namespace, sourceContext
 	destinationConfigMap.Namespace = namespace
 	destinationConfigMap.ResourceVersion = ""
 
-	return destinationConfigMap
+	return *destinationConfigMap
 }
 
-func getNewSecret(sourceSecret *corev1.Secret, namespace, sourceContext string) *corev1.Secret {
+func getNewSecret(sourceSecret corev1.Secret, namespace, sourceContext string) corev1.Secret {
 	destinationSecret := sourceSecret.DeepCopy()
 
 	destinationSecret.UID = ""
@@ -227,5 +227,5 @@ func getNewSecret(sourceSecret *corev1.Secret, namespace, sourceContext string) 
 	destinationSecret.Namespace = namespace
 	destinationSecret.ResourceVersion = ""
 
-	return destinationSecret
+	return *destinationSecret
 }

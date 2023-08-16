@@ -1,6 +1,7 @@
 package application
 
 import (
+	"fmt"
 	"keess/kube_syncer"
 
 	"github.com/spf13/viper"
@@ -11,7 +12,7 @@ import (
 func New() *cli.App {
 	app := cli.NewApp()
 	app.Name = "Keess"
-	app.Version = "v0.1.10"
+	app.Version = "v0.1.12"
 	app.Usage = "Keep stuff synchronized."
 	app.Description = "Keep secrets and configmaps synchronized."
 	app.Suggest = true
@@ -81,6 +82,8 @@ func run(c *cli.Context) error {
 	if !developmentMode {
 		developmentMode = viper.GetBool("DEVELOPMENT_MODE")
 	}
+
+	fmt.Printf("Starting %s %s\n", c.App.Name, c.App.Version)
 
 	var syncer kube_syncer.Syncer
 	err := syncer.Start(kubeConfigPath, developmentMode, sourceContext, destinationContexts)
