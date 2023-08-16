@@ -204,6 +204,11 @@ func (s *Syncer) Run() error {
 
 	for currentContext, kubeClient := range s.kubeClients {
 
+		// Don't look to another clusters on backward synchronization.
+		if currentContext != s.sourceContext {
+			continue
+		}
+
 		// Now list all ConfigMaps that are managed by Keess.
 		managedConfigMapList, err := kubeClient.CoreV1().ConfigMaps(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
 			LabelSelector: abstractions.ManagedLabelSelector,
