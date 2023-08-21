@@ -35,9 +35,7 @@ func NewKubernetesEntity(clients map[string]*kubernetes.Clientset, entity runtim
 }
 
 func (e *KubernetesEntity) Create() error {
-	if r := recover(); r != nil {
-		Logger.Debugln("Program recovered.")
-	}
+	defer recoverExecution()
 
 	if e.Type == ConfigMapEntity {
 		client := e.Client.CoreV1().ConfigMaps(e.DestinationNamespace)
@@ -97,9 +95,7 @@ func (e *KubernetesEntity) Create() error {
 }
 
 func (e *KubernetesEntity) Update() error {
-	if r := recover(); r != nil {
-		Logger.Debugln("Program recovered.")
-	}
+	defer recoverExecution()
 
 	if e.Type == ConfigMapEntity {
 		client := e.Client.CoreV1().ConfigMaps(e.DestinationNamespace)
@@ -159,9 +155,7 @@ func (e *KubernetesEntity) Update() error {
 }
 
 func (e *KubernetesEntity) Delete() error {
-	if r := recover(); r != nil {
-		Logger.Debugln("Program recovered.")
-	}
+	defer recoverExecution()
 
 	if e.Type == ConfigMapEntity {
 		client := e.Client.CoreV1().ConfigMaps(e.DestinationNamespace)
@@ -238,4 +232,10 @@ func getNewSecret(sourceSecret corev1.Secret, namespace, sourceContext string) c
 	destinationSecret.ResourceVersion = ""
 
 	return *destinationSecret
+}
+
+func recoverExecution() {
+	if r := recover(); r != nil {
+		Logger.Debugln("Program recovered.")
+	}
 }
