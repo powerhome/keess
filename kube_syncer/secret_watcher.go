@@ -30,7 +30,7 @@ func (w SecretWatcher) Watch() <-chan abstractions.ISynchronizable {
 		})
 
 		if err != nil {
-			panic(err)
+			w.logger.Error(err)
 		}
 
 		w.logger.Info("Watching secrets events.")

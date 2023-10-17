@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"keess/kube_syncer"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
 )
@@ -62,10 +63,16 @@ func run(c *cli.Context) error {
 	viper.SetEnvPrefix("KEESS")
 	viper.AutomaticEnv()
 
+	viper.WatchConfig()
+
 	kubeConfigPath := c.String("config")
 	sourceContext := c.String("sourceContext")
 	destinationContexts := c.StringSlice("destinationContexts")
 	developmentMode := c.Bool("developmentMode")
+	initialLogLevel := viper.GetString("LOG_LEVEL")
+	if initialLogLevel == "" {
+		initialLogLevel = "INFO"
+	}
 
 	if kubeConfigPath == "" {
 		kubeConfigPath = viper.GetString("CONFIG_PATH")
@@ -86,7 +93,11 @@ func run(c *cli.Context) error {
 	fmt.Printf("Starting %s %s\n", c.App.Name, c.App.Version)
 
 	var syncer kube_syncer.Syncer
-	err := syncer.Start(kubeConfigPath, developmentMode, sourceContext, destinationContexts)
+	err := syncer.Start(kubeConfigPath, developmentMode, initialLogLevel, sourceContext, destinationContexts)
+
+	viper.OnConfigChange(func(e fsnotify.Event) {
+		syncer.SetLogLevel(viper.GetString("LOG_LEVEL"))
+	})
 
 	if err == nil {
 		return syncer.Run()
