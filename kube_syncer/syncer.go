@@ -3,6 +3,7 @@ package kube_syncer
 import (
 	"context"
 	"flag"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -32,6 +33,8 @@ type Syncer struct {
 
 	// The logger object.
 	logger *zap.SugaredLogger
+
+	atom zap.AtomicLevel
 }
 
 func init() {
@@ -41,24 +44,42 @@ func init() {
 	abstractions.EntitiesToLabeledNamespaces["Secrets"] = make(map[string]runtime.Object)
 }
 
-// Load the kubeClient based in the given configuration.
-func (s *Syncer) Start(kubeConfigPath string, developmentMode bool, sourceContext string, destinationContexts []string) error {
-	var loggerConfig zap.Config
+func (s *Syncer) SetLogLevel(logLevel string) {
+	level, err := zapcore.ParseLevel(logLevel)
 
-	if developmentMode {
-		loggerConfig = zap.NewDevelopmentConfig()
+	if err == nil {
+		s.atom.SetLevel(level)
 	} else {
-		loggerConfig = zap.NewProductionConfig()
-	}
-
-	loggerConfig.EncoderConfig.TimeKey = "timestamp"
-	loggerConfig.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.RFC3339)
-
-	zapLogger, err := loggerConfig.Build()
-	if err != nil {
 		s.logger.Error(err)
 	}
-	abstractions.Logger = zapLogger.Sugar()
+}
+
+// Load the kubeClient based in the given configuration.
+func (s *Syncer) Start(kubeConfigPath string, developmentMode bool, initialLogLevel string, sourceContext string, destinationContexts []string) error {
+	s.atom = zap.NewAtomicLevel()
+
+	// To keep the example deterministic, disable timestamps in the output.
+	var encoderCfg zapcore.EncoderConfig
+
+	if developmentMode {
+		encoderCfg = zap.NewDevelopmentEncoderConfig()
+	} else {
+		encoderCfg = zap.NewProductionEncoderConfig()
+	}
+
+	encoderCfg.TimeKey = "timestamp"
+	encoderCfg.EncodeTime = zapcore.TimeEncoderOfLayout(time.RFC3339)
+
+	logger := zap.New(zapcore.NewCore(
+		zapcore.NewJSONEncoder(encoderCfg),
+		zapcore.Lock(os.Stdout),
+		s.atom,
+	))
+	defer logger.Sync()
+
+	s.SetLogLevel(initialLogLevel)
+
+	abstractions.Logger = logger.Sugar()
 	s.logger = abstractions.Logger
 
 	s.sourceContext = sourceContext
