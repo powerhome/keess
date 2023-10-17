@@ -8,6 +8,13 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: "main-8eec28338b8f92ef13248ef2b01d453de0489d29-17"
 
+
+# Default Keess config
+# clusterName: ""
+# remoteClusters: ""
+# developmentMode: "true"
+# logLevel: "INFO"
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
