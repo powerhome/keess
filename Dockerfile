@@ -1,15 +1,34 @@
-# Build
-FROM --platform=linux/amd64 golang:1.19 as build
+# Stage 1: Build the Go application
+FROM golang:1.21-alpine AS builder
 
-WORKDIR /app
-COPY . ./
+# Set necessary environmet variables needed for our image
+ENV GO111MODULE=on \
+    CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=amd64
+
+# Move to working directory /build
+WORKDIR /build
+
+# Copy and download dependency using go mod
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+
+# Copy the code into the container
+COPY . .
+
+# Run tests
 RUN go test ./...
-RUN go build -o /keess
 
-# Run
-FROM --platform=linux/amd64 ubuntu
+# Build the application
+RUN go build -o keess .
 
-WORKDIR /
-COPY --from=build /keess /keess
+# Stage 2: Build a small image
+FROM alpine
 
-ENTRYPOINT ["./keess", "run"]
+# Copy the binary from the builder stage
+COPY --from=builder /build/keess /app/keess
+
+# Command to run
+ENTRYPOINT ["/app/keess", "run"]
