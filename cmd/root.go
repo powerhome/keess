@@ -35,21 +35,18 @@ var cfgFile string
 var rootCmd = &cobra.Command{
 	Use:   "keess",
 	Short: "Synchronize secrets and configmaps across namespaces and clusters.",
-	Long: `Keess (Keep Stuff Synchronized) is a command-line tool designed to operate within Kubernetes clusters, focusing on the synchronization of secrets and configmaps. It efficiently handles the transfer of these critical components across different namespaces within a single cluster, as well as across multiple clusters, ensuring consistency and security in distributed environments.
+	// Long: `Keess (Keep Stuff Synchronized) is a command-line tool designed to operate within Kubernetes clusters, focusing on the synchronization of secrets and configmaps. It efficiently handles the transfer of these critical components across different namespaces within a single cluster, as well as across multiple clusters, ensuring consistency and security in distributed environments.
 
-	Key Features:
-	- Cross-Namespace Synchronization: Sync secrets and configmaps across various namespaces in a single cluster.
-	- Inter-Cluster Synchronization: Extend synchronization capabilities to multiple Kubernetes clusters.
-	- Security-Oriented: Ensures secure transfer, maintaining data integrity and confidentiality.
-	- Automation and Efficiency: Automates synchronization processes, reducing manual effort and error.
-	- Customizable Rules: Offers flexibility in defining specific synchronization conditions.
-	- User-Friendly CLI: Easy-to-use command-line interface for seamless integration and operation.
-	- Logging and Monitoring: Provides comprehensive logs for tracking and auditing purposes.
-	
-	Keess streamlines Kubernetes configuration management, making it an essential tool for DevOps teams and Kubernetes administrators seeking to maintain uniformity and security across their infrastructure.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	// Key Features:
+	// - Cross-Namespace Synchronization: Sync secrets and configmaps across various namespaces in a single cluster.
+	// - Inter-Cluster Synchronization: Extend synchronization capabilities to multiple Kubernetes clusters.
+	// - Security-Oriented: Ensures secure transfer, maintaining data integrity and confidentiality.
+	// - Automation and Efficiency: Automates synchronization processes, reducing manual effort and error.
+	// - Customizable Rules: Offers flexibility in defining specific synchronization conditions.
+	// - User-Friendly CLI: Easy-to-use command-line interface for seamless integration and operation.
+	// - Logging and Monitoring: Provides comprehensive logs for tracking and auditing purposes.
+
+	// Keess streamlines Kubernetes configuration management, making it an essential tool for DevOps teams and Kubernetes administrators seeking to maintain uniformity and security across their infrastructure.`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

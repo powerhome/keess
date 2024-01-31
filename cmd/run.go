@@ -30,13 +30,18 @@ import (
 // runCmd represents the run command
 var runCmd = &cobra.Command{
 	Use:   "run",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Initiates the synchronization of secrets and configmaps.",
+	// Long: `The 'run' command in Keess is the primary trigger for initiating the synchronization process of secrets and configmaps across Kubernetes namespaces and clusters. When executed, it activates Keess’s core functionality, seamlessly transferring specified configurations and sensitive data according to predefined rules and parameters. This command ensures that all targeted Kubernetes environments are updated with the latest configurations and secrets, maintaining consistency and enhancing security across your distributed infrastructure.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	// Features:
+	// - Automated Synchronization: Executes the automated process of syncing secrets and configmaps.
+	// - Cross-Namespace and Cluster Operation: Works across different namespaces and multiple clusters.
+	// - Secure Transfer: Adheres to strict security protocols to ensure safe data transfer.
+	// - Custom Synchronization: Respects user-defined rules and conditions for targeted synchronization.
+	// - Real-Time Execution: Performs synchronization in real time, ensuring timely updates.
+	// - Logging: Generates logs for the synchronization process, aiding in monitoring and auditing.
+
+	// Usage of the 'run' command is essential for keeping your Kubernetes environments synchronized and secure, forming the backbone of Keess's operational capabilities.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("run called")
 	},
