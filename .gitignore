@@ -36,3 +36,5 @@ apiserver.local.config/**
 .DS_Store
 .vscode
 keess
+coverage.*
+
