@@ -147,6 +147,21 @@ var runCmd = &cobra.Command{
 		// Start the secret synchronizer
 		secretSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
 
+		// Create a ConfigMapPoller
+		configMapPoller := services.NewConfigMapPoller(localCluster, localKubeClient, logger.Sugar())
+
+		// Create a ConfigMapSynchronizer
+		configMapSynchronizer := services.NewConfigMapSynchronizer(
+			localKubeClient,
+			remoteKubeClients,
+			configMapPoller,
+			namespacePoller,
+			logger.Sugar(),
+		)
+
+		// Start the configMap synchronizer
+		configMapSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
+
 		select {}
 	},
 }
