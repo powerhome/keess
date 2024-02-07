@@ -13,10 +13,10 @@ import (
 type ConfigMapSynchronizer struct {
 	localKubeClient   IKubeClient
 	remoteKubeClients map[string]IKubeClient
-	configMapPooller     *ConfigMapPoller
+	configMapPooller  *ConfigMapPoller
 	namespacePoller   *NamespacePoller
 	logger            *zap.SugaredLogger
-	ConfigMaps           map[string]*PacConfigMap
+	ConfigMaps        map[string]*PacConfigMap
 }
 
 func NewConfigMapSynchronizer(
@@ -29,10 +29,10 @@ func NewConfigMapSynchronizer(
 	return &ConfigMapSynchronizer{
 		localKubeClient:   localKubeClient,
 		remoteKubeClients: remoteKubeClients,
-		configMapPooller:     configMapPooller,
+		configMapPooller:  configMapPooller,
 		namespacePoller:   namespacePoller,
 		logger:            logger,
-		ConfigMaps:           make(map[string]*PacConfigMap),
+		ConfigMaps:        make(map[string]*PacConfigMap),
 	}
 }
 
