@@ -11,39 +11,61 @@ import (
 
 // A struct that can poll for secrets in a Kubernetes cluster.
 type SecretPoller struct {
-	KubeClient IKubeClient
-	Logger     *zap.SugaredLogger
+	cluster    string
+	kubeClient IKubeClient
+	logger     *zap.SugaredLogger
+	startup    bool
+}
+
+// Create a new SecretPoller.
+func NewSecretPoller(cluster string, kubeClient IKubeClient, logger *zap.SugaredLogger) *SecretPoller {
+	return &SecretPoller{
+		cluster:    cluster,
+		kubeClient: kubeClient,
+		logger:     logger,
+		startup:    true,
+	}
 }
 
 // Poll for secrets in a Kubernetes cluster.
 func (w *SecretPoller) PollSecrets(ctx context.Context, opts metav1.ListOptions, pollInterval time.Duration) (<-chan *PacSecret, error) {
 	secretsChan := make(chan *PacSecret)
+	var interval time.Duration
 
 	go func() {
 		defer close(secretsChan)
 
 		for {
+
+			if w.startup {
+				interval = 0
+			} else {
+				interval = pollInterval
+			}
+
 			select {
-			case <-time.After(pollInterval):
-				secrets, err := w.KubeClient.CoreV1().Secrets(metav1.NamespaceAll).List(ctx, opts)
+			case <-time.After(interval):
+				secrets, err := w.kubeClient.CoreV1().Secrets(metav1.NamespaceAll).List(ctx, opts)
 				if err != nil {
-					w.Logger.Error("Failed to list secrets: ", err)
+					w.logger.Error("Failed to list secrets: ", err)
 					return
 				} else {
-					w.Logger.Debugf("Found %d secrets.", len(secrets.Items))
+					w.logger.Debugf("Found %d secrets.", len(secrets.Items))
 				}
 
 				for _, ns := range secrets.Items {
 					pacSecret := &PacSecret{
-						Secret: &ns,
+						Cluster: w.cluster,
+						Secret:  &ns,
 					}
 					secretsChan <- pacSecret
 				}
 
 			case <-ctx.Done():
-				w.Logger.Warn("Secret polling stopped by context cancellation.")
+				w.logger.Warn("Secret polling stopped by context cancellation.")
 				return
 			}
+			w.startup = false
 		}
 	}()
 

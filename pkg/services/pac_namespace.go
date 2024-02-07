@@ -7,4 +7,5 @@ import (
 // Extends corev1.Namespace adding PAC context on that.
 type PacNamespace struct {
 	Namespace *corev1.Namespace
+	Cluster   string
 }

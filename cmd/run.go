@@ -22,9 +22,21 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"keess/pkg/services"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc" // required for oidc
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 // runCmd represents the run command
@@ -43,20 +55,135 @@ var runCmd = &cobra.Command{
 
 	// Usage of the 'run' command is essential for keeping your Kubernetes environments synchronized and secure, forming the backbone of Keess's operational capabilities.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("run called")
+		atom := zap.NewAtomicLevel()
+		var level zapcore.Level
+		err := level.UnmarshalText([]byte(logLevel))
+		if err != nil {
+			fmt.Printf("Error setting log level: %s\n", err.Error())
+			return
+		}
+		atom.SetLevel(level)
+
+		cfg, _ := configureLogger()
+		logger := zap.New(zapcore.NewCore(
+			zapcore.NewJSONEncoder(*cfg),
+			zapcore.Lock(os.Stdout),
+			atom,
+		))
+		defer logger.Sync()
+
+		config, err := rest.InClusterConfig()
+		if err != nil {
+			kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
+			config, err = buildConfigWithContextFromFlags(localCluster, kubeconfig)
+			if err != nil {
+				logger.Sugar().Error("Error building localCluster kubeconfig: ", err)
+				return
+			}
+		}
+
+		// create the clientset
+		localKubeClient, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			logger.Sugar().Error("Error creating inCluster clientset: ", err)
+			return
+		}
+
+		// Create a context
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		namespacePollingInterval, _ := cmd.Flags().GetInt32("namespacePollingInterval")
+		pollingInterval, _ := cmd.Flags().GetInt32("pollingInterval")
+		housekeepingInterval, _ := cmd.Flags().GetInt32("housekeepingInterval")
+
+		logger.Sugar().Infof("Starting Keess. Running on local cluster: %s", localCluster)
+		logger.Sugar().Infof("Remote clusters: %v", remoteClusters)
+		logger.Sugar().Debugf("Namespace polling interval: %d seconds", namespacePollingInterval)
+		logger.Sugar().Debugf("Polling interval: %d seconds", pollingInterval)
+		logger.Sugar().Debugf("Housekeeping interval: %d seconds", housekeepingInterval)
+		logger.Sugar().Debugf("Log level: %s", logLevel)
+		logger.Sugar().Debugf("Kubeconfig path: %s", kubeConfigPath)
+
+		// Create a map of remote clients
+		remoteKubeClients := make(map[string]services.IKubeClient)
+
+		if len(remoteClusters) > 0 {
+
+			// Add the remote clientset to the map
+			for _, cluster := range remoteClusters {
+				remoteClusterConfig, err := buildConfigWithContextFromFlags(cluster, kubeConfigPath)
+				if err != nil {
+					logger.Sugar().Errorf("Error building remote kubeconfig for cluster '%s': %s", cluster, err)
+				}
+
+				remoteClusterClient, err := kubernetes.NewForConfig(remoteClusterConfig)
+				if err != nil {
+					logger.Sugar().Errorf("Error creating remote clientset for cluster '%s': %s", cluster, err)
+				}
+
+				remoteKubeClients[cluster] = remoteClusterClient
+			}
+		} else {
+			logger.Sugar().Info("No remote clusters to synchronize")
+		}
+
+		// Create a NamespacePoller
+		namespacePoller := services.NewNamespacePoller(localKubeClient, logger.Sugar())
+		namespacePoller.PollNamespaces(ctx, metav1.ListOptions{}, time.Duration(namespacePollingInterval)*time.Second, localCluster)
+
+		// Create a SecretPoller
+		secretPoller := services.NewSecretPoller(localCluster, localKubeClient, logger.Sugar())
+
+		// Create a SecretSynchronizer
+		secretSynchronizer := services.NewSecretSynchronizer(
+			localKubeClient,
+			remoteKubeClients,
+			secretPoller,
+			namespacePoller,
+			logger.Sugar(),
+		)
+
+		// Start the secret synchronizer
+		secretSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
+
+		select {}
 	},
 }
+
+var logLevel string
+var localCluster string
+var remoteClusters []string
+var kubeConfigPath string
 
 func init() {
 	rootCmd.AddCommand(runCmd)
 
 	// Here you will define your flags and configuration settings.
+	runCmd.Flags().StringVarP(&logLevel, "logLevel", "l", "info", "Log level")
+	runCmd.Flags().StringVarP(&localCluster, "localCluster", "c", "", "Local cluster name")
+	runCmd.Flags().StringVarP(&kubeConfigPath, "kubeConfigPath", "p", "", "Path to the kubeconfig file")
+	runCmd.Flags().Int32P("namespacePollingInterval", "n", int32(60), "Interval in seconds to poll the Kubernetes API for namespaces.")
+	runCmd.Flags().StringArrayVarP(&remoteClusters, "remoteCluster", "r", []string{}, "Remote cluster to synchronize")
+	runCmd.Flags().Int32P("pollingInterval", "s", int32(60), "Interval in seconds to poll the Kubernetes API for secrets and configmaps.")
+	runCmd.Flags().Int32P("housekeepingInterval", "k", int32(300), "Interval in seconds to delete orphans objects.")
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// runCmd.PersistentFlags().String("foo", "", "A help for foo")
+}
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// runCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+// Configure the logger
+func configureLogger() (*zapcore.EncoderConfig, error) {
+	cfg := zap.NewProductionEncoderConfig()
+	cfg.TimeKey = "timestamp"
+	cfg.EncodeTime = zapcore.TimeEncoderOfLayout(time.RFC3339)
+
+	return &cfg, nil
+}
+
+// buildConfigWithContextFromFlags builds a Kubernetes client configuration from the provided context and kubeconfig path.
+func buildConfigWithContextFromFlags(context string, kubeconfigPath string) (*rest.Config, error) {
+	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfigPath},
+		&clientcmd.ConfigOverrides{
+			CurrentContext: context,
+		}).ClientConfig()
 }

@@ -2,50 +2,82 @@ package services
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // A struct that can poll for namespaces in a Kubernetes cluster.
 type NamespacePoller struct {
-	KubeClient IKubeClient
-	Logger     *zap.SugaredLogger
+	kubeClient IKubeClient
+	logger     *zap.SugaredLogger
+	Namespaces map[string]*PacNamespace
+	mutex      sync.Mutex // Add mutex field
+	startup    bool
+}
+
+// Create a new NamespacePoller.
+func NewNamespacePoller(kubeClient IKubeClient, logger *zap.SugaredLogger) *NamespacePoller {
+	return &NamespacePoller{
+		kubeClient: kubeClient,
+		logger:     logger,
+		Namespaces: make(map[string]*PacNamespace),
+		startup:    true,
+	}
 }
 
 // Poll for namespaces in a Kubernetes cluster.
-func (w *NamespacePoller) PollNamespaces(ctx context.Context, opts metav1.ListOptions, pollInterval time.Duration) (<-chan *PacNamespace, error) {
-	namespacesChan := make(chan *PacNamespace)
+func (w *NamespacePoller) PollNamespaces(ctx context.Context, opts metav1.ListOptions, pollInterval time.Duration, cluster string) error {
 
+	var interval time.Duration
 	go func() {
-		defer close(namespacesChan)
-
 		for {
+			if w.startup {
+				interval = 0
+			} else {
+				interval = pollInterval
+			}
+
 			select {
-			case <-time.After(pollInterval):
-				namespaces, err := w.KubeClient.CoreV1().Namespaces().List(ctx, opts)
+			case <-time.After(interval):
+				namespaces, err := w.kubeClient.CoreV1().Namespaces().List(ctx, opts)
 				if err != nil {
-					w.Logger.Error("Failed to list namespaces: ", err)
+					w.logger.Error("Failed to list namespaces: ", err)
 					return
 				} else {
-					w.Logger.Debugf("Found %d namespaces.", len(namespaces.Items))
+					w.logger.Debugf("Found %d namespaces.", len(namespaces.Items))
 				}
 
-				for _, ns := range namespaces.Items {
-					pacNamespace := &PacNamespace{
-						Namespace: &ns,
-					}
-					namespacesChan <- pacNamespace
-				}
+				w.updateNamespacesMap(namespaces.Items, cluster)
 
 			case <-ctx.Done():
-				w.Logger.Warn("Namespace polling stopped by context cancellation.")
+				w.logger.Warn("Namespace polling stopped by context cancellation.")
 				return
 			}
+			w.startup = false
 		}
 	}()
+	return nil
+}
 
-	return namespacesChan, nil
+// Update the namespaces map.
+func (w *NamespacePoller) updateNamespacesMap(currentNamespaces []corev1.Namespace, cluster string) {
+	// Ensure thread-safe access if needed
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
+	// Clear existing map
+	w.Namespaces = make(map[string]*PacNamespace)
+
+	// Populate map with current namespaces
+	for _, ns := range currentNamespaces {
+		w.Namespaces[ns.Name] = &PacNamespace{
+			Namespace: ns.DeepCopy(),
+			Cluster:   cluster,
+		}
+	}
 }
