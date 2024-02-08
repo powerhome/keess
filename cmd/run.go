@@ -190,6 +190,7 @@ func configureLogger() (*zapcore.EncoderConfig, error) {
 	cfg := zap.NewProductionEncoderConfig()
 	cfg.TimeKey = "timestamp"
 	cfg.EncodeTime = zapcore.TimeEncoderOfLayout(time.RFC3339)
+	cfg.CallerKey = "caller"
 
 	return &cfg, nil
 }

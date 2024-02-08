@@ -39,12 +39,12 @@ coverage:
 # Target to execute the application
 run: build
 	@echo "Running the application..."
-	@./bin/keess run
+	@./bin/keess run --localCluster=app-beta-gm --logLevel=debug
 
 # Target to run the Docker image with the .kube directory mounted
 docker-run:
 	@echo "Running Docker image with .kube directory mounted..."
-	@docker run --rm -it -v ${HOME}/.kube:/root/.kube $(DOCKER_IMAGE_NAME):$(DOCKER_TAG)
+	@docker run --rm -it -v ${HOME}/.kube:/root/.kube $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) --localCluster=app-beta-gm --logLevel=debug
 
 # Help
 help:
