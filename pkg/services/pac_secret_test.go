@@ -30,16 +30,16 @@ func TestPrepare(t *testing.T) {
 	newNamespace := "new-ns"
 	preparedSecret := pacSecret.Prepare(newNamespace)
 
-	// Verifica se o namespace foi atualizado corretamente
+	// Check if the original Secret was not modified
 	assert.Equal(t, newNamespace, preparedSecret.Namespace, "Namespace should be updated")
 
-	// Verifica se o UID foi limpo
+	// Check if the UID was cleared
 	assert.Empty(t, preparedSecret.UID, "UID should be empty")
 
-	// Verifica se as labels foram definidas corretamente
+	// Check if the Labels were correctly set
 	assert.Equal(t, map[string]string{ManagedLabelSelector: "true"}, preparedSecret.Labels, "Labels should be correctly set")
 
-	// Verifica se as annotations foram definidas corretamente
+	// Check if the Annotations were correctly set
 	expectedAnnotations := map[string]string{
 		SourceClusterAnnotation:         "test-cluster",
 		SourceNamespaceAnnotation:       "original-ns",
@@ -47,7 +47,7 @@ func TestPrepare(t *testing.T) {
 	}
 	assert.Equal(t, expectedAnnotations, preparedSecret.Annotations, "Annotations should be correctly set")
 
-	// Verifica se o ResourceVersion foi limpo
+	// Check if the ResourceVersion was cleared
 	assert.Empty(t, preparedSecret.ResourceVersion, "ResourceVersion should be empty")
 }
 

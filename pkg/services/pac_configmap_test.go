@@ -8,7 +8,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func ConfigMapTestPrepare(t *testing.T) {
+func TestPrepareConfigMap(t *testing.T) {
 	originalConfigMap := core.ConfigMap{
 		ObjectMeta: v1.ObjectMeta{
 			Namespace:       "original-ns",
@@ -30,16 +30,16 @@ func ConfigMapTestPrepare(t *testing.T) {
 	newNamespace := "new-ns"
 	preparedConfigMap := pacConfigMap.Prepare(newNamespace)
 
-	// Verifica se o namespace foi atualizado corretamente
+	// Check if the original ConfigMap was not modified
 	assert.Equal(t, newNamespace, preparedConfigMap.Namespace, "Namespace should be updated")
 
-	// Verifica se o UID foi limpo
+	// Check if the UID was cleared
 	assert.Empty(t, preparedConfigMap.UID, "UID should be empty")
 
-	// Verifica se as labels foram definidas corretamente
+	// Check if the Labels were correctly set
 	assert.Equal(t, map[string]string{ManagedLabelSelector: "true"}, preparedConfigMap.Labels, "Labels should be correctly set")
 
-	// Verifica se as annotations foram definidas corretamente
+	// Check if the Annotations were correctly set
 	expectedAnnotations := map[string]string{
 		SourceClusterAnnotation:         "test-cluster",
 		SourceNamespaceAnnotation:       "original-ns",
@@ -47,11 +47,11 @@ func ConfigMapTestPrepare(t *testing.T) {
 	}
 	assert.Equal(t, expectedAnnotations, preparedConfigMap.Annotations, "Annotations should be correctly set")
 
-	// Verifica se o ResourceVersion foi limpo
+	// Check if the ResourceVersion was cleared
 	assert.Empty(t, preparedConfigMap.ResourceVersion, "ResourceVersion should be empty")
 }
 
-func ConfigMapTestHasChanged(t *testing.T) {
+func TestHasChangedConfigMap(t *testing.T) {
 
 	localConfigMap := &core.ConfigMap{
 		ObjectMeta: v1.ObjectMeta{
