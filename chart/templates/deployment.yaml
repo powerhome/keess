@@ -29,7 +29,7 @@ spec:
       - name: config
         secret:
           secretName: {{ template "keess.fullname" . }}
-          defaultMode: 420        
+          defaultMode: 420
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
@@ -38,7 +38,7 @@ spec:
           env:
           - name: KEESS_SOURCE_CONTEXT
             value: "{{ .Values.clusterName }}"
-          {{- if .Values.remoteClusters }}  
+          {{- if .Values.remoteClusters }}
           - name: KEESS_DESTINATION_CONTEXTS
             value: "{{ .Values.remoteClusters }}"
           {{- end }}
@@ -49,7 +49,7 @@ spec:
           {{- if .Values.logLevel }}
           - name: LOG_LEVEL
             value: "{{ .Values.logLevel }}"
-          {{- end }}          
+          {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           volumeMounts:
           - name: config
@@ -60,13 +60,9 @@ spec:
               containerPort: {{ .Values.service.port }}
               protocol: TCP
           livenessProbe:
-            httpGet:
-              path: /health
-              port: http
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:
-            httpGet:
-              path: /health
-              port: http
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
