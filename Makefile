@@ -21,12 +21,9 @@ test:
 
 # Build Docker image
 docker-build:
-	@echo "Building Docker image..."
+	@echo "Building Docker image..."	
+	@docker build -t $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .
 
-# Remove the existing builder
-	@docker buildx rm mybuilder
-	@docker buildx create --name mybuilder --use
-	@docker buildx build --platform linux/amd64,linux/arm64 -t $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .
 
 # New target for code coverage
 coverage:
@@ -39,12 +36,12 @@ coverage:
 # Target to execute the application
 run: build
 	@echo "Running the application..."
-	@./bin/keess run --localCluster=app-beta-gm --logLevel=debug
+	@./bin/keess run --localCluster=$(LOCAL_CLUSTER) --logLevel=debug
 
 # Target to run the Docker image with the .kube directory mounted
 docker-run:
 	@echo "Running Docker image with .kube directory mounted..."
-	@docker run --rm -it -v ${HOME}/.kube:/root/.kube $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) --localCluster=app-beta-gm --logLevel=debug
+	@docker run --rm -it -v ${HOME}/.kube:/root/.kube $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) run --localCluster=$(LOCAL_CLUSTER) --logLevel=debug
 
 # Help
 help:
@@ -55,6 +52,3 @@ help:
 	@echo "coverage     - Generate and view code coverage report"
 	@echo "run          - Run the application"
 	@echo "docker-run   - Run the Docker image with .kube directory mounted"
-
-
-

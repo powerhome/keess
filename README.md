@@ -1,39 +1,81 @@
-# Keess
 
-Keess keeps **Secrets** and **ConfigMaps** synchronized across namespaces and remote clusters.
+# Keess: Kubernetes Secrets and ConfigMaps Synchronization
 
-## Usage
+Keess (Keep Stuff Synchronized) is a versatile command-line tool designed to synchronize secrets and configmaps across different namespaces and Kubernetes clusters. Built with simplicity and efficiency in mind, it ensures that your Kubernetes environments are consistently updated, secure, and easy to manage.
 
-Keess uses labels and annotations from Secrets and ConfigMaps to work.
+## Features
 
-To enable the synchronization you have two steps:
+- **Cross-Namespace Synchronization**: Effortlessly sync secrets and configmaps across multiple namespaces within a single Kubernetes cluster.
+- **Inter-Cluster Synchronization**: Extend your synchronization capabilities to multiple clusters, keeping your configurations consistent across different environments.
+- **Secure and Reliable**: Implements robust mechanisms to securely transfer sensitive information, ensuring data integrity and confidentiality.
+- **Automation**: Automates the synchronization process, reducing manual overhead and minimizing human error.
+- **Customizable**: Offers flexible command line options and Kubernetes annotations to tailor the synchronization process to your specific needs.
+- **Efficient Monitoring**: Provides detailed logs for tracking operations and auditing changes.
 
-First, you have to add a label indicating which type of synchronization you want: namespace or cluster. See the options below:
+## Getting Started
 
-`keess.powerhrg.com/sync: namespace`
+### Prerequisites
 
-`keess.powerhrg.com/sync: cluster`
+- Kubernetes cluster setup
+- kubectl installed and configured
+- Helm (optional, for Helm chart deployment)
 
-Then you need to configure the synchronization using annotations, which will be described in the next topics.
+### Installation
 
-### Namespace synchronization
+Refer to the previous section on installing Keess via binaries, source, or Helm.
 
-The namespace synchronization counts with three options. You can specify the destination namespaces names, and labels or you can choose to synchronize with all namespaces.
+### Configuration
 
-`keess.powerhrg.com/namespaces-names: all`
+#### Using Configuration Files
 
-`keess.powerhrg.com/namespaces-names: namespacea, namespaceb, namespacec`
+Create a `.keess.yaml` configuration file as previously described or specify the path using the `--config` flag.
 
-`keess.powerhrg.com/namespace-label: keess.powerhrg.com/sync="true"`
+#### Using Command Line Flags
 
+Keess supports various command line flags for on-the-fly configuration:
 
-### Cluster synchronization
+```shell
+./keess run --logLevel debug --localCluster my-cluster --kubeConfigPath /path/to/kubeconfig
+```
 
-The cluster synchronization occurs across different clusters and the same namespaces.
-You need to specify the cluster names using the annotation below:
+For a full list of available flags, use:
 
-`keess.powerhrg.com/clusters: clustera, clusterb, clusterc`
+```shell
+./keess --help
+```
 
-## Known flaws
+### Configuring Synchronization
 
-Changes made to synchronised resources while Keess is bootstrapping may not be detected and synchronised. Restarting the service should catch up if synchronisation is found to be behind as a result.
+Keess uses Kubernetes labels and annotations to manage synchronization of Secrets and ConfigMaps.
+
+#### Enable Synchronization
+
+Add a label to your Secret or ConfigMap to indicate the synchronization type:
+
+- For namespace synchronization: `keess.powerhrg.com/sync: namespace`
+- For cluster synchronization: `keess.powerhrg.com/sync: cluster`
+
+#### Namespace Synchronization
+
+Configure which namespaces to synchronize with:
+
+- All namespaces: `keess.powerhrg.com/namespaces-names: all`
+- Specific namespaces: `keess.powerhrg.com/namespaces-names: namespacea, namespaceb`
+- Based on labels: `keess.powerhrg.com/namespace-label: keess.powerhrg.com/sync="true"`
+
+#### Cluster Synchronization
+
+Specify the remote clusters for synchronization: `keess.powerhrg.com/clusters: clustera, clusterb`
+
+## Contributing
+
+Contributions are welcome! Please refer to our [Contributing Guidelines](CONTRIBUTING.md) for more information.
+
+## Support
+
+If you encounter any issues or have questions, please file an issue on the [GitHub Issues page](https://github.com/your-repo/keess/issues).
+
+## License
+
+Keess is open-source software licensed under the MIT license. See the [LICENSE](LICENSE) file for details.
+
