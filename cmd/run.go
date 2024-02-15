@@ -99,7 +99,6 @@ var runCmd = &cobra.Command{
 		housekeepingInterval, _ := cmd.Flags().GetInt32("housekeepingInterval")
 
 		logger.Sugar().Infof("Starting Keess. Running on local cluster: %s", localCluster)
-		logger.Sugar().Debugf("Remote clusters: %v", remoteClusters)
 		logger.Sugar().Debugf("Namespace polling interval: %d seconds", namespacePollingInterval)
 		logger.Sugar().Debugf("Polling interval: %d seconds", pollingInterval)
 		logger.Sugar().Debugf("Housekeeping interval: %d seconds", housekeepingInterval)
@@ -125,6 +124,8 @@ var runCmd = &cobra.Command{
 
 				remoteKubeClients[cluster] = remoteClusterClient
 			}
+
+			logger.Sugar().Infof("Remote clusters: %v", remoteClusters)
 		} else {
 			logger.Sugar().Info("No remote clusters to synchronize")
 		}
