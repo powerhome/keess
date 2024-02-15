@@ -14,7 +14,7 @@ logLevel: "info"
 
 # localCluster must be specified for the chart to work correctly.
 localCluster: ""
-remoteClusters: []
+#remoteClusters: []
 kubeConfigPath: "/root/.kube/config"
 pollingInterval: "60"
 namespacePollingInterval: "60"
