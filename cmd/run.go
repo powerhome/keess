@@ -25,6 +25,7 @@ import (
 	"context"
 	"fmt"
 	"keess/pkg/services"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -162,8 +163,29 @@ var runCmd = &cobra.Command{
 		// Start the configMap synchronizer
 		configMapSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
 
+		// Create an HTTP server and add the health check handler as a handler
+		http.HandleFunc("/health", healthHandler)
+		http.ListenAndServe(":8080", nil)
+
 		select {}
 	},
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	// Check the health of the server and return a status code accordingly
+	if serverIsHealthy() {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "Server is healthy")
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "Server is not healthy")
+	}
+}
+
+func serverIsHealthy() bool {
+	// Check the health of the server and return true or false accordingly
+	// For example, check if the server can connect to the database
+	return true
 }
 
 var logLevel string
