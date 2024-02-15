@@ -29,14 +29,16 @@ spec:
       - name: config
         secret:
           secretName: {{ template "keess.fullname" . }}
-          defaultMode: 420        
+          defaultMode: 420
       containers:
         - name: {{ .Chart.Name }}
           args:
             - --logLevel={{ .Values.logLevel }}
             - --localCluster={{ .Values.localCluster }}
+            {{- if .Values.remoteClusters }}
             {{- range .Values.remoteClusters }}
             - --remoteCluster={{ . }}
+            {{- end }}
             {{- end }}            
             - --kubeConfigPath={{ .Values.kubeConfigPath }}
             - --pollingInterval={{ .Values.pollingInterval }}
