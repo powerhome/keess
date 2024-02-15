@@ -32,24 +32,16 @@ spec:
           defaultMode: 420        
       containers:
         - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          env:
-          - name: KEESS_SOURCE_CONTEXT
-            value: "{{ .Values.clusterName }}"
-          {{- if .Values.remoteClusters }}  
-          - name: KEESS_DESTINATION_CONTEXTS
-            value: "{{ .Values.remoteClusters }}"
-          {{- end }}
-          {{- if .Values.developmentMode }}
-          - name: KEESS_DEVELOPMENT_MODE
-            value: "{{ .Values.developmentMode }}"
-          {{- end }}
-          {{- if .Values.logLevel }}
-          - name: LOG_LEVEL
-            value: "{{ .Values.logLevel }}"
-          {{- end }}          
+          args:
+            - --logLevel={{ .Values.logLevel }}
+            - --localCluster={{ .Values.localCluster }}
+            {{- range .Values.remoteClusters }}
+            - --remoteCluster={{ . }}
+            {{- end }}            
+            - --kubeConfigPath={{ .Values.kubeConfigPath }}
+            - --pollingInterval={{ .Values.pollingInterval }}
+            - --namespacePollingInterval={{ .Values.namespacePollingInterval }}
+            - --housekeepingInterval={{ .Values.housekeepingInterval }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           volumeMounts:
           - name: config
