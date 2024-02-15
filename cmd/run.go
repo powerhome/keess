@@ -99,7 +99,7 @@ var runCmd = &cobra.Command{
 		housekeepingInterval, _ := cmd.Flags().GetInt32("housekeepingInterval")
 
 		logger.Sugar().Infof("Starting Keess. Running on local cluster: %s", localCluster)
-		logger.Sugar().Infof("Remote clusters: %v", remoteClusters)
+		logger.Sugar().Debugf("Remote clusters: %v", remoteClusters)
 		logger.Sugar().Debugf("Namespace polling interval: %d seconds", namespacePollingInterval)
 		logger.Sugar().Debugf("Polling interval: %d seconds", pollingInterval)
 		logger.Sugar().Debugf("Housekeeping interval: %d seconds", housekeepingInterval)
