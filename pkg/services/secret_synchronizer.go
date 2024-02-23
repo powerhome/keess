@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -168,7 +169,7 @@ func (s *SecretSynchronizer) syncLocal(ctx context.Context, pacSecret *PacSecret
 	if namespaceLabelAnnotationValue, ok := pacSecret.Secret.Annotations[NamespaceLabelAnnotation]; ok {
 		keyValue := splitAndTrim(namespaceLabelAnnotationValue, "=")
 		key := keyValue[0]
-		value := keyValue[1]
+		value := strings.Trim(keyValue[1], "\"")
 
 		for _, namespace := range s.namespacePoller.Namespaces {
 
