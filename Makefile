@@ -15,7 +15,7 @@ build:
 	@GOBIN=$(GOBIN) go build -o $(GOBIN)/$(PROJECT_NAME) $(GOBASE)
 
 # Run tests
-test:
+gotest:
 	@echo "Running tests..."
 	@go test ./...
 
@@ -24,6 +24,12 @@ docker-build:
 	@echo "Building Docker image..."	
 	@docker build -t $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .
 
+# Install requirements and run test.py
+test:
+	@echo "Installing requirements..."
+	@pip3 install -r requirements.txt
+	@echo "Running test.py..."
+	@python3 test.py
 
 # New target for code coverage
 coverage:
