@@ -175,6 +175,7 @@ func (s *SecretSynchronizer) syncLocal(ctx context.Context, pacSecret *PacSecret
 
 			// Skip the source namespace
 			if namespace.Namespace.Name == pacSecret.Secret.Namespace {
+				s.logger.Debugf("Skipping source namespace: %s when synchronizing secret: %s", namespace.Namespace.Name, pacSecret.Secret.Name)
 				continue
 			}
 
