@@ -53,10 +53,10 @@ func (w *ConfigMapPoller) PollConfigMaps(ctx context.Context, opts metav1.ListOp
 					w.logger.Debugf("Found %d configMaps.", len(configMaps.Items))
 				}
 
-				for _, ns := range configMaps.Items {
+				for _, cm := range configMaps.Items {
 					pacConfigMap := &PacConfigMap{
 						Cluster:   w.cluster,
-						ConfigMap: &ns,
+						ConfigMap: &cm,
 					}
 					configMapsChan <- pacConfigMap
 				}

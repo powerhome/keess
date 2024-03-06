@@ -53,10 +53,10 @@ func (w *SecretPoller) PollSecrets(ctx context.Context, opts metav1.ListOptions,
 					w.logger.Debugf("Found %d secrets.", len(secrets.Items))
 				}
 
-				for _, ns := range secrets.Items {
+				for _, sc := range secrets.Items {
 					pacSecret := &PacSecret{
 						Cluster: w.cluster,
-						Secret:  &ns,
+						Secret:  &sc,
 					}
 					secretsChan <- pacSecret
 				}

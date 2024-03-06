@@ -200,6 +200,7 @@ func (s *SecretSynchronizer) syncLocal(ctx context.Context, pacSecret *PacSecret
 
 			// Skip the source namespace
 			if pacSecret.Secret.Namespace == namespace {
+				s.logger.Debugf("Skipping source namespace: %s when synchronizing secret: %s", namespace, pacSecret.Secret.Name)
 				continue
 			}
 
@@ -216,6 +217,7 @@ func (s *SecretSynchronizer) syncLocal(ctx context.Context, pacSecret *PacSecret
 
 			// Skip the source namespace
 			if pacSecret.Secret.Namespace == namespace.Namespace.Name {
+				s.logger.Debugf("Skipping source namespace: %s when synchronizing secret: %s", namespace.Namespace.Name, pacSecret.Secret.Name)
 				continue
 			}
 
@@ -241,6 +243,7 @@ func (s *SecretSynchronizer) syncRemote(ctx context.Context, pacSecret *PacSecre
 
 		// Skip the source cluster.
 		if pacSecret.Cluster == cluster {
+			s.logger.Debugf("Skipping source cluster: %s when synchronizing secret: %s", cluster, pacSecret.Secret.Name)
 			continue
 		}
 
