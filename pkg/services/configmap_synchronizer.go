@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -75,9 +76,11 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 				sourceCluster := configMap.ConfigMap.Annotations[SourceClusterAnnotation]
 				sourceNamespace := configMap.ConfigMap.Annotations[SourceNamespaceAnnotation]
 
+				var isLocal bool = false
 				var remoteKubeClient IKubeClient
 				if sourceCluster == configMap.Cluster {
 					remoteKubeClient = s.localKubeClient
+					isLocal = true
 				} else {
 
 					if _, ok := s.remoteKubeClients[sourceCluster]; !ok {
@@ -89,10 +92,19 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 				}
 
 				// Check if the configMap is orphan
-				_, err := remoteKubeClient.CoreV1().ConfigMaps(sourceNamespace).Get(ctx, configMap.ConfigMap.Name, v1.GetOptions{})
+				remoteConfigMap, err := remoteKubeClient.CoreV1().ConfigMaps(sourceNamespace).Get(ctx, configMap.ConfigMap.Name, v1.GetOptions{})
 
 				// Delete the orphan configMap
 				if errors.IsNotFound(err) {
+					err := s.localKubeClient.CoreV1().ConfigMaps(configMap.ConfigMap.Namespace).Delete(ctx, configMap.ConfigMap.Name, v1.DeleteOptions{})
+					if err == nil {
+						s.logger.Infof("Orphan configMap %s deleted on cluster %s in namespace %s", configMap.ConfigMap.Name, configMap.Cluster, configMap.ConfigMap.Namespace)
+					} else {
+						s.logger.Errorf("Failed to delete orphan configMap %s deleted on cluster %s in namespace %s: %s", configMap.ConfigMap.Name, configMap.Cluster, configMap.ConfigMap.Namespace, err)
+					}
+				}
+
+				if remoteConfigMap.Labels[LabelSelector] == "cluster" && isLocal {
 					err := s.localKubeClient.CoreV1().ConfigMaps(configMap.ConfigMap.Namespace).Delete(ctx, configMap.ConfigMap.Name, v1.DeleteOptions{})
 					if err == nil {
 						s.logger.Infof("Orphan configMap %s deleted on cluster %s in namespace %s", configMap.ConfigMap.Name, configMap.Cluster, configMap.ConfigMap.Namespace)
@@ -146,15 +158,13 @@ func (s *ConfigMapSynchronizer) startSyncyng(ctx context.Context, pollInterval t
 }
 
 // Synchronize the configMap in Kubernetes clusters.
-func (s *ConfigMapSynchronizer) sync(ctx context.Context, pacConfigMap *PacConfigMap) error {
+func (s *ConfigMapSynchronizer) sync(ctx context.Context, pacConfigMap PacConfigMap) error {
 
-	syncType := pacConfigMap.ConfigMap.Labels[LabelSelector]
-
-	if syncType == "namespace" {
+	if pacConfigMap.ConfigMap.Labels[LabelSelector] == "namespace" {
 		return s.syncLocal(ctx, pacConfigMap)
 	}
 
-	if syncType == "cluster" {
+	if pacConfigMap.ConfigMap.Labels[LabelSelector] == "cluster" {
 		return s.syncRemote(ctx, pacConfigMap)
 	}
 
@@ -162,18 +172,18 @@ func (s *ConfigMapSynchronizer) sync(ctx context.Context, pacConfigMap *PacConfi
 }
 
 // Synchronize the configMap in the local Kubernetes cluster.
-func (s *ConfigMapSynchronizer) syncLocal(ctx context.Context, pacConfigMap *PacConfigMap) error {
-
+func (s *ConfigMapSynchronizer) syncLocal(ctx context.Context, pacConfigMap PacConfigMap) error {
 	// Synchronize based on the namespace label
 	if namespaceLabelAnnotationValue, ok := pacConfigMap.ConfigMap.Annotations[NamespaceLabelAnnotation]; ok {
 		keyValue := splitAndTrim(namespaceLabelAnnotationValue, "=")
 		key := keyValue[0]
-		value := keyValue[1]
+		value := strings.Trim(keyValue[1], "\"")
 
 		for _, namespace := range s.namespacePoller.Namespaces {
 
 			// Skip the source namespace
 			if namespace.Namespace.Name == pacConfigMap.ConfigMap.Namespace {
+				s.logger.Debugf("Skipping source namespace: %s when synchronizing configMap: %s", namespace.Namespace.Name, pacConfigMap.ConfigMap.Name)
 				continue
 			}
 
@@ -198,6 +208,7 @@ func (s *ConfigMapSynchronizer) syncLocal(ctx context.Context, pacConfigMap *Pac
 
 			// Skip the source namespace
 			if pacConfigMap.ConfigMap.Namespace == namespace {
+				s.logger.Debugf("Skipping source namespace: %s when synchronizing configMap: %s", namespace, pacConfigMap.ConfigMap.Name)
 				continue
 			}
 
@@ -214,6 +225,7 @@ func (s *ConfigMapSynchronizer) syncLocal(ctx context.Context, pacConfigMap *Pac
 
 			// Skip the source namespace
 			if pacConfigMap.ConfigMap.Namespace == namespace.Namespace.Name {
+				s.logger.Debugf("Skipping source namespace: %s when synchronizing configMap: %s", namespace.Namespace.Name, pacConfigMap.ConfigMap.Name)
 				continue
 			}
 
@@ -226,7 +238,7 @@ func (s *ConfigMapSynchronizer) syncLocal(ctx context.Context, pacConfigMap *Pac
 }
 
 // Synchronize the configMap in the remote Kubernetes clusters.
-func (s *ConfigMapSynchronizer) syncRemote(ctx context.Context, pacConfigMap *PacConfigMap) error {
+func (s *ConfigMapSynchronizer) syncRemote(ctx context.Context, pacConfigMap PacConfigMap) error {
 	clusters := splitAndTrim(pacConfigMap.ConfigMap.Annotations[ClusterAnnotation], ",")
 
 	for _, cluster := range clusters {
@@ -239,6 +251,7 @@ func (s *ConfigMapSynchronizer) syncRemote(ctx context.Context, pacConfigMap *Pa
 
 		// Skip the source cluster.
 		if pacConfigMap.Cluster == cluster {
+			s.logger.Debugf("Skipping source cluster: %s when synchronizing configMap: %s", cluster, pacConfigMap.ConfigMap.Name)
 			continue
 		}
 
@@ -249,7 +262,7 @@ func (s *ConfigMapSynchronizer) syncRemote(ctx context.Context, pacConfigMap *Pa
 }
 
 // Create or update the configMap in the Kubernetes cluster.
-func (s *ConfigMapSynchronizer) createOrUpdate(ctx context.Context, client IKubeClient, pacConfigMap *PacConfigMap, cluster string, namespace string) error {
+func (s *ConfigMapSynchronizer) createOrUpdate(ctx context.Context, client IKubeClient, pacConfigMap PacConfigMap, cluster string, namespace string) error {
 	gotConfigMap, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, pacConfigMap.ConfigMap.Name, v1.GetOptions{})
 
 	if err != nil {
@@ -273,7 +286,7 @@ func (s *ConfigMapSynchronizer) createOrUpdate(ctx context.Context, client IKube
 	}
 
 	// Update the configMap if it has changed
-	if pacConfigMap.HasChanged(gotConfigMap) {
+	if pacConfigMap.HasChanged(*gotConfigMap) {
 		updatedConfigMap := pacConfigMap.Prepare(namespace)
 		_, err := client.CoreV1().ConfigMaps(namespace).Update(ctx, &updatedConfigMap, v1.UpdateOptions{})
 

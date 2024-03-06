@@ -1,6 +1,8 @@
 package services
 
-import v1 "k8s.io/api/core/v1"
+import (
+	v1 "k8s.io/api/core/v1"
+)
 
 // A struct that represents a configMap in a Kubernetes cluster.
 type PacConfigMap struct {
@@ -8,7 +10,7 @@ type PacConfigMap struct {
 	Cluster string
 
 	// The configMap.
-	ConfigMap *v1.ConfigMap
+	ConfigMap v1.ConfigMap
 }
 
 // Prepare the configMap for persistence.
@@ -29,7 +31,7 @@ func (s *PacConfigMap) Prepare(namespace string) v1.ConfigMap {
 }
 
 // Check if the remote configMap has changed.
-func (s *PacConfigMap) HasChanged(remote *v1.ConfigMap) bool {
+func (s *PacConfigMap) HasChanged(remote v1.ConfigMap) bool {
 	if s.ConfigMap.ResourceVersion != remote.Annotations[SourceResourceVersionAnnotation] {
 		return true
 	}

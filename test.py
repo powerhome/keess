@@ -311,8 +311,8 @@ def test_scenario_4(core_api, source_namespace, secret_name, configmap_name, sou
 
 
 def main():    
-    source_cluster_name = "source_cluster"
-    destination_cluster_name = "destination_cluster"
+    source_cluster_name = "source-cluster"
+    destination_cluster_name = "destination-cluster"
     source_namespace = "test-namespace"
     secret_name = "new-test-secret"
     configmap_name = "new-test-configmap"

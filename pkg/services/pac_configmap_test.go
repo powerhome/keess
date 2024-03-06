@@ -8,7 +8,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestPrepareConfigMap(t *testing.T) {
+func TestConfigMapPrepare(t *testing.T) {
 	originalConfigMap := core.ConfigMap{
 		ObjectMeta: v1.ObjectMeta{
 			Namespace:       "original-ns",
@@ -23,7 +23,7 @@ func TestPrepareConfigMap(t *testing.T) {
 		},
 	}
 	pacConfigMap := PacConfigMap{
-		ConfigMap: &originalConfigMap,
+		ConfigMap: originalConfigMap,
 		Cluster:   "test-cluster",
 	}
 
@@ -51,9 +51,9 @@ func TestPrepareConfigMap(t *testing.T) {
 	assert.Empty(t, preparedConfigMap.ResourceVersion, "ResourceVersion should be empty")
 }
 
-func TestHasChangedConfigMap(t *testing.T) {
+func TestConfigMapHasChanged(t *testing.T) {
 
-	localConfigMap := &core.ConfigMap{
+	localConfigMap := core.ConfigMap{
 		ObjectMeta: v1.ObjectMeta{
 			ResourceVersion: "1",
 			Namespace:       "local-ns",
@@ -66,12 +66,12 @@ func TestHasChangedConfigMap(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		remote   *core.ConfigMap
+		remote   core.ConfigMap
 		expected bool
 	}{
 		{
 			name: "Different ResourceVersion",
-			remote: &core.ConfigMap{
+			remote: core.ConfigMap{
 				ObjectMeta: v1.ObjectMeta{
 					Annotations: map[string]string{
 						SourceResourceVersionAnnotation: "2",
@@ -82,7 +82,7 @@ func TestHasChangedConfigMap(t *testing.T) {
 		},
 		{
 			name: "ManagedLabelSelector not true",
-			remote: &core.ConfigMap{
+			remote: core.ConfigMap{
 				ObjectMeta: v1.ObjectMeta{
 					Annotations: map[string]string{
 						SourceResourceVersionAnnotation: "1",
@@ -96,7 +96,7 @@ func TestHasChangedConfigMap(t *testing.T) {
 		},
 		{
 			name: "Different SourceClusterAnnotation",
-			remote: &core.ConfigMap{
+			remote: core.ConfigMap{
 				ObjectMeta: v1.ObjectMeta{
 					Labels: map[string]string{
 						ManagedLabelSelector: "true",
@@ -111,7 +111,7 @@ func TestHasChangedConfigMap(t *testing.T) {
 		},
 		{
 			name: "Different SourceNamespaceAnnotation",
-			remote: &core.ConfigMap{
+			remote: core.ConfigMap{
 				ObjectMeta: v1.ObjectMeta{
 					Labels: map[string]string{
 						ManagedLabelSelector: "true",
@@ -127,7 +127,7 @@ func TestHasChangedConfigMap(t *testing.T) {
 		},
 		{
 			name: "No Changes",
-			remote: &core.ConfigMap{
+			remote: core.ConfigMap{
 				ObjectMeta: v1.ObjectMeta{
 					Annotations: map[string]string{
 						SourceResourceVersionAnnotation: "1",

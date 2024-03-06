@@ -1,6 +1,8 @@
 package services
 
-import v1 "k8s.io/api/core/v1"
+import (
+	v1 "k8s.io/api/core/v1"
+)
 
 // A struct that represents a secret in a Kubernetes cluster.
 type PacSecret struct {
@@ -8,7 +10,7 @@ type PacSecret struct {
 	Cluster string
 
 	// The secret.
-	Secret *v1.Secret
+	Secret v1.Secret
 }
 
 // Prepare the secret for persistence.
@@ -29,7 +31,7 @@ func (s *PacSecret) Prepare(namespace string) v1.Secret {
 }
 
 // Check if the remote secret has changed.
-func (s *PacSecret) HasChanged(remote *v1.Secret) bool {
+func (s *PacSecret) HasChanged(remote v1.Secret) bool {
 	if s.Secret.ResourceVersion != remote.Annotations[SourceResourceVersionAnnotation] {
 		return true
 	}

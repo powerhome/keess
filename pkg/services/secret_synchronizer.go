@@ -76,9 +76,11 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 				sourceCluster := secret.Secret.Annotations[SourceClusterAnnotation]
 				sourceNamespace := secret.Secret.Annotations[SourceNamespaceAnnotation]
 
+				var isLocal bool = false
 				var remoteKubeClient IKubeClient
 				if sourceCluster == secret.Cluster {
 					remoteKubeClient = s.localKubeClient
+					isLocal = true
 				} else {
 
 					if _, ok := s.remoteKubeClients[sourceCluster]; !ok {
@@ -90,10 +92,19 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 				}
 
 				// Check if the secret is orphan
-				_, err := remoteKubeClient.CoreV1().Secrets(sourceNamespace).Get(ctx, secret.Secret.Name, v1.GetOptions{})
+				remoteSecret, err := remoteKubeClient.CoreV1().Secrets(sourceNamespace).Get(ctx, secret.Secret.Name, v1.GetOptions{})
 
 				// Delete the orphan secret
 				if errors.IsNotFound(err) {
+					err := s.localKubeClient.CoreV1().Secrets(secret.Secret.Namespace).Delete(ctx, secret.Secret.Name, v1.DeleteOptions{})
+					if err == nil {
+						s.logger.Infof("Orphan secret %s deleted on cluster %s in namespace %s", secret.Secret.Name, secret.Cluster, secret.Secret.Namespace)
+					} else {
+						s.logger.Errorf("Failed to delete orphan secret %s deleted on cluster %s in namespace %s: %s", secret.Secret.Name, secret.Cluster, secret.Secret.Namespace, err)
+					}
+				}
+
+				if remoteSecret.Labels[LabelSelector] == "cluster" && isLocal {
 					err := s.localKubeClient.CoreV1().Secrets(secret.Secret.Namespace).Delete(ctx, secret.Secret.Name, v1.DeleteOptions{})
 					if err == nil {
 						s.logger.Infof("Orphan secret %s deleted on cluster %s in namespace %s", secret.Secret.Name, secret.Cluster, secret.Secret.Namespace)
@@ -147,15 +158,13 @@ func (s *SecretSynchronizer) startSyncyng(ctx context.Context, pollInterval time
 }
 
 // Synchronize the secret in Kubernetes clusters.
-func (s *SecretSynchronizer) sync(ctx context.Context, pacSecret *PacSecret) error {
+func (s *SecretSynchronizer) sync(ctx context.Context, pacSecret PacSecret) error {
 
-	syncType := pacSecret.Secret.Labels[LabelSelector]
-
-	if syncType == "namespace" {
+	if pacSecret.Secret.Labels[LabelSelector] == "namespace" {
 		return s.syncLocal(ctx, pacSecret)
 	}
 
-	if syncType == "cluster" {
+	if pacSecret.Secret.Labels[LabelSelector] == "cluster" {
 		return s.syncRemote(ctx, pacSecret)
 	}
 
@@ -163,8 +172,7 @@ func (s *SecretSynchronizer) sync(ctx context.Context, pacSecret *PacSecret) err
 }
 
 // Synchronize the secret in the local Kubernetes cluster.
-func (s *SecretSynchronizer) syncLocal(ctx context.Context, pacSecret *PacSecret) error {
-
+func (s *SecretSynchronizer) syncLocal(ctx context.Context, pacSecret PacSecret) error {
 	// Synchronize based on the namespace label
 	if namespaceLabelAnnotationValue, ok := pacSecret.Secret.Annotations[NamespaceLabelAnnotation]; ok {
 		keyValue := splitAndTrim(namespaceLabelAnnotationValue, "=")
@@ -230,7 +238,7 @@ func (s *SecretSynchronizer) syncLocal(ctx context.Context, pacSecret *PacSecret
 }
 
 // Synchronize the secret in the remote Kubernetes clusters.
-func (s *SecretSynchronizer) syncRemote(ctx context.Context, pacSecret *PacSecret) error {
+func (s *SecretSynchronizer) syncRemote(ctx context.Context, pacSecret PacSecret) error {
 	clusters := splitAndTrim(pacSecret.Secret.Annotations[ClusterAnnotation], ",")
 
 	for _, cluster := range clusters {
@@ -254,7 +262,7 @@ func (s *SecretSynchronizer) syncRemote(ctx context.Context, pacSecret *PacSecre
 }
 
 // Create or update the secret in the Kubernetes cluster.
-func (s *SecretSynchronizer) createOrUpdate(ctx context.Context, client IKubeClient, pacSecret *PacSecret, cluster string, namespace string) error {
+func (s *SecretSynchronizer) createOrUpdate(ctx context.Context, client IKubeClient, pacSecret PacSecret, cluster string, namespace string) error {
 	gotSecret, err := client.CoreV1().Secrets(namespace).Get(ctx, pacSecret.Secret.Name, v1.GetOptions{})
 
 	if err != nil {
@@ -278,7 +286,7 @@ func (s *SecretSynchronizer) createOrUpdate(ctx context.Context, client IKubeCli
 	}
 
 	// Update the secret if it has changed
-	if pacSecret.HasChanged(gotSecret) {
+	if pacSecret.HasChanged(*gotSecret) {
 		updatedSecret := pacSecret.Prepare(namespace)
 		_, err := client.CoreV1().Secrets(namespace).Update(ctx, &updatedSecret, v1.UpdateOptions{})
 

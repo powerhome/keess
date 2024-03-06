@@ -23,7 +23,7 @@ func TestPrepare(t *testing.T) {
 		},
 	}
 	pacSecret := PacSecret{
-		Secret:  &originalSecret,
+		Secret:  originalSecret,
 		Cluster: "test-cluster",
 	}
 
@@ -53,7 +53,7 @@ func TestPrepare(t *testing.T) {
 
 func TestHasChanged(t *testing.T) {
 
-	localSecret := &core.Secret{
+	localSecret := core.Secret{
 		ObjectMeta: v1.ObjectMeta{
 			ResourceVersion: "1",
 			Namespace:       "local-ns",
@@ -66,12 +66,12 @@ func TestHasChanged(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		remote   *core.Secret
+		remote   core.Secret
 		expected bool
 	}{
 		{
 			name: "Different ResourceVersion",
-			remote: &core.Secret{
+			remote: core.Secret{
 				ObjectMeta: v1.ObjectMeta{
 					Annotations: map[string]string{
 						SourceResourceVersionAnnotation: "2",
@@ -82,7 +82,7 @@ func TestHasChanged(t *testing.T) {
 		},
 		{
 			name: "ManagedLabelSelector not true",
-			remote: &core.Secret{
+			remote: core.Secret{
 				ObjectMeta: v1.ObjectMeta{
 					Annotations: map[string]string{
 						SourceResourceVersionAnnotation: "1",
@@ -96,7 +96,7 @@ func TestHasChanged(t *testing.T) {
 		},
 		{
 			name: "Different SourceClusterAnnotation",
-			remote: &core.Secret{
+			remote: core.Secret{
 				ObjectMeta: v1.ObjectMeta{
 					Labels: map[string]string{
 						ManagedLabelSelector: "true",
@@ -111,7 +111,7 @@ func TestHasChanged(t *testing.T) {
 		},
 		{
 			name: "Different SourceNamespaceAnnotation",
-			remote: &core.Secret{
+			remote: core.Secret{
 				ObjectMeta: v1.ObjectMeta{
 					Labels: map[string]string{
 						ManagedLabelSelector: "true",
@@ -127,7 +127,7 @@ func TestHasChanged(t *testing.T) {
 		},
 		{
 			name: "No Changes",
-			remote: &core.Secret{
+			remote: core.Secret{
 				ObjectMeta: v1.ObjectMeta{
 					Annotations: map[string]string{
 						SourceResourceVersionAnnotation: "1",

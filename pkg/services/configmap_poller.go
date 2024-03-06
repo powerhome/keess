@@ -28,8 +28,8 @@ func NewConfigMapPoller(cluster string, kubeClient IKubeClient, logger *zap.Suga
 }
 
 // Poll for configMaps in a Kubernetes cluster.
-func (w *ConfigMapPoller) PollConfigMaps(ctx context.Context, opts metav1.ListOptions, pollInterval time.Duration) (<-chan *PacConfigMap, error) {
-	configMapsChan := make(chan *PacConfigMap)
+func (w *ConfigMapPoller) PollConfigMaps(ctx context.Context, opts metav1.ListOptions, pollInterval time.Duration) (<-chan PacConfigMap, error) {
+	configMapsChan := make(chan PacConfigMap)
 	var interval time.Duration
 
 	go func() {
@@ -53,10 +53,10 @@ func (w *ConfigMapPoller) PollConfigMaps(ctx context.Context, opts metav1.ListOp
 					w.logger.Debugf("Found %d configMaps.", len(configMaps.Items))
 				}
 
-				for _, cm := range configMaps.Items {
-					pacConfigMap := &PacConfigMap{
+				for _, sc := range configMaps.Items {
+					pacConfigMap := PacConfigMap{
 						Cluster:   w.cluster,
-						ConfigMap: &cm,
+						ConfigMap: sc,
 					}
 					configMapsChan <- pacConfigMap
 				}

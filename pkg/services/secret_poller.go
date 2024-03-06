@@ -28,8 +28,8 @@ func NewSecretPoller(cluster string, kubeClient IKubeClient, logger *zap.Sugared
 }
 
 // Poll for secrets in a Kubernetes cluster.
-func (w *SecretPoller) PollSecrets(ctx context.Context, opts metav1.ListOptions, pollInterval time.Duration) (<-chan *PacSecret, error) {
-	secretsChan := make(chan *PacSecret)
+func (w *SecretPoller) PollSecrets(ctx context.Context, opts metav1.ListOptions, pollInterval time.Duration) (<-chan PacSecret, error) {
+	secretsChan := make(chan PacSecret)
 	var interval time.Duration
 
 	go func() {
@@ -54,9 +54,9 @@ func (w *SecretPoller) PollSecrets(ctx context.Context, opts metav1.ListOptions,
 				}
 
 				for _, sc := range secrets.Items {
-					pacSecret := &PacSecret{
+					pacSecret := PacSecret{
 						Cluster: w.cluster,
-						Secret:  &sc,
+						Secret:  sc,
 					}
 					secretsChan <- pacSecret
 				}
