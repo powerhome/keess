@@ -6,6 +6,7 @@ import time
 GREEN = '\033[92m'
 RED = '\033[91m'
 RESET = '\033[0m'
+WAIT_TIME = 30
 
 def log_info(message):
     print(f"[INFO] {message}")
@@ -41,7 +42,7 @@ def get_k8s_client_for_cluster(context_name):
     """
     # Load the kubeconfig file and set the context
     config.load_kube_config(context=context_name)
-    
+
     # Create and return the CoreV1Api client instance
     return client.CoreV1Api()
 
@@ -109,7 +110,7 @@ def setup_resources_for_test(core_api, source_namespace, secret_name, configmap_
             core_api.create_namespace(client.V1Namespace(metadata=client.V1ObjectMeta(name=source_namespace)))
             log_info(f"Created source namespace '{source_namespace}'.")
             time.sleep(2)  # Give it some time for the namespace to be fully set up
-    
+
     # Create destination namespaces
     labels = {}
     if label_selector:
@@ -185,7 +186,7 @@ def verify_resource_in_namespace(source_core_api, destination_core_api, namespac
             resource = destination_core_api.read_namespaced_secret(resource_name, namespace)
         elif resource_type == 'configmap':
             resource = destination_core_api.read_namespaced_config_map(resource_name, namespace)
-        
+
         annotations = resource.metadata.annotations
         expected_annotations = {
             "keess.powerhrg.com/source-cluster": source_cluster_name,
@@ -197,18 +198,18 @@ def verify_resource_in_namespace(source_core_api, destination_core_api, namespac
             if annotations.get(key) != expected_value:
                 log_error(f"{resource_type.capitalize()} '{resource_name}' in namespace '{namespace}' does not have the correct annotation '{key}': expected '{expected_value}', found '{annotations.get(key)}'")
                 return False
-        
+
         # Check source resource version
         source_resource_version = annotations.get("keess.powerhrg.com/source-resource-version")
         if resource_type == 'secret':
             source_resource = source_core_api.read_namespaced_secret(resource_name, source_namespace)
         elif resource_type == 'configmap':
             source_resource = source_core_api.read_namespaced_config_map(resource_name, source_namespace)
-        
+
         if source_resource.metadata.resource_version != source_resource_version:
             log_error(f"{resource_type.capitalize()} '{resource_name}' in namespace '{namespace}' has mismatched source resource version: expected '{source_resource.metadata.resource_version}', found '{source_resource_version}'")
             return False
-        
+
         log_success(f"{resource_type.capitalize()} '{resource_name}' in namespace '{namespace}' has been verified successfully with all annotations.")
         return True
 
@@ -236,9 +237,9 @@ def test_scenario_1(core_api, source_cluster_name, namespace, secret_name, confi
     # Apply labels and annotations to the secret and configmap
     apply_labels_and_annotations(core_api, namespace, secret_name, labels, annotations, 'secret')
     apply_labels_and_annotations(core_api, namespace, configmap_name, labels, annotations, 'configmap')
-    
+
     log_info("Waiting for synchronization to complete...")
-    time.sleep(180)  # Adjust this delay as necessary for your environment
+    time.sleep(WAIT_TIME)  # Adjust this delay as necessary for your environment
 
     # Verify the presence of the secret and configmap in the target namespaces
     for target_namespace in target_namespaces:
@@ -272,7 +273,7 @@ def test_scenario_3(core_api, source_cluster_name, source_namespace, secret_name
     apply_labels_and_annotations(core_api, source_namespace, configmap_name, labels, annotations, 'configmap')
 
     log_info("Waiting for synchronization to matching namespaces...")
-    time.sleep(180)  # Adjust based on expected synchronization time
+    time.sleep(WAIT_TIME)  # Adjust based on expected synchronization time
 
     # Verification
     for ns in target_namespaces:
@@ -300,7 +301,7 @@ def test_scenario_4(core_api, source_namespace, secret_name, configmap_name, sou
     apply_labels_and_annotations(core_api, source_namespace, configmap_name, labels, annotations, 'configmap')
 
     log_info("Labels and annotations applied for cross-cluster synchronization. Waiting for synchronization to complete...")
-    time.sleep(180)  # Adjust based on expected synchronization time
+    time.sleep(WAIT_TIME)  # Adjust based on expected synchronization time
 
     # Verify the presence of the secret in the target cluster
     target_core_api = get_k8s_client_for_cluster(target_cluster_name)
@@ -310,15 +311,15 @@ def test_scenario_4(core_api, source_namespace, secret_name, configmap_name, sou
     log_info("Test scenario 4 completed.")
 
 
-def main():    
-    source_cluster_name = "source-cluster"
-    destination_cluster_name = "destination-cluster"
+def main():
+    source_cluster_name = "kind-source-cluster"
+    destination_cluster_name = "kind-destination-cluster"
     source_namespace = "test-namespace"
     secret_name = "new-test-secret"
     configmap_name = "new-test-configmap"
     destination_namespaces = ["test-namespace-dest-1", "test-namespace-dest-2"]
     label_selector = "keess.powerhrg.com/testing=yes"
-    
+
     core_api = get_k8s_client_for_cluster(source_cluster_name)
 
     # Initial cleanup
@@ -326,7 +327,7 @@ def main():
 
     # Setup resources for tests
     setup_resources_for_test(core_api, source_namespace, secret_name, configmap_name, destination_namespaces, label_selector)
-    
+
     # Execute each test scenario
     test_scenario_1(core_api, source_cluster_name, source_namespace, secret_name, configmap_name, destination_namespaces)
 
@@ -335,7 +336,7 @@ def main():
 
     # Execute test scenario 4
     test_scenario_4(core_api, source_namespace, secret_name, configmap_name, source_cluster_name, destination_cluster_name)
-    
+
     # Final cleanup
     cleanup_resources(core_api, source_namespace, secret_name, configmap_name, destination_namespaces)
 

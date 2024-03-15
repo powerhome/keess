@@ -79,3 +79,26 @@ If you encounter any issues or have questions, please file an issue on the [GitH
 
 Keess is open-source software licensed under the MIT license. See the [LICENSE](LICENSE) file for details.
 
+## Local testing
+We will use [kind](https://kind.sigs.k8s.io/) for this
+
+First of all, create 2 clusters:
+```
+make create-local-clusters
+```
+
+To execute the local test:
+```
+make local-test
+```
+
+If you want to investigate the cluster you can do it by:
+```
+kubectl cluster-info --context kind-source-cluster --kubeconfig test/kubeconfig
+kubectl cluster-info --context kind-destination-cluster --kubeconfig test/kubeconfig
+```
+
+Once we are done with the test and don't need the local clusters anymore you can delete them with
+```
+make delete-local-clusters
+```
