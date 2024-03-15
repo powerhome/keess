@@ -7,7 +7,7 @@ DOCKER_TAG := "latest"
 GOBASE := $(shell pwd)
 GOBIN := $(GOBASE)/bin
 
-.PHONY: build test docker-build coverage run docker-run help delete-local-clusters
+.PHONY: build test docker-build coverage run docker-run create-local-clusters delete-local-clusters local-docker-run local-test help
 
 # Build the project
 build:
@@ -92,9 +92,13 @@ local-test:
 # Help
 help:
 	@echo "Makefile commands:"
-	@echo "build        - Build the project"
-	@echo "test         - Run tests"
-	@echo "docker-build - Build Docker image"
-	@echo "coverage     - Generate and view code coverage report"
-	@echo "run          - Run the application"
-	@echo "docker-run   - Run the Docker image with .kube directory mounted"
+	@echo "build                 - Build the project"
+	@echo "test                  - Run tests"
+	@echo "docker-build          - Build Docker image"
+	@echo "coverage              - Generate and view code coverage report"
+	@echo "run                   - Run the application"
+	@echo "docker-run            - Run the Docker image with .kube directory mounted"
+	@echo "create-local-clusters - Create 2 clusters locally using Kind"
+	@echo "delete-local-clusters - Delete the 2 local clusters created with Kind"
+	@echo "local-docker-run      - Run the application locally using docker and pointing to the local cluster created with Kind"
+	@echo "local-test            - Run the tests pointing to the local cluster created with Kind"

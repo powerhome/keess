@@ -87,6 +87,11 @@ First of all, create 2 clusters:
 make create-local-clusters
 ```
 
+Now build and run the application locally pointing to these new clusters:
+```
+make docker-build local-docker-run
+```
+
 To execute the local test:
 ```
 make local-test

@@ -5,3 +5,5 @@
 .sops.yaml
 keess
 README.md
+Dockerfile.localtest
+localTestKubeconfig
