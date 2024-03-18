@@ -31,13 +31,22 @@ def delete_namespace(core_api, namespace, cluster):
         if e.status != 404:  # Ignore not found errors
             log_error(f"Error deleting namespace '{namespace}': {e} in {cluster} cluster")
 
-def switch_context(context_name):
-    log_info(f"Switching to context: {context_name}")
-    run_command(f"kubectl config use-context {context_name}")
+def create_empty_namespace(core_api, namespace, cluster):
+    """
+    Create a Kubernetes namespace.
+    :param core_api: CoreV1Api instance for Kubernetes API interaction.
+    :param namespace: The name of the namespace to be created.
+    :param cluster: The name of the cluster that will be added in the log.
+    """
+    try:
+        core_api.read_namespace(name=namespace)
+        log_info(f"Namespace '{namespace}' already exists in {cluster} cluster.")
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            core_api.create_namespace(client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace)))
+            log_info(f"Namespace '{namespace}' created in {cluster} cluster.")
+            time.sleep(2)  # Give it some time for the namespace to be fully set up
 
-def setup_kubernetes_client():
-    config.load_kube_config()
-    return client.CoreV1Api()
 
 def get_k8s_client_for_cluster(context_name):
     """
@@ -72,23 +81,19 @@ def cleanup_resources(source_core_api, target_core_api, source_namespace, destin
         delete_namespace(source_core_api,ns,'source')
     time.sleep(2)
 
+def setup_resources_for_test(source_core_api, target_core_api, source_namespace, secret_name, configmap_name, destination_namespaces, label_selector=None):
     """
     Create a namespace (if it doesn't exist), a secret, and a configmap for testing, along with destination namespaces.
-    :param core_api: CoreV1Api instance for Kubernetes API interaction.
+    :param source_core_api: CoreV1Api instance for source cluster Kubernetes API interaction.
+    :param target_core_api: CoreV1Api instance for target cluster Kubernetes API interaction.
     :param source_namespace: The namespace in which to create the source secret and configmap.
     :param secret_name: The name of the secret to create.
     :param configmap_name: The name of the configmap to create.
     :param destination_namespaces: A list of destination namespaces to create for testing synchronization.
     """
-    # Create source namespace if it doesn't exist
-    try:
-        core_api.read_namespace(name=source_namespace)
-        log_info(f"Source namespace '{source_namespace}' already exists.")
-    except client.exceptions.ApiException as e:
-        if e.status == 404:
-            core_api.create_namespace(client.V1Namespace(metadata=client.V1ObjectMeta(name=source_namespace)))
-            log_info(f"Created source namespace '{source_namespace}'.")
-            time.sleep(2)  # Give it some time for the namespace to be fully set up
+    # Create source namespace if it doesn't exist in both clusters
+    create_empty_namespace(source_core_api,source_namespace,'source')
+    create_empty_namespace(target_core_api,source_namespace,'target')
 
     # Create destination namespaces
     labels = {}
