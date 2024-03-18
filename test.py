@@ -184,14 +184,14 @@ def verify_resource_in_namespace(source_core_api, target_core_api, namespace, re
                 return False
 
         # Check source resource version
-        source_resource_version = annotations.get("keess.powerhrg.com/source-resource-version")
+        target_resource_version = annotations.get("keess.powerhrg.com/source-resource-version")
         if resource_type == 'secret':
             source_resource = source_core_api.read_namespaced_secret(resource_name, source_namespace)
         elif resource_type == 'configmap':
             source_resource = source_core_api.read_namespaced_config_map(resource_name, source_namespace)
 
-        if source_resource.metadata.resource_version != source_resource_version:
-            log_error(f"{resource_type.capitalize()} '{resource_name}' in namespace '{namespace}' has mismatched source resource version: expected '{source_resource.metadata.resource_version}', found '{source_resource_version}'")
+        if source_resource.metadata.resource_version != target_resource_version:
+            log_error(f"{resource_type.capitalize()} '{resource_name}' in namespace '{namespace}' has mismatched source resource version: expected '{source_resource.metadata.resource_version}', found '{target_resource_version}'")
             return False
 
         log_success(f"{resource_type.capitalize()} '{resource_name}' in namespace '{namespace}' has been verified successfully with all annotations.")
