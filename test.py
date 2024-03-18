@@ -204,19 +204,17 @@ def verify_resource_in_namespace(source_core_api, target_core_api, namespace, re
 
 def test_scenario_1(core_api, source_cluster_name, namespace, secret_name, configmap_name, target_namespaces):
     """
-    Test secret and configmap synchronization to two specific namespaces.
+    Test secret and configmap synchronization to two specific namespaces in the same cluster.
     :param core_api: CoreV1Api instance for Kubernetes API interaction.
     :param namespace: The source namespace where the secret and configmap are initially created.
     :param secret_name: The name of the secret to synchronize.
     :param configmap_name: The name of the configmap to synchronize.
     :param target_namespaces: A list of namespaces to which the resources will be synchronized.
     """
+    log_info("Test scenario 1 running...")
     # Setup labels and annotations for synchronization
     labels = {"keess.powerhrg.com/sync": "namespace"}
     annotations = {"keess.powerhrg.com/namespaces-names": ",".join(target_namespaces)}
-
-    log_info("Waiting for resources to be created...")
-    time.sleep(5)  # Adjust this delay as necessary for your environment
 
     # Apply labels and annotations to the secret and configmap
     apply_labels_and_annotations(core_api, namespace, secret_name, labels, annotations, 'secret')
@@ -229,6 +227,8 @@ def test_scenario_1(core_api, source_cluster_name, namespace, secret_name, confi
     for target_namespace in target_namespaces:
         verify_resource_in_namespace(core_api, core_api, target_namespace, secret_name, 'secret', source_cluster_name, namespace)
         verify_resource_in_namespace(core_api, core_api, target_namespace, configmap_name, 'configmap', source_cluster_name, namespace)
+
+    log_info("Test scenario 1 completed.")
 
 
 def test_scenario_2(core_api):
@@ -244,6 +244,8 @@ def test_scenario_3(core_api, source_cluster_name, source_namespace, secret_name
     :param configmap_name: Name of the configmap to synchronize.
     :param source_cluster_name: Name of the source cluster for annotation verification.
     """
+    log_info("Test scenario 3 running...")
+
     namespaces = core_api.list_namespace(label_selector=label_selector)
     target_namespaces = [ns.metadata.name for ns in namespaces.items if ns.metadata.name != source_namespace]
 
@@ -270,13 +272,15 @@ def test_scenario_3(core_api, source_cluster_name, source_namespace, secret_name
 
 def test_scenario_4(source_core_api, target_core_api, source_namespace, secret_name, configmap_name, source_cluster_name, target_cluster_name):
     """
-    Test synchronization of a secret to a different cluster.
+    Test synchronization of a secret and configmap to a different cluster.
     :param core_api: CoreV1Api instance for Kubernetes API interaction in the source cluster.
     :param source_namespace: The namespace in the source cluster where the secret is created.
     :param secret_name: The name of the secret to be synchronized.
     :param source_cluster_name: Name of the source cluster (for verification purposes).
     :param target_cluster_name: Name of the target cluster where the secret should be synchronized.
     """
+    log_info("Test scenario 4 running...")
+
     labels = {"keess.powerhrg.com/sync": "cluster"}
     annotations = {"keess.powerhrg.com/clusters": target_cluster_name}
 
