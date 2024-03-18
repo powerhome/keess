@@ -103,7 +103,7 @@ def setup_resources_for_test(source_core_api, target_core_api, source_namespace,
 
     for dest_namespace in destination_namespaces:
         try:
-            ns = core_api.read_namespace(name=dest_namespace)
+            ns = source_core_api.read_namespace(name=dest_namespace)
             if label_selector and labels.items() <= ns.metadata.labels.items():
                 log_info(f"Destination namespace '{dest_namespace}' with label '{label_selector}' already exists.")
             else:
@@ -112,7 +112,7 @@ def setup_resources_for_test(source_core_api, target_core_api, source_namespace,
         except client.exceptions.ApiException as e:
             if e.status == 404:
                 # Create namespace with labels if it does not exist
-                core_api.create_namespace(client.V1Namespace(
+                source_core_api.create_namespace(client.V1Namespace(
                     metadata=client.V1ObjectMeta(name=dest_namespace, labels=labels)))
                 log_info(f"Created destination namespace '{dest_namespace}' with label '{label_selector}'.")
                 time.sleep(2)  # Give it some time for the namespace to be fully set up
@@ -125,7 +125,7 @@ def setup_resources_for_test(source_core_api, target_core_api, source_namespace,
         data={"key": "c2VjcmV0VmFsdWU="}  # Example: base64 encoded "secretValue"
     )
     try:
-        core_api.create_namespaced_secret(source_namespace, secret_body)
+        source_core_api.create_namespaced_secret(source_namespace, secret_body)
         log_info(f"Created secret '{secret_name}' in source namespace '{source_namespace}'.")
     except client.exceptions.ApiException as e:
         log_error(f"Failed to create secret '{secret_name}' in source namespace '{source_namespace}': {e}")
@@ -136,7 +136,7 @@ def setup_resources_for_test(source_core_api, target_core_api, source_namespace,
         data={"config": "configValue"}  # Example configuration data
     )
     try:
-        core_api.create_namespaced_config_map(source_namespace, configmap_body)
+        source_core_api.create_namespaced_config_map(source_namespace, configmap_body)
         log_info(f"Created ConfigMap '{configmap_name}' in source namespace '{source_namespace}'.")
     except client.exceptions.ApiException as e:
         log_error(f"Failed to create ConfigMap '{configmap_name}' in source namespace '{source_namespace}': {e}")
@@ -155,7 +155,7 @@ def apply_labels_and_annotations(core_api, namespace, resource_name, labels, ann
         core_api.patch_namespaced_config_map(resource_name, namespace, body)
     log_info(f"Applied labels and annotations to {resource_type} '{resource_name}' in namespace '{namespace}'.")
 
-def verify_resource_in_namespace(source_core_api, destination_core_api, namespace, resource_name, resource_type, source_cluster_name, source_namespace):
+def verify_resource_in_namespace(source_core_api, target_core_api, namespace, resource_name, resource_type, source_cluster_name, source_namespace):
     """
     Verify if a resource is present in a given namespace and check for specific annotations.
     :param core_api: CoreV1Api instance for Kubernetes API interaction.
@@ -167,9 +167,9 @@ def verify_resource_in_namespace(source_core_api, destination_core_api, namespac
     """
     try:
         if resource_type == 'secret':
-            resource = destination_core_api.read_namespaced_secret(resource_name, namespace)
+            resource = target_core_api.read_namespaced_secret(resource_name, namespace)
         elif resource_type == 'configmap':
-            resource = destination_core_api.read_namespaced_config_map(resource_name, namespace)
+            resource = target_core_api.read_namespaced_config_map(resource_name, namespace)
 
         annotations = resource.metadata.annotations
         expected_annotations = {
@@ -268,7 +268,7 @@ def test_scenario_3(core_api, source_cluster_name, source_namespace, secret_name
 
 
 
-def test_scenario_4(core_api, source_namespace, secret_name, configmap_name, source_cluster_name, target_cluster_name):
+def test_scenario_4(source_core_api, target_core_api, source_namespace, secret_name, configmap_name, source_cluster_name, target_cluster_name):
     """
     Test synchronization of a secret to a different cluster.
     :param core_api: CoreV1Api instance for Kubernetes API interaction in the source cluster.
@@ -281,48 +281,50 @@ def test_scenario_4(core_api, source_namespace, secret_name, configmap_name, sou
     annotations = {"keess.powerhrg.com/clusters": target_cluster_name}
 
     # Apply labels and annotations to the secret for cross-cluster synchronization
-    apply_labels_and_annotations(core_api, source_namespace, secret_name, labels, annotations, 'secret')
-    apply_labels_and_annotations(core_api, source_namespace, configmap_name, labels, annotations, 'configmap')
+    apply_labels_and_annotations(source_core_api, source_namespace, secret_name, labels, annotations, 'secret')
+    apply_labels_and_annotations(source_core_api, source_namespace, configmap_name, labels, annotations, 'configmap')
 
     log_info("Labels and annotations applied for cross-cluster synchronization. Waiting for synchronization to complete...")
     time.sleep(WAIT_TIME)  # Adjust based on expected synchronization time
 
     # Verify the presence of the secret in the target cluster
-    target_core_api = get_k8s_client_for_cluster(target_cluster_name)
-    verify_resource_in_namespace(core_api, target_core_api, source_namespace, secret_name, 'secret', source_cluster_name, source_namespace)
-    verify_resource_in_namespace(core_api, target_core_api, source_namespace, configmap_name, 'configmap', source_cluster_name, source_namespace)
+    verify_resource_in_namespace(source_core_api, target_core_api, source_namespace, secret_name, 'secret', source_cluster_name, source_namespace)
+    verify_resource_in_namespace(source_core_api, target_core_api, source_namespace, configmap_name, 'configmap', source_cluster_name, source_namespace)
 
     log_info("Test scenario 4 completed.")
 
 
 def main():
     source_cluster_name = "kind-source-cluster"
-    destination_cluster_name = "kind-destination-cluster"
+    target_cluster_name = "kind-destination-cluster"
     source_namespace = "test-namespace"
     secret_name = "new-test-secret"
     configmap_name = "new-test-configmap"
     destination_namespaces = ["test-namespace-dest-1", "test-namespace-dest-2"]
     label_selector = "keess.powerhrg.com/testing=yes"
 
-    core_api = get_k8s_client_for_cluster(source_cluster_name)
+    source_core_api = get_k8s_client_for_cluster(source_cluster_name)
+    target_core_api = get_k8s_client_for_cluster(target_cluster_name)
 
     # Initial cleanup
-    cleanup_resources(core_api, source_namespace, secret_name, configmap_name, destination_namespaces)
+    cleanup_resources(source_core_api, target_core_api, source_namespace, destination_namespaces)
 
     # Setup resources for tests
-    setup_resources_for_test(core_api, source_namespace, secret_name, configmap_name, destination_namespaces, label_selector)
+    setup_resources_for_test(source_core_api, target_core_api, source_namespace, secret_name, configmap_name, destination_namespaces, label_selector)
+
 
     # Execute each test scenario
-    test_scenario_1(core_api, source_cluster_name, source_namespace, secret_name, configmap_name, destination_namespaces)
+    test_scenario_1(source_core_api, source_cluster_name, source_namespace, secret_name, configmap_name, destination_namespaces)
 
     # Execute test scenario 3
-    test_scenario_3(core_api, source_cluster_name, source_namespace, secret_name, configmap_name, label_selector)
+    test_scenario_3(source_core_api, source_cluster_name, source_namespace, secret_name, configmap_name, label_selector)
 
     # Execute test scenario 4
-    test_scenario_4(core_api, source_namespace, secret_name, configmap_name, source_cluster_name, destination_cluster_name)
+    test_scenario_4(source_core_api, target_core_api, source_namespace, secret_name, configmap_name, source_cluster_name, target_cluster_name)
+
 
     # Final cleanup
-    cleanup_resources(core_api, source_namespace, secret_name, configmap_name, destination_namespaces)
+    cleanup_resources(source_core_api, target_core_api, source_namespace, destination_namespaces)
 
 if __name__ == "__main__":
     main()
