@@ -17,14 +17,19 @@ def log_success(message):
 def log_error(message):
     print(f"{RED}[ERROR] {message}{RESET}")
 
-def run_command(command):
+def delete_namespace(core_api, namespace, cluster):
+    """
+    Delete a Kubernetes namespace.
+    :param core_api: CoreV1Api instance for Kubernetes API interaction.
+    :param namespace: The name of the namespace to be deleted.
+    :param cluster: The name of the cluster that will be added in the log.
+    """
     try:
-        log_info(f"Executing command: {command}")
-        result = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
-        return result.stdout
-    except subprocess.CalledProcessError as e:
-        log_error(f"Command failed: {e.stderr}")
-        exit(1)
+        core_api.delete_namespace(namespace)
+        log_info(f"Namespace '{namespace}' deleted in {cluster} cluster.")
+    except client.exceptions.ApiException as e:
+        if e.status != 404:  # Ignore not found errors
+            log_error(f"Error deleting namespace '{namespace}': {e} in {cluster} cluster")
 
 def switch_context(context_name):
     log_info(f"Switching to context: {context_name}")
@@ -46,53 +51,27 @@ def get_k8s_client_for_cluster(context_name):
     # Create and return the CoreV1Api client instance
     return client.CoreV1Api()
 
-def cleanup_resources(core_api, source_namespace, secret_name, configmap_name, destination_namespaces):
+def cleanup_resources(source_core_api, target_core_api, source_namespace, destination_namespaces):
     """
     Clean up the source namespace, destination namespaces, and specific resources before and after tests.
-    :param core_api: CoreV1Api instance for Kubernetes API interaction.
+    :param source_core_api: CoreV1Api instance for source cluster Kubernetes API interaction.
+    :param target_core_api: CoreV1Api instance for target cluster Kubernetes API interaction.
     :param source_namespace: The source namespace from which to delete the secret and configmap.
     :param secret_name: The name of the secret to delete.
     :param configmap_name: The name of the configmap to delete.
     :param destination_namespaces: A list of destination namespaces to clean up.
     """
-    # Delete resources in the source namespace
-    try:
-        core_api.delete_namespaced_secret(secret_name, source_namespace)
-        log_info(f"Deleted secret '{secret_name}' in source namespace '{source_namespace}'.")
-    except client.exceptions.ApiException as e:
-        if e.status != 404:  # Ignore not found errors
-            log_error(f"Error deleting secret '{secret_name}' in namespace '{source_namespace}': {e}")
+    # Attempt to delete the source namespace in source cluster
+    delete_namespace(source_core_api,source_namespace,'source')
 
-    try:
-        core_api.delete_namespaced_config_map(configmap_name, source_namespace)
-        log_info(f"Deleted configmap '{configmap_name}' in source namespace '{source_namespace}'.")
-    except client.exceptions.ApiException as e:
-        if e.status != 404:  # Ignore not found errors
-            log_error(f"Error deleting configmap '{configmap_name}' in namespace '{source_namespace}': {e}")
+    # Attempt to delete the source namespace in target cluster
+    delete_namespace(target_core_api,source_namespace,'target')
 
-    # Attempt to delete the source namespace
-    try:
-        core_api.delete_namespace(source_namespace)
-        log_info(f"Deleted source namespace '{source_namespace}'.")
-        time.sleep(5)  # Give it some time for the namespace to be deleted
-    except client.exceptions.ApiException as e:
-        if e.status != 404:  # Ignore not found errors
-            log_error(f"Error deleting namespace '{source_namespace}': {e}")
-
-    # Clean up destination namespaces
+    # Clean up destination namespaces in source cluster
     for ns in destination_namespaces:
-        try:
-            core_api.delete_namespace(ns)
-            log_info(f"Deleted destination namespace '{ns}'.")
-            time.sleep(5)  # Give it some time for the namespace to be deleted
-        except client.exceptions.ApiException as e:
-            if e.status != 404:  # Ignore not found errors
-                log_error(f"Error deleting destination namespace '{ns}': {e}")
+        delete_namespace(source_core_api,ns,'source')
+    time.sleep(2)
 
-
-
-
-def setup_resources_for_test(core_api, source_namespace, secret_name, configmap_name, destination_namespaces, label_selector=None):
     """
     Create a namespace (if it doesn't exist), a secret, and a configmap for testing, along with destination namespaces.
     :param core_api: CoreV1Api instance for Kubernetes API interaction.
