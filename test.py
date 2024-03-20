@@ -413,6 +413,10 @@ def test_scenario_3(core_api, source_cluster_name, source_namespace, secret_name
     namespaces = core_api.list_namespace(label_selector=label_selector)
     target_namespaces = [ns.metadata.name for ns in namespaces.items if ns.metadata.name != source_namespace]
 
+    # Get all secrets and configmaps before test
+    initial_all_secrets = get_all_resources_type(core_api, "secret")
+    initial_all_configmaps = get_all_resources_type(core_api, "configmap")
+
     # Apply labels and annotations for synchronization
     labels = {"keess.powerhrg.com/sync": "namespace"}
     annotations = {
@@ -429,6 +433,66 @@ def test_scenario_3(core_api, source_cluster_name, source_namespace, secret_name
     for ns in target_namespaces:
         verify_resource_in_namespace(core_api, core_api, ns, secret_name, 'secret', source_cluster_name, source_namespace)
         verify_resource_in_namespace(core_api, core_api, ns, configmap_name, 'configmap', source_cluster_name, source_namespace)
+
+    # Compare all secrets and configmaps after test
+    all_secrets = get_all_resources_type(core_api, "secret")
+    all_configmaps = get_all_resources_type(core_api, "configmap")
+    ddiff_secrets = DeepDiff(initial_all_secrets, all_secrets).to_json()
+    ddiff_configmaps = DeepDiff(initial_all_configmaps, all_configmaps).to_json()
+
+    expected_secrets_result = json.dumps({
+        "type_changes": {
+            "root['test-namespace/new-test-secret']['metadata']['annotations']": {
+                "old_type": "NoneType",
+                "new_type": "dict",
+                "old_value": None,
+                "new_value": {
+                    "keess.powerhrg.com/namespace-label": "keess.powerhrg.com/testing=yes"
+                },
+            },
+            "root['test-namespace/new-test-secret']['metadata']['labels']": {
+                "old_type": "NoneType",
+                "new_type": "dict",
+                "old_value": None,
+                "new_value": {"keess.powerhrg.com/sync": "namespace"},
+            },
+        },
+        "dictionary_item_added": [
+            "root['test-namespace-dest-1/new-test-secret']",
+            "root['test-namespace-dest-2/new-test-secret']",
+        ],
+    })
+
+    expected_configmaps_result = json.dumps({
+        "type_changes": {
+            "root['test-namespace/new-test-configmap']['metadata']['annotations']": {
+                "old_type": "NoneType",
+                "new_type": "dict",
+                "old_value": None,
+                "new_value": {
+                    "keess.powerhrg.com/namespace-label": "keess.powerhrg.com/testing=yes"
+                },
+            },
+            "root['test-namespace/new-test-configmap']['metadata']['labels']": {
+                "old_type": "NoneType",
+                "new_type": "dict",
+                "old_value": None,
+                "new_value": {"keess.powerhrg.com/sync": "namespace"},
+            },
+        },
+        "dictionary_item_added": [
+            "root['test-namespace-dest-1/new-test-configmap']",
+            "root['test-namespace-dest-2/new-test-configmap']",
+        ],
+    })
+
+    if expected_secrets_result != ddiff_secrets:
+        log_info(f"ddiff_secrets: \n{ddiff_secrets}")
+        log_error(f"There were unexpected changes in secrets: \n{compare_json(expected_secrets_result,ddiff_secrets)}")
+
+    if expected_configmaps_result != ddiff_configmaps:
+        log_info(f"ddiff_configmaps: \n{ddiff_configmaps}")
+        log_error(f"There were unexpected changes in configmaps: \n{compare_json(expected_configmaps_result,ddiff_configmaps)}")
 
     log_info("Test scenario 3 completed.")
 
