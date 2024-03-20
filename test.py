@@ -27,6 +27,7 @@ def delete_namespace(core_api, namespace, cluster):
     try:
         core_api.delete_namespace(namespace)
         log_info(f"Namespace '{namespace}' deleted in {cluster} cluster.")
+        time.sleep(2)  # Give it some time for the namespace to be deleted
     except client.exceptions.ApiException as e:
         if e.status != 404:  # Ignore not found errors
             log_error(f"Error deleting namespace '{namespace}': {e} in {cluster} cluster")
