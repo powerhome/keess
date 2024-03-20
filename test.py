@@ -1,6 +1,7 @@
-import subprocess
 from kubernetes import client, config
+from deepdiff import DeepDiff
 import time
+import json
 
 # ANSI color codes for colored logging
 GREEN = '\033[92m'
@@ -142,6 +143,37 @@ def setup_resources_for_test(source_core_api, target_core_api, source_namespace,
     except client.exceptions.ApiException as e:
         log_error(f"Failed to create ConfigMap '{configmap_name}' in source namespace '{source_namespace}': {e}")
 
+def get_all_resources_type(core_api, resource_type='secret'):
+    """
+    Get a list of all resoruces of specified kind.
+    :param core_api: CoreV1Api instance for Kubernetes API interaction.
+    :param resource_type: Type of resource that will be returned.
+    :return List of all the resources of Kind specified in the cluster.
+    """
+    try:
+        if resource_type == "secret":
+            response = core_api.list_secret_for_all_namespaces()
+        elif resource_type == "configmap":
+            response = core_api.list_config_map_for_all_namespaces()
+        else:
+            log_error(f"Resource type '{resource_type}' passed isn't valid.")
+            return
+        result = {}
+        for i in response.items:
+            result[f"{i.metadata.namespace}/{i.metadata.name}"] = {
+                'data': i.data,
+                'metadata': {
+                    'annotations': i.metadata.annotations,
+                    'creation_timestamp': i.metadata.creation_timestamp,
+                    'labels': i.metadata.labels,
+                    'name': i.metadata.name,
+                    'namespace': i.metadata.namespace,
+                    'uid': i.metadata.uid,
+                }
+            }
+        return result
+    except client.exceptions.ApiException as e:
+        log_error(f"Failed to get all resources of kind '{resource_type}': {e}")
 
 def apply_labels_and_annotations(core_api, namespace, resource_name, labels, annotations, resource_type='secret'):
     """
@@ -217,6 +249,10 @@ def test_scenario_1(core_api, source_cluster_name, namespace, secret_name, confi
     labels = {"keess.powerhrg.com/sync": "namespace"}
     annotations = {"keess.powerhrg.com/namespaces-names": ",".join(target_namespaces)}
 
+    # Get all secrets and configmaps before test
+    initial_all_secrets = get_all_resources_type(core_api, "secret")
+    initial_all_configmaps = get_all_resources_type(core_api, "configmap")
+
     # Apply labels and annotations to the secret and configmap
     apply_labels_and_annotations(core_api, namespace, secret_name, labels, annotations, 'secret')
     apply_labels_and_annotations(core_api, namespace, configmap_name, labels, annotations, 'configmap')
@@ -229,8 +265,68 @@ def test_scenario_1(core_api, source_cluster_name, namespace, secret_name, confi
         verify_resource_in_namespace(core_api, core_api, target_namespace, secret_name, 'secret', source_cluster_name, namespace)
         verify_resource_in_namespace(core_api, core_api, target_namespace, configmap_name, 'configmap', source_cluster_name, namespace)
 
+    # Compare all secrets and configmaps after test
+    all_secrets = get_all_resources_type(core_api, "secret")
+    all_configmaps = get_all_resources_type(core_api, "configmap")
+    ddiff_secrets = DeepDiff(initial_all_secrets, all_secrets).to_json()
+    ddiff_configmaps = DeepDiff(initial_all_configmaps, all_configmaps).to_json()
+
+    expected_secrets_result = json.dumps({
+        "type_changes": {
+            "root['test-namespace/new-test-secret']['metadata']['annotations']": {
+                "old_type": "NoneType",
+                "new_type": "dict",
+                "old_value": None,
+                "new_value": {
+                    "keess.powerhrg.com/namespaces-names": "test-namespace-dest-1,test-namespace-dest-2"
+                },
+            },
+            "root['test-namespace/new-test-secret']['metadata']['labels']": {
+                "old_type": "NoneType",
+                "new_type": "dict",
+                "old_value": None,
+                "new_value": {"keess.powerhrg.com/sync": "namespace"},
+            },
+        },
+        "dictionary_item_added": [
+            "root['test-namespace-dest-1/new-test-secret']",
+            "root['test-namespace-dest-2/new-test-secret']",
+        ],
+    })
+
+    expected_configmaps_result = json.dumps({
+        "type_changes": {
+            "root['test-namespace/new-test-configmap']['metadata']['annotations']": {
+                "old_type": "NoneType",
+                "new_type": "dict",
+                "old_value": None,
+                "new_value": {
+                    "keess.powerhrg.com/namespaces-names": "test-namespace-dest-1,test-namespace-dest-2"
+                },
+            },
+            "root['test-namespace/new-test-configmap']['metadata']['labels']": {
+                "old_type": "NoneType",
+                "new_type": "dict",
+                "old_value": None,
+                "new_value": {"keess.powerhrg.com/sync": "namespace"},
+            },
+        },
+        "dictionary_item_added": [
+            "root['test-namespace-dest-1/new-test-configmap']",
+            "root['test-namespace-dest-2/new-test-configmap']",
+        ],
+    })
+
+    if expected_secrets_result != ddiff_secrets:
+        log_error(f"There were unexpected changes in secrets: \n{compare_json(expected_secrets_result,ddiff_secrets)}")
+
+    if expected_configmaps_result != ddiff_configmaps:
+        log_error(f"There were unexpected changes in configmaps: \n{compare_json(expected_configmaps_result,ddiff_configmaps)}")
+
     log_info("Test scenario 1 completed.")
 
+def compare_json(json1, json2):
+    return DeepDiff(json.loads(json1),json.loads(json2))
 
 def test_scenario_2(core_api):
     # Scenario 2: Synchronize to all namespaces
