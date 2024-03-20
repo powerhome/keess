@@ -73,6 +73,7 @@ local-docker-run:
 			--remoteCluster=kind-destination-cluster \
 			--kubeConfigPath=/root/.kube/config \
 			--pollingInterval=10 \
+			--housekeepingInterval=10 \
 			--logLevel=debug
 
 # Test locally using kind
