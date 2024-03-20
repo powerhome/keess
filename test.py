@@ -18,6 +18,21 @@ def log_success(message):
 def log_error(message):
     print(f"{RED}[ERROR] {message}{RESET}")
 
+def delete_resource_type(core_api, namespace, resource_name, resource_type='secret'):
+    # Delete resources in the source namespace
+    try:
+        if resource_type == "secret":
+            core_api.delete_namespaced_secret(resource_name, namespace)
+        elif resource_type == "configmap":
+            core_api.delete_namespaced_config_map(resource_name, namespace)
+        else:
+            log_error(f"Resource type '{resource_type}' passed isn't valid.")
+            return
+        log_info(f"Deleted {resource_type} '{resource_name}' in namespace '{namespace}'.")
+    except client.exceptions.ApiException as e:
+        if e.status != 404:  # Ignore not found errors
+            log_error(f"Error deleting {resource_type} '{resource_name}' in namespace '{namespace}': {e}")
+
 def delete_namespace(core_api, namespace, cluster):
     """
     Delete a Kubernetes namespace.
@@ -159,6 +174,7 @@ def get_all_resources_type(core_api, resource_type='secret'):
             log_error(f"Resource type '{resource_type}' passed isn't valid.")
             return
         result = {}
+        # filter fields considered for diff
         for i in response.items:
             result[f"{i.metadata.namespace}/{i.metadata.name}"] = {
                 'data': i.data,
@@ -174,6 +190,9 @@ def get_all_resources_type(core_api, resource_type='secret'):
         return result
     except client.exceptions.ApiException as e:
         log_error(f"Failed to get all resources of kind '{resource_type}': {e}")
+
+def compare_json(json1, json2):
+    return DeepDiff(json.loads(json1),json.loads(json2))
 
 def apply_labels_and_annotations(core_api, namespace, resource_name, labels, annotations, resource_type='secret'):
     """
@@ -325,12 +344,60 @@ def test_scenario_1(core_api, source_cluster_name, namespace, secret_name, confi
 
     log_info("Test scenario 1 completed.")
 
-def compare_json(json1, json2):
-    return DeepDiff(json.loads(json1),json.loads(json2))
+def test_scenario_2(core_api, namespace, secret_name, configmap_name):
+    """
+    Delete origin secret and configmap, it expects replicas to be deleted.
+    :param core_api: CoreV1Api instance for Kubernetes API interaction.
+    :param namespace: The source namespace where the secret and configmap are initially created.
+    :param secret_name: The name of the secret to synchronize.
+    :param configmap_name: The name of the configmap to synchronize.
+    :param target_namespaces: A list of namespaces to which the resources will be synchronized.
+    """
+    log_info("Test scenario 2 running...")
 
-def test_scenario_2(core_api):
-    # Scenario 2: Synchronize to all namespaces
-    pass
+    # Get all secrets and configmaps before test
+    initial_all_secrets = get_all_resources_type(core_api, "secret")
+    initial_all_configmaps = get_all_resources_type(core_api, "configmap")
+
+    # Delete origin secret and configmap
+    delete_resource_type(core_api, namespace, secret_name, 'secret')
+    delete_resource_type(core_api, namespace, configmap_name, 'configmap')
+
+    log_info("Waiting for synchronization to complete...")
+    time.sleep(WAIT_TIME)  # Adjust this delay as necessary for your environment
+
+    # Compare all secrets and configmaps after test
+    all_secrets = get_all_resources_type(core_api, "secret")
+    all_configmaps = get_all_resources_type(core_api, "configmap")
+    ddiff_secrets = DeepDiff(initial_all_secrets, all_secrets).to_json()
+    ddiff_configmaps = DeepDiff(initial_all_configmaps, all_configmaps).to_json()
+
+    expected_secrets_result = json.dumps({
+        "dictionary_item_removed": [
+            "root['test-namespace-dest-1/new-test-secret']",
+            "root['test-namespace-dest-2/new-test-secret']",
+            "root['test-namespace/new-test-secret']",
+        ]
+    })
+
+    expected_configmaps_result = json.dumps({
+        "dictionary_item_removed": [
+            "root['test-namespace-dest-1/new-test-configmap']",
+            "root['test-namespace-dest-2/new-test-configmap']",
+            "root['test-namespace/new-test-configmap']",
+        ]
+    })
+
+    if expected_secrets_result != ddiff_secrets:
+        log_error(f"There were unexpected changes in secrets: \n{compare_json(expected_secrets_result,ddiff_secrets)}")
+    else:
+        log_success(f"The deletion of the origin secret '{secret_name}' in namespace '{namespace}' triggered a deletion of its copies.")
+    if expected_configmaps_result != ddiff_configmaps:
+        log_error(f"There were unexpected changes in configmaps: \n{compare_json(expected_configmaps_result,ddiff_configmaps)}")
+    else:
+        log_success(f"The deletion of the origin configmap '{configmap_name}' in namespace '{namespace}' triggered a deletion of its copies.")
+
+    log_info("Test scenario 2 completed.")
 
 def test_scenario_3(core_api, source_cluster_name, source_namespace, secret_name, configmap_name, label_selector):
     """
@@ -394,6 +461,9 @@ def test_scenario_4(source_core_api, target_core_api, source_namespace, secret_n
 
     log_info("Test scenario 4 completed.")
 
+def test_scenario_5(core_api):
+    # Scenario 5: Synchronize to all namespaces
+    pass
 
 def main():
     source_cluster_name = "kind-source-cluster"
@@ -414,8 +484,14 @@ def main():
     setup_resources_for_test(source_core_api, target_core_api, source_namespace, secret_name, configmap_name, destination_namespaces, label_selector)
 
 
-    # Execute each test scenario
+    # Execute test scenario 1
     test_scenario_1(source_core_api, source_cluster_name, source_namespace, secret_name, configmap_name, destination_namespaces)
+
+    # Execute test scenario 2
+    test_scenario_2(source_core_api, source_namespace, secret_name, configmap_name)
+
+    # Setup resources again
+    setup_resources_for_test(source_core_api, target_core_api, source_namespace, secret_name, configmap_name, destination_namespaces, label_selector)
 
     # Execute test scenario 3
     test_scenario_3(source_core_api, source_cluster_name, source_namespace, secret_name, configmap_name, label_selector)
