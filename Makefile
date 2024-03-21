@@ -74,6 +74,7 @@ local-docker-run:
 			--kubeConfigPath=/root/.kube/config \
 			--pollingInterval=10 \
 			--housekeepingInterval=10 \
+			--namespacePollingInterval=10 \
 			--logLevel=debug
 
 # Test locally using kind
