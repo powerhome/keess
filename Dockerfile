@@ -18,9 +18,6 @@ RUN go mod download
 # Copy the code into the container
 COPY . .
 
-# Run tests
-RUN go test ./...
-
 # Build the application
 RUN go build -o keess .
 

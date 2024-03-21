@@ -34,22 +34,19 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          env:
-          - name: KEESS_SOURCE_CONTEXT
-            value: "{{ .Values.clusterName }}"
-          {{- if .Values.remoteClusters }}
-          - name: KEESS_DESTINATION_CONTEXTS
-            value: "{{ .Values.remoteClusters }}"
-          {{- end }}
-          {{- if .Values.developmentMode }}
-          - name: KEESS_DEVELOPMENT_MODE
-            value: "{{ .Values.developmentMode }}"
-          {{- end }}
-          {{- if .Values.logLevel }}
-          - name: LOG_LEVEL
-            value: "{{ .Values.logLevel }}"
-          {{- end }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"        
+          args:
+            - --logLevel={{ .Values.logLevel }}
+            - --localCluster={{ .Values.localCluster }}
+            {{- if .Values.remoteClusters }}
+            {{- range .Values.remoteClusters }}
+            - --remoteCluster={{ . }}
+            {{- end }}
+            {{- end }}            
+            - --kubeConfigPath={{ .Values.kubeConfigPath }}
+            - --pollingInterval={{ .Values.pollingInterval }}
+            - --namespacePollingInterval={{ .Values.namespacePollingInterval }}
+            - --housekeepingInterval={{ .Values.housekeepingInterval }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           volumeMounts:
           - name: config
@@ -60,9 +57,14 @@ spec:
               containerPort: {{ .Values.service.port }}
               protocol: TCP
           livenessProbe:
-            {{- toYaml .Values.livenessProbe | nindent 12 }}
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 60
           readinessProbe:
-            {{- toYaml .Values.readinessProbe | nindent 12 }}
+            httpGet:
+              path: /health
+              port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

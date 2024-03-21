@@ -10,10 +10,16 @@ image:
 
 
 # Default Keess config
-# clusterName: ""
-# remoteClusters: ""
-# developmentMode: "true"
-# logLevel: "INFO"
+logLevel: "info"
+
+# localCluster must be specified for the chart to work correctly.
+localCluster: ""
+remoteClusters: []
+kubeConfigPath: "/root/.kube/config"
+pollingInterval: "60"
+namespacePollingInterval: "60"
+housekeepingInterval: "60"
+
 
 imagePullSecrets: []
 nameOverride: ""

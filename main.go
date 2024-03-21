@@ -1,50 +1,28 @@
+/*
+Copyright © 2024 Marcus Vinicius <mvleandro@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+*/
 package main
 
-import (
-	"fmt"
-	"keess/application"
-	"log"
-	"net/http"
-	"os"
-	"strings"
-)
+import "keess/cmd"
 
 func main() {
-	app := application.New()
-
-	if error := app.Run(os.Args); error != nil {
-		log.Fatal(error)
-	}
-
-	isHelp := false
-	for _, arg := range os.Args {
-		if strings.Contains(arg, "--help") || strings.HasPrefix(arg, "-h") {
-			isHelp = true
-		}
-	}
-
-	// Create an HTTP server and add the health check handler as a handler
-	http.HandleFunc("/health", healthHandler)
-	http.ListenAndServe(":8080", nil)
-
-	if !isHelp {
-		select {}
-	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	// Check the health of the server and return a status code accordingly
-	if serverIsHealthy() {
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "Server is healthy")
-	} else {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "Server is not healthy")
-	}
-}
-
-func serverIsHealthy() bool {
-	// Check the health of the server and return true or false accordingly
-	// For example, check if the server can connect to the database
-	return true
+	cmd.Execute()
 }
