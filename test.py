@@ -207,19 +207,6 @@ def apply_labels_and_annotations(core_api, namespace, resource_name, labels, ann
         core_api.patch_namespaced_config_map(resource_name, namespace, body)
     log_info(f"Applied labels and annotations to {resource_type} '{resource_name}' in namespace '{namespace}'.")
 
-def remove_labels_and_anonotations(core_api, namespace, resource_name, labels, annotations, resource_type='secret'):
-    """
-    Remove labels and annotations from a resource.
-    """
-    metadata = client.V1ObjectMeta(labels=labels, annotations=annotations)
-    if resource_type == 'secret':
-        body = client.V1Secret(metadata=metadata)
-        core_api.patch_namespaced_secret(resource_name, namespace, body)
-    elif resource_type == 'configmap':
-        body = client.V1ConfigMap(metadata=metadata)
-        core_api.patch_namespaced_config_map(resource_name, namespace, body)
-    log_info(f"Labels and annotations removed from {resource_type} '{resource_name}' in namespace '{namespace}'.")
-
 def verify_resource_in_namespace(source_core_api, target_core_api, namespace, resource_name, resource_type, source_cluster_name, source_namespace):
     """
     Verify if a resource is present in a given namespace and check for specific annotations.
