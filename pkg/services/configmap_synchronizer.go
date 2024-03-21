@@ -113,6 +113,57 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 					}
 				}
 
+				// Check if the label and annotations of the remote configMap means that this configMap should exists, otherwise delete this configMap
+				keep := false
+				if remoteConfigMap.Labels[LabelSelector] == "namespace" {
+					if remoteConfigMap.Annotations[NamespaceLabelAnnotation] != "" {
+						keyValue := splitAndTrim(remoteConfigMap.Annotations[NamespaceLabelAnnotation], "=")
+						key := keyValue[0]
+						value := strings.Trim(keyValue[1], "\"")
+
+						namespace, err := s.localKubeClient.CoreV1().Namespaces().Get(ctx, configMap.ConfigMap.Namespace, v1.GetOptions{})
+						if err != nil {
+							s.logger.Error("Failed to get namespace: ", err)
+							continue
+						}
+						if namespace.Labels[key] == value {
+							keep = true
+						}
+					}
+
+					if remoteConfigMap.Annotations[NamespaceNameAnnotation] != "" {
+						if remoteConfigMap.Annotations[NamespaceNameAnnotation] == "all" {
+							keep = true
+						} else {
+							namespaces := splitAndTrim(remoteConfigMap.Annotations[NamespaceNameAnnotation], ",")
+							for _, namespace := range namespaces {
+								if namespace == configMap.ConfigMap.Namespace {
+									keep = true
+									break
+								}
+							}
+						}
+					}
+				}
+
+				if remoteConfigMap.Labels[LabelSelector] == "cluster" {
+					destinationClusters := splitAndTrim(remoteConfigMap.Annotations[ClusterAnnotation], ",")
+					for _, cluster := range destinationClusters {
+						if cluster == configMap.Cluster {
+							keep = true
+						}
+					}
+				}
+
+				if !keep {
+					err := s.localKubeClient.CoreV1().ConfigMaps(configMap.ConfigMap.Namespace).Delete(ctx, configMap.ConfigMap.Name, v1.DeleteOptions{})
+					if err == nil {
+						s.logger.Infof("Orphan configMap %s deleted on cluster %s in namespace %s", configMap.ConfigMap.Name, configMap.Cluster, configMap.ConfigMap.Namespace)
+					} else {
+						s.logger.Errorf("Failed to delete orphan configMap %s deleted on cluster %s in namespace %s: %s", configMap.ConfigMap.Name, configMap.Cluster, configMap.ConfigMap.Namespace, err)
+					}
+				}
+
 			case <-ctx.Done():
 				s.logger.Warn("ConfigMap synchronization stopped by context cancellation.")
 				return

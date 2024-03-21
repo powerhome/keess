@@ -113,6 +113,57 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 					}
 				}
 
+				// Check if the label and annotations of the remote secret means that this secret should exists, otherwise delete this secret
+				keep := false
+				if remoteSecret.Labels[LabelSelector] == "namespace" {
+					if remoteSecret.Annotations[NamespaceLabelAnnotation] != "" {
+						keyValue := splitAndTrim(remoteSecret.Annotations[NamespaceLabelAnnotation], "=")
+						key := keyValue[0]
+						value := strings.Trim(keyValue[1], "\"")
+
+						namespace, err := s.localKubeClient.CoreV1().Namespaces().Get(ctx, secret.Secret.Namespace, v1.GetOptions{})
+						if err != nil {
+							s.logger.Error("Failed to get namespace: ", err)
+							continue
+						}
+						if namespace.Labels[key] == value {
+							keep = true
+						}
+					}
+
+					if remoteSecret.Annotations[NamespaceNameAnnotation] != "" {
+						if remoteSecret.Annotations[NamespaceNameAnnotation] == "all" {
+							keep = true
+						} else {
+							namespaces := splitAndTrim(remoteSecret.Annotations[NamespaceNameAnnotation], ",")
+							for _, namespace := range namespaces {
+								if namespace == secret.Secret.Namespace {
+									keep = true
+									break
+								}
+							}
+						}
+					}
+				}
+
+				if remoteSecret.Labels[LabelSelector] == "cluster" {
+					destinationClusters := splitAndTrim(remoteSecret.Annotations[ClusterAnnotation], ",")
+					for _, cluster := range destinationClusters {
+						if cluster == secret.Cluster {
+							keep = true
+						}
+					}
+				}
+
+				if !keep {
+					err := s.localKubeClient.CoreV1().Secrets(secret.Secret.Namespace).Delete(ctx, secret.Secret.Name, v1.DeleteOptions{})
+					if err == nil {
+						s.logger.Infof("Orphan secret %s deleted on cluster %s in namespace %s", secret.Secret.Name, secret.Cluster, secret.Secret.Namespace)
+					} else {
+						s.logger.Errorf("Failed to delete orphan secret %s deleted on cluster %s in namespace %s: %s", secret.Secret.Name, secret.Cluster, secret.Secret.Namespace, err)
+					}
+				}
+
 			case <-ctx.Done():
 				s.logger.Warn("Secret synchronization stopped by context cancellation.")
 				return
