@@ -511,7 +511,7 @@ def test_scenario_4(core_api, namespace, secret_name, configmap_name):
 
     # Setup labels and annotations for synchronization
     labels = {"keess.powerhrg.com/sync": None}
-    annotations = {"keess.powerhrg.com/namespaces-names": None}
+    annotations = {"keess.powerhrg.com/namespace-label": None}
 
     # Get all secrets and configmaps before test
     initial_all_secrets = get_all_resources_type(core_api, "secret")
@@ -534,17 +534,20 @@ def test_scenario_4(core_api, namespace, secret_name, configmap_name):
         "dictionary_item_removed": [
             "root['test-namespace-dest-1/new-test-secret']",
             "root['test-namespace-dest-2/new-test-secret']",
-            "root['test-namespace/new-test-secret']",
         ],
-        "values_changed": {
-            "root['test-namespace/new-test-secret']['metadata']['labels']['keess.powerhrg.com/sync']": {
+        "type_changes": {
+            "root['test-namespace/new-test-secret']['metadata']['annotations']": {
+                "old_type": "dict",
+                "new_type": "NoneType",
+                "old_value": {"keess.powerhrg.com/namespace-label": "keess.powerhrg.com/testing=yes"},
                 "new_value": None,
-                "old_value": "namespace",
             },
-            "root['test-namespace/new-test-secret']['metadata']['annotations']['keess.powerhrg.com/namespaces-names']": {
+            "root['test-namespace/new-test-secret']['metadata']['labels']":{
+                "old_type": "dict",
+                "new_type": "NoneType",
+                "old_value": {"keess.powerhrg.com/sync": "namespace"},
                 "new_value": None,
-                "old_value": "keess.powerhrg.com/testing=yes",
-            }
+            },
         },
     })
 
@@ -553,15 +556,19 @@ def test_scenario_4(core_api, namespace, secret_name, configmap_name):
             "root['test-namespace-dest-1/new-test-configmap']",
             "root['test-namespace-dest-2/new-test-configmap']",
         ],
-        "values_changed": {
-            "root['test-namespace/new-test-configmap']['metadata']['labels']['keess.powerhrg.com/sync']": {
+        "type_changes": {
+            "root['test-namespace/new-test-configmap']['metadata']['annotations']": {
+                "old_type": "dict",
+                "new_type": "NoneType",
+                "old_value": {"keess.powerhrg.com/namespace-label": "keess.powerhrg.com/testing=yes"},
                 "new_value": None,
-                "old_value": "namespace",
             },
-            "root['test-namespace/new-test-configmap']['metadata']['annotations']['keess.powerhrg.com/namespaces-names']": {
+            "root['test-namespace/new-test-configmap']['metadata']['labels']":{
+                "old_type": "dict",
+                "new_type": "NoneType",
+                "old_value": {"keess.powerhrg.com/sync": "namespace"},
                 "new_value": None,
-                "old_value": "keess.powerhrg.com/testing=yes",
-            }
+            },
         },
     })
 
