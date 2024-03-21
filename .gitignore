@@ -37,4 +37,4 @@ apiserver.local.config/**
 .vscode
 keess
 coverage.*
-
+localTestKubeconfig
