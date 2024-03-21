@@ -336,13 +336,15 @@ def test_scenario_1(core_api, source_cluster_name, namespace, secret_name, confi
         ],
     })
 
-    if expected_secrets_result != ddiff_secrets:
-        log_info(f"ddiff_configmaps: \n{ddiff_secrets}")
-        log_error(f"There were unexpected changes in secrets: \n{compare_json(expected_secrets_result,ddiff_secrets)}")
+    diff_expected_secrets = compare_json(expected_secrets_result,ddiff_secrets)
+    if diff_expected_secrets != {}:
+        log_info(f"ddiff_secrets: \n{ddiff_secrets}")
+        log_error(f"There were unexpected changes in secrets: \n{diff_expected_secrets}")
 
-    if expected_configmaps_result != ddiff_configmaps:
+    diff_expected_configmaps = compare_json(expected_configmaps_result,ddiff_configmaps)
+    if diff_expected_configmaps != {}:
         log_info(f"ddiff_configmaps: \n{ddiff_configmaps}")
-        log_error(f"There were unexpected changes in configmaps: \n{compare_json(expected_configmaps_result,ddiff_configmaps)}")
+        log_error(f"There were unexpected changes in configmaps: \n{diff_expected_configmaps}")
 
     log_info("Test scenario 1 completed.")
 
@@ -389,14 +391,17 @@ def test_scenario_2(core_api, namespace, secret_name, configmap_name):
         ]
     })
 
-    if expected_secrets_result != ddiff_secrets:
-        log_info(f"ddiff_configmaps: \n{ddiff_secrets}")
-        log_error(f"There were unexpected changes in secrets: \n{compare_json(expected_secrets_result,ddiff_secrets)}")
+    diff_expected_secrets = compare_json(expected_secrets_result,ddiff_secrets)
+    if diff_expected_secrets != {}:
+        log_info(f"ddiff_secrets: \n{ddiff_secrets}")
+        log_error(f"There were unexpected changes in secrets: \n{diff_expected_secrets}")
     else:
         log_success(f"The deletion of the origin secret '{secret_name}' in namespace '{namespace}' triggered a deletion of its copies.")
-    if expected_configmaps_result != ddiff_configmaps:
+
+    diff_expected_configmaps = compare_json(expected_configmaps_result,ddiff_configmaps)
+    if diff_expected_configmaps != {}:
         log_info(f"ddiff_configmaps: \n{ddiff_configmaps}")
-        log_error(f"There were unexpected changes in configmaps: \n{compare_json(expected_configmaps_result,ddiff_configmaps)}")
+        log_error(f"There were unexpected changes in configmaps: \n{diff_expected_configmaps}")
     else:
         log_success(f"The deletion of the origin configmap '{configmap_name}' in namespace '{namespace}' triggered a deletion of its copies.")
 
@@ -489,13 +494,15 @@ def test_scenario_3(core_api, source_cluster_name, source_namespace, secret_name
         ],
     })
 
-    if expected_secrets_result != ddiff_secrets:
+    diff_expected_secrets = compare_json(expected_secrets_result,ddiff_secrets)
+    if diff_expected_secrets != {}:
         log_info(f"ddiff_secrets: \n{ddiff_secrets}")
-        log_error(f"There were unexpected changes in secrets: \n{compare_json(expected_secrets_result,ddiff_secrets)}")
+        log_error(f"There were unexpected changes in secrets: \n{diff_expected_secrets}")
 
-    if expected_configmaps_result != ddiff_configmaps:
+    diff_expected_configmaps = compare_json(expected_configmaps_result,ddiff_configmaps)
+    if diff_expected_configmaps != {}:
         log_info(f"ddiff_configmaps: \n{ddiff_configmaps}")
-        log_error(f"There were unexpected changes in configmaps: \n{compare_json(expected_configmaps_result,ddiff_configmaps)}")
+        log_error(f"There were unexpected changes in configmaps: \n{diff_expected_configmaps}")
 
     log_info("Test scenario 3 completed.")
 
@@ -572,14 +579,17 @@ def test_scenario_4(core_api, namespace, secret_name, configmap_name):
         },
     })
 
-    if expected_secrets_result != ddiff_secrets:
+    diff_expected_secrets = compare_json(expected_secrets_result,ddiff_secrets)
+    if diff_expected_secrets != {}:
         log_info(f"ddiff_secrets: \n{ddiff_secrets}")
-        log_error(f"There were unexpected changes in secrets: \n{compare_json(expected_secrets_result,ddiff_secrets)}")
+        log_error(f"There were unexpected changes in secrets: \n{diff_expected_secrets}")
     else:
         log_success(f"The deletion of the origin secret '{secret_name}' in namespace '{namespace}' triggered a deletion of its copies.")
-    if expected_configmaps_result != ddiff_configmaps:
+
+    diff_expected_configmaps = compare_json(expected_configmaps_result,ddiff_configmaps)
+    if diff_expected_configmaps != {}:
         log_info(f"ddiff_configmaps: \n{ddiff_configmaps}")
-        log_error(f"There were unexpected changes in configmaps: \n{compare_json(expected_configmaps_result,ddiff_configmaps)}")
+        log_error(f"There were unexpected changes in configmaps: \n{diff_expected_configmaps}")
     else:
         log_success(f"The deletion of the origin configmap '{configmap_name}' in namespace '{namespace}' triggered a deletion of its copies.")
 
@@ -661,18 +671,23 @@ def test_scenario_5(source_core_api, target_core_api, source_namespace, secret_n
     expected_target_secrets_result = json.dumps({"dictionary_item_added": ["root['test-namespace/new-test-secret']"]})
     expected_target_configmaps_result = json.dumps({"dictionary_item_added": ["root['test-namespace/new-test-configmap']"]})
 
-    if expected_source_secrets_result != ddiff_source_secrets:
+    diff_expected_source_secrets = compare_json(expected_source_secrets_result,ddiff_source_secrets)
+    diff_expected_source_configmaps = compare_json(expected_source_configmaps_result,ddiff_source_configmaps)
+    diff_expected_target_secrets = compare_json(expected_target_secrets_result,ddiff_target_secrets)
+    diff_expected_target_configmaps = compare_json(expected_target_configmaps_result,ddiff_target_configmaps)
+
+    if diff_expected_source_secrets != {}:
         log_info(f"ddiff_source_secrets: \n{ddiff_source_secrets}")
-        log_error(f"There were unexpected changes in secrets in cluster '{source_cluster_name}': \n{compare_json(expected_source_secrets_result,ddiff_source_secrets)}")
-    if expected_source_configmaps_result != ddiff_source_configmaps:
+        log_error(f"There were unexpected changes in secrets in cluster '{source_cluster_name}': \n{diff_expected_source_secrets}")
+    if diff_expected_source_configmaps != {}:
         log_info(f"ddiff_source_configmaps: \n{ddiff_source_configmaps}")
-        log_error(f"There were unexpected changes in configmaps in cluster '{source_cluster_name}': \n{compare_json(expected_source_configmaps_result,ddiff_source_configmaps)}")
-    if expected_target_secrets_result != ddiff_target_secrets:
+        log_error(f"There were unexpected changes in configmaps in cluster '{source_cluster_name}': \n{diff_expected_source_configmaps}")
+    if diff_expected_target_secrets != {}:
         log_info(f"ddiff_target_secrets: \n{ddiff_target_secrets}")
-        log_error(f"There were unexpected changes in secrets in cluster '{target_cluster_name}': \n{compare_json(expected_target_secrets_result,ddiff_target_secrets)}")
-    if expected_target_configmaps_result != ddiff_target_configmaps:
+        log_error(f"There were unexpected changes in secrets in cluster '{target_cluster_name}': \n{diff_expected_target_secrets}")
+    if diff_expected_target_configmaps != {}:
         log_info(f"ddiff_target_configmaps: \n{ddiff_target_configmaps}")
-        log_error(f"There were unexpected changes in configmaps in cluster '{target_cluster_name}': \n{compare_json(expected_target_configmaps_result,ddiff_target_configmaps)}")
+        log_error(f"There were unexpected changes in configmaps in cluster '{target_cluster_name}': \n{diff_expected_target_configmaps}")
 
     log_info("Test scenario 5 completed.")
 
