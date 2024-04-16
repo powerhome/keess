@@ -27,7 +27,6 @@ import (
 	"keess/pkg/services"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -75,7 +74,8 @@ var runCmd = &cobra.Command{
 
 		config, err := rest.InClusterConfig()
 		if err != nil {
-			kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
+			//kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
+			kubeconfig := "/Users/marcusvinicius.leandro/Source/pac/deployments/config/tier/beta/keess/keess/kubeconfig.yaml"
 			config, err = buildConfigWithContextFromFlags(localCluster, kubeconfig)
 			if err != nil {
 				logger.Sugar().Error("Error building localCluster kubeconfig: ", err)
