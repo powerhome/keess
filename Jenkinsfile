@@ -26,7 +26,7 @@ app.build(
     appRepo: "image-registry.powerapp.cloud/keess/keess",
   ) { compose ->
     stage('Image Build') {
-      bake()
+      compose.bake()
     }
   }
 }
