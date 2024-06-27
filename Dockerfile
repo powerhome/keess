@@ -13,13 +13,15 @@ WORKDIR /build
 # Copy and download dependency using go mod
 COPY go.mod .
 COPY go.sum .
-RUN go mod download
+RUN --mount=type=cache,id=pac-log-controller-go-cache,target=/root/.cache/go-build \
+    go mod download
 
 # Copy the code into the container
 COPY . .
 
 # Build the application
-RUN go build -o keess .
+RUN --mount=type=cache,id=pac-log-controller-go-cache,target=/root/.cache/go-build \
+    go build -o keess .
 
 # Stage 2: Build a small image
 FROM alpine
