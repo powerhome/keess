@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 
-library 'github.com/powerhome/ci-kubed@v6.10.1'
+library 'github.com/powerhome/ci-kubed@v8.2.0'
 
 app.build(
   cluster: [:],
@@ -26,18 +26,7 @@ app.build(
     appRepo: "image-registry.powerapp.cloud/keess/keess",
   ) { compose ->
     stage('Image Build') {
-
-        try {
-            compose.reportBuildState('PENDING')
-            withEnv(compose.environment()) {
-                shell "docker build -t ${compose.fullImageName()} ."
-            }
-            compose.pushAll()
-            compose.reportBuildState('SUCCESS')
-        } catch (e) { 
-            compose.reportBuildState('FAILURE')
-            throw e
-        }
+      compose.bake()
     }
   }
 }
