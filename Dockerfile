@@ -13,14 +13,14 @@ WORKDIR /build
 # Copy and download dependency using go mod
 COPY go.mod .
 COPY go.sum .
-RUN --mount=type=cache,id=pac-log-controller-go-cache,target=/root/.cache/go-build \
+RUN --mount=type=cache,id=keess-go-cache,target=/root/.cache/go-build \
     go mod download
 
 # Copy the code into the container
 COPY . .
 
 # Build the application
-RUN --mount=type=cache,id=pac-log-controller-go-cache,target=/root/.cache/go-build \
+RUN --mount=type=cache,id=keess-go-cache,target=/root/.cache/go-build \
     go build -o keess .
 
 # Stage 2: Build a small image
