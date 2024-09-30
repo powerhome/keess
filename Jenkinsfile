@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 
-library 'github.com/powerhome/ci-kubed@v8.2.0'
+library 'github.com/powerhome/ci-kubed@v8.6.0'
 
 app.build(
   cluster: [:],
