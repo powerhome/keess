@@ -1,6 +1,9 @@
 package services
 
 import (
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -48,5 +51,20 @@ func (s *PacSecret) HasChanged(remote v1.Secret) bool {
 		return true
 	}
 
+	if Digest(s.Secret.Data) != Digest(remote.Data) {
+		return true
+	}
+
 	return false
+}
+
+func Digest(data map[string][]byte) string {
+	contents, err := json.Marshal(data)
+	if err != nil {
+		// TODO: What should we do if we fail to marshall the data
+		// property for digestion?
+		return ""
+	}
+
+	return fmt.Sprintf("%x", sha256.Sum256(contents))
 }

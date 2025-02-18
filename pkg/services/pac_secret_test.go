@@ -53,15 +53,33 @@ func TestPrepare(t *testing.T) {
 
 func TestHasChanged(t *testing.T) {
 
-	localSecret := core.Secret{
+	sourceSecret := core.Secret{
 		ObjectMeta: v1.ObjectMeta{
 			ResourceVersion: "1",
-			Namespace:       "local-ns",
+			Namespace:       "source-ns",
+		},
+		Data: map[string][]byte{
+			"data": []byte("source-data"),
 		},
 	}
 	pacSecret := PacSecret{
-		Secret:  localSecret,
-		Cluster: "local-cluster",
+		Secret:  sourceSecret,
+		Cluster: "source-cluster",
+	}
+	expectedRemoteSecret := core.Secret{
+		ObjectMeta: v1.ObjectMeta{
+			Labels: map[string]string{
+				ManagedLabelSelector: "true",
+			},
+			Annotations: map[string]string{
+				SourceResourceVersionAnnotation: "1",
+				SourceClusterAnnotation:         "source-cluster",
+				SourceNamespaceAnnotation:       "source-ns",
+			},
+		},
+		Data: map[string][]byte{
+			"data": []byte("source-data"),
+		},
 	}
 
 	tests := []struct {
@@ -71,74 +89,57 @@ func TestHasChanged(t *testing.T) {
 	}{
 		{
 			name: "Different ResourceVersion",
-			remote: core.Secret{
-				ObjectMeta: v1.ObjectMeta{
-					Annotations: map[string]string{
-						SourceResourceVersionAnnotation: "2",
-					},
-				},
-			},
+			remote: func() core.Secret {
+				s := expectedRemoteSecret.DeepCopy()
+				s.ObjectMeta.Annotations[SourceResourceVersionAnnotation] = "2"
+
+				return *s
+			}(),
 			expected: true,
 		},
 		{
 			name: "ManagedLabelSelector not true",
-			remote: core.Secret{
-				ObjectMeta: v1.ObjectMeta{
-					Annotations: map[string]string{
-						SourceResourceVersionAnnotation: "1",
-					},
-					Labels: map[string]string{
-						ManagedLabelSelector: "false",
-					},
-				},
-			},
+			remote: func() core.Secret {
+				s := expectedRemoteSecret.DeepCopy()
+				s.ObjectMeta.Labels[ManagedLabelSelector] = "false"
+
+				return *s
+			}(),
 			expected: true,
 		},
 		{
 			name: "Different SourceClusterAnnotation",
-			remote: core.Secret{
-				ObjectMeta: v1.ObjectMeta{
-					Labels: map[string]string{
-						ManagedLabelSelector: "true",
-					},
-					Annotations: map[string]string{
-						SourceResourceVersionAnnotation: "1",
-						SourceClusterAnnotation:         "remote-cluster",
-					},
-				},
-			},
+			remote: func() core.Secret {
+				s := expectedRemoteSecret.DeepCopy()
+				s.ObjectMeta.Annotations[SourceClusterAnnotation] = "not-source-cluster"
+
+				return *s
+			}(),
 			expected: true,
 		},
 		{
 			name: "Different SourceNamespaceAnnotation",
-			remote: core.Secret{
-				ObjectMeta: v1.ObjectMeta{
-					Labels: map[string]string{
-						ManagedLabelSelector: "true",
-					},
-					Annotations: map[string]string{
-						SourceResourceVersionAnnotation: "1",
-						SourceClusterAnnotation:         "local-cluster",
-						SourceNamespaceAnnotation:       "remote-ns",
-					},
-				},
-			},
+			remote: func() core.Secret {
+				s := expectedRemoteSecret.DeepCopy()
+				s.ObjectMeta.Annotations[SourceNamespaceAnnotation] = "not-source-ns"
+
+				return *s
+			}(),
 			expected: true,
 		},
 		{
-			name: "No Changes",
-			remote: core.Secret{
-				ObjectMeta: v1.ObjectMeta{
-					Annotations: map[string]string{
-						SourceResourceVersionAnnotation: "1",
-						SourceClusterAnnotation:         "local-cluster",
-						SourceNamespaceAnnotation:       "local-ns",
-					},
-					Labels: map[string]string{
-						ManagedLabelSelector: "true",
-					},
-				},
-			},
+			name: "Different Data",
+			remote: func() core.Secret {
+				s := expectedRemoteSecret.DeepCopy()
+				s.Data["data"] = []byte("not-source-data")
+
+				return *s
+			}(),
+			expected: true,
+		},
+		{
+			name:     "No Changes",
+			remote:   expectedRemoteSecret,
 			expected: false,
 		},
 	}
