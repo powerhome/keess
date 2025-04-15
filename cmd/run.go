@@ -37,7 +37,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc" // required for oidc
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 // runCmd represents the run command
@@ -76,7 +75,7 @@ var runCmd = &cobra.Command{
 		config, err := rest.InClusterConfig()
 		if err != nil {
 			kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
-			config, err = buildConfigWithContextFromFlags(localCluster, kubeconfig)
+			config, err = services.BuildConfigWithContextFromFlags(localCluster, kubeconfig)
 			if err != nil {
 				logger.Sugar().Error("Error building localCluster kubeconfig: ", err)
 				return
@@ -108,27 +107,10 @@ var runCmd = &cobra.Command{
 		// Create a map of remote clients
 		remoteKubeClients := make(map[string]services.IKubeClient)
 
-		if len(remoteClusters) > 0 {
-
-			// Add the remote clientset to the map
-			for _, cluster := range remoteClusters {
-				remoteClusterConfig, err := buildConfigWithContextFromFlags(cluster, kubeConfigPath)
-				if err != nil {
-					logger.Sugar().Errorf("Error building remote kubeconfig for cluster '%s': %s", cluster, err)
-				}
-
-				remoteClusterClient, err := kubernetes.NewForConfig(remoteClusterConfig)
-				if err != nil {
-					logger.Sugar().Errorf("Error creating remote clientset for cluster '%s': %s", cluster, err)
-				}
-
-				remoteKubeClients[cluster] = remoteClusterClient
-			}
-
-			logger.Sugar().Infof("Remote clusters: %v", remoteClusters)
-		} else {
-			logger.Sugar().Info("No remote clusters to synchronize")
-		}
+		kubeConfigLoader := services.NewKubeconfigLoader(kubeConfigPath, logger.Sugar(), remoteKubeClients)
+		kubeConfigLoader.LoadKubeconfig()
+		defer kubeConfigLoader.Cleanup()
+		kubeConfigLoader.StartWatching(ctx)
 
 		// Create a NamespacePoller
 		namespacePoller := services.NewNamespacePoller(localKubeClient, logger.Sugar())
@@ -166,9 +148,7 @@ var runCmd = &cobra.Command{
 
 		// Create an HTTP server and add the health check handler as a handler
 		http.HandleFunc("/health", healthHandler)
-		http.ListenAndServe(":8080", nil)
-
-		select {}
+		http.ListenAndServe(":8080", nil) // we aren't handling errors here, maybe we should
 	},
 }
 
@@ -191,7 +171,6 @@ func serverIsHealthy() bool {
 
 var logLevel string
 var localCluster string
-var remoteClusters []string
 var kubeConfigPath string
 
 func init() {
@@ -202,7 +181,6 @@ func init() {
 	runCmd.Flags().StringVarP(&localCluster, "localCluster", "c", "", "Local cluster name")
 	runCmd.Flags().StringVarP(&kubeConfigPath, "kubeConfigPath", "p", "", "Path to the kubeconfig file")
 	runCmd.Flags().Int32P("namespacePollingInterval", "n", int32(60), "Interval in seconds to poll the Kubernetes API for namespaces.")
-	runCmd.Flags().StringArrayVarP(&remoteClusters, "remoteCluster", "r", []string{}, "Remote cluster to synchronize")
 	runCmd.Flags().Int32P("pollingInterval", "s", int32(60), "Interval in seconds to poll the Kubernetes API for secrets and configmaps.")
 	runCmd.Flags().Int32P("housekeepingInterval", "k", int32(300), "Interval in seconds to delete orphans objects.")
 
@@ -216,13 +194,4 @@ func configureLogger() (*zapcore.EncoderConfig, error) {
 	cfg.CallerKey = "caller"
 
 	return &cfg, nil
-}
-
-// buildConfigWithContextFromFlags builds a Kubernetes client configuration from the provided context and kubeconfig path.
-func buildConfigWithContextFromFlags(context string, kubeconfigPath string) (*rest.Config, error) {
-	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfigPath},
-		&clientcmd.ConfigOverrides{
-			CurrentContext: context,
-		}).ClientConfig()
 }
