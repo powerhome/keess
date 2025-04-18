@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# We should convert this to the e2e-framework (https://github.com/kubernetes-sigs/e2e-framework)
+
 set -x
 
 use_kind=true
