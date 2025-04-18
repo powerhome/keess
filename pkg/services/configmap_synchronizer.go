@@ -84,7 +84,7 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 				} else {
 
 					if _, ok := s.remoteKubeClients[sourceCluster]; !ok {
-						s.logger.Error("Remote client not found: ", sourceCluster)
+						s.logger.Error("[ConfigMap][deleteOrphans] Remote client not found: ", sourceCluster)
 						continue
 					}
 
@@ -296,7 +296,7 @@ func (s *ConfigMapSynchronizer) syncRemote(ctx context.Context, pacConfigMap Pac
 		client, ok := s.remoteKubeClients[cluster]
 
 		if !ok {
-			s.logger.Error("Remote client not found: ", cluster)
+			s.logger.Error("[ConfigMap][syncRemote] Remote client not found: ", cluster)
 			continue
 		}
 

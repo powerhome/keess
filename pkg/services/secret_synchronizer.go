@@ -84,7 +84,7 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 				} else {
 
 					if _, ok := s.remoteKubeClients[sourceCluster]; !ok {
-						s.logger.Error("Remote client not found: ", sourceCluster)
+						s.logger.Error("[Secret][deleteOrphans] Remote client not found: ", sourceCluster)
 						continue
 					}
 
@@ -296,7 +296,7 @@ func (s *SecretSynchronizer) syncRemote(ctx context.Context, pacSecret PacSecret
 		client, ok := s.remoteKubeClients[cluster]
 
 		if !ok {
-			s.logger.Error("Remote client not found: ", cluster)
+			s.logger.Error("[Secret][syncRemote] Remote client not found: ", cluster)
 			continue
 		}
 
