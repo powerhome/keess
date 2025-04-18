@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"slices"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -18,12 +17,12 @@ import (
 
 // KubeconfigLoader is a struct that can (re-)load the Kubeconfig from the local filesystem.
 type KubeconfigLoader struct {
-	path           string
-	logger         *zap.SugaredLogger
-	watcher        *fsnotify.Watcher
-	remoteClusters map[string]IKubeClient
-	lastConfigHash string
-	httpClient     *http.Client
+	path              string
+	logger            *zap.SugaredLogger
+	watcher           *fsnotify.Watcher
+	lastConfigHash    string
+	httpClient        *http.Client
+	remoteKubeClients map[string]IKubeClient
 }
 
 // NewKubeconfigLoader creates a new KubeconfigLoader.
@@ -34,11 +33,11 @@ func NewKubeconfigLoader(kubeConfigPath string, logger *zap.SugaredLogger, remot
 		return nil
 	}
 	return &KubeconfigLoader{
-		path:           kubeConfigPath,
-		logger:         logger,
-		watcher:        watcher,
-		remoteClusters: remoteKubeClients,
-		lastConfigHash: "",
+		path:              kubeConfigPath,
+		logger:            logger,
+		watcher:           watcher,
+		remoteKubeClients: remoteKubeClients,
+		lastConfigHash:    "",
 	}
 }
 
@@ -70,8 +69,13 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 		return
 	}
 	if !changed {
-		k.logger.Infof("No changes detected in kubeconfig %s, skipping reload", k.path)
+		k.logger.Debugf("No changes detected in kubeconfig %s, skipping reload", k.path)
 		return
+	}
+	k.logger.Debugf("Detected kubeconfig change, reloading: %s", k.path)
+	for client := range k.remoteKubeClients { // if we reassing the map, the synchronizers lose the reference to it
+		delete(k.remoteKubeClients, client)
+		k.logger.Debugf("Removed remote client for cluster: %s", client)
 	}
 
 	// Update stored hash
@@ -91,16 +95,7 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 	for contextName := range kubeConfig.Contexts {
 		remoteClustersName = append(remoteClustersName, contextName)
 	}
-
-	if !slices.Contains(k.watcher.WatchList(), k.path) {
-		k.logger.Infof("Adding watcher for kube config %s", k.path)
-		err = k.watcher.Add(k.path)
-		if err != nil {
-			k.logger.Errorf("Error adding watcher for kube config %s: %s", k.path, err)
-		}
-	} else {
-		k.logger.Infof("Watcher already exists for kube config %s", k.path)
-	}
+	k.logger.Debugf("Remote clusters found in kubeconfig: %v", remoteClustersName)
 
 	if len(remoteClustersName) > 0 {
 		var initializedClustersName []string
@@ -126,12 +121,12 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 			}
 			k.logger.Infof("Connected to remote cluster '%s' with server version: %s", cluster, output.String())
 
-			k.remoteClusters[cluster] = remoteClusterClient
+			k.remoteKubeClients[cluster] = remoteClusterClient
 			initializedClustersName = append(initializedClustersName, cluster)
 			k.logger.Debugf("Initialized remote cluster client for '%s'", cluster)
 		}
 
-		k.logger.Infof("Remote clusters: %v", initializedClustersName)
+		k.logger.Infof("Remote clusters successfully initialized: %v", initializedClustersName)
 	} else {
 		k.logger.Info("No remote clusters to synchronize")
 	}
@@ -142,6 +137,20 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 	var debounceTimer *time.Timer // timer to debounce events and avoid multiple reloads
 	debounceDuration := 500 * time.Millisecond
 	go func() {
+		_, err := os.Stat(k.path)
+		for err != nil && os.IsNotExist(err) {
+			k.logger.Warnf("Kubeconfig file does not exist yet: %s", k.path)
+			time.Sleep(2 * time.Second) // Polling interval for file existence
+			_, err = os.Stat(k.path)
+		}
+		k.logger.Infof("Kubeconfig file found, starting watcher: %s", k.path)
+		if err := k.watcher.Add(k.path); err != nil {
+			k.logger.Errorf("Error adding watcher for kubeconfig: %s", err)
+			return
+		}
+		k.logger.Debugf("Added watcher for kubeconfig file: %s", k.path)
+		k.LoadKubeconfig()
+
 		for {
 			select {
 			case event, ok := <-k.watcher.Events:
@@ -156,9 +165,7 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 					}
 
 					debounceTimer = time.AfterFunc(debounceDuration, func() { // this is necessary because "depending on the editor and OS, modifying a file can trigger multiple events": https://github.com/fsnotify/fsnotify/issues/344
-						k.logger.Infof("Detected kubeconfig change, reloading: %s", event.Name)
-						k.logger.Debug("Event Op: ", event.Op)
-						k.remoteClusters = make(map[string]IKubeClient) // Reset before loading new data
+						k.logger.Debug("Detected kubeconfig file operation: ", event.Op)
 						k.LoadKubeconfig()
 					})
 				}
@@ -172,7 +179,7 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 					go func() {
 						k.logger.Infof("Waiting for kubeconfig file to be recreated: %s", k.path)
 						maxRetries := 60
-						for range maxRetries {
+						for i := 0; i < maxRetries; i++ {
 							if _, err := clientcmd.LoadFromFile(k.path); err == nil {
 								k.logger.Infof("Kubeconfig file recreated, reloading: %s", k.path)
 								k.LoadKubeconfig()

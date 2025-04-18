@@ -108,7 +108,6 @@ var runCmd = &cobra.Command{
 		remoteKubeClients := make(map[string]services.IKubeClient)
 
 		kubeConfigLoader := services.NewKubeconfigLoader(kubeConfigPath, logger.Sugar(), remoteKubeClients)
-		kubeConfigLoader.LoadKubeconfig()
 		defer kubeConfigLoader.Cleanup()
 		kubeConfigLoader.StartWatching(ctx)
 
