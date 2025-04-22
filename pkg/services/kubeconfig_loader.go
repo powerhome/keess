@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"net/http"
 	"os"
 	"time"
 
@@ -21,7 +20,6 @@ type KubeconfigLoader struct {
 	logger            *zap.SugaredLogger
 	watcher           *fsnotify.Watcher
 	lastConfigHash    string
-	httpClient        *http.Client
 	remoteKubeClients map[string]IKubeClient
 }
 
@@ -44,7 +42,7 @@ func NewKubeconfigLoader(kubeConfigPath string, logger *zap.SugaredLogger, remot
 // Cleanup closes the watcher and logs an error if it fails.
 func (k *KubeconfigLoader) Cleanup() {
 	defer k.logger.Info("Kubeconfig watcher closed")
-	if err := k.watcher.Close(); err != nil {
+	if err := k.watcher.Close(); err != nil { // fsnotify watcher Linux-backend Close() always returns nil, but we check for errors to be safe
 		k.logger.Errorf("Error closing watcher: %s", err)
 	}
 }
@@ -73,7 +71,7 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 		return
 	}
 	k.logger.Debugf("Detected kubeconfig change, reloading: %s", k.path)
-	for client := range k.remoteKubeClients { // if we reassing the map, the synchronizers lose the reference to it
+	for client := range k.remoteKubeClients { // if we reassign the map, the synchronizers lose the reference to it
 		delete(k.remoteKubeClients, client)
 		k.logger.Debugf("Removed remote client for cluster: %s", client)
 	}
@@ -82,12 +80,12 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 	k.lastConfigHash = currentHash
 
 	kubeConfig, err := clientcmd.LoadFromFile(k.path)
-	if err != nil {
+	if err != nil { // kubeConfig is nil only if the file is empty or invalid
 		k.logger.Errorf("Error loading kube config from path %s: %s", k.path, err)
 		return
 	}
-	if kubeConfig == nil {
-		k.logger.Errorf("Loaded kubeconfig from %s is empty or invalid", k.path)
+	if len(kubeConfig.Contexts) == 0 {
+		k.logger.Warnf("No contexts found in kubeconfig file %s", k.path)
 		return
 	}
 
