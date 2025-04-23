@@ -1,7 +1,10 @@
 package services
 
 import (
+	"context"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +28,7 @@ func TestKubeconfigLoader_NewKubeconfigLoader(t *testing.T) {
 	mockLogger, _ := newMockLogger()
 	kcl := NewKubeconfigLoader("/kubeconfig/path", mockLogger, nil)
 	assert.NotNil(t, kcl, "KubeconfigLoader should not be nil")
-	assert.Equal(t, tc.kubeConfigPath, kcl.path, "KubeconfigLoader path should match the provided path")
+	assert.Equal(t, "/kubeconfig/path", kcl.path, "KubeconfigLoader path should match the provided path")
 	assert.NotNil(t, kcl.watcher, "KubeconfigLoader watcher should not be nil")
 	assert.Equal(t, mockLogger, kcl.logger, "KubeconfigLoader logger should match the provided logger")
 	assert.Empty(t, kcl.remoteKubeClients, "KubeconfigLoader remoteKubeClients should be empty")
@@ -56,8 +59,8 @@ func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 	testCases := []struct {
 		description        string
 		kubeConfigPath     string
-		expectedLogs       []string
 		remoteKubeClients  map[string]IKubeClient
+		expectedLogs       []string
 		overrideKCL        *KubeconfigLoader
 		shouldHaveContexts bool
 		expectedContexts   []string
@@ -161,5 +164,129 @@ func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestKubeconfigLoader_StartWatching(t *testing.T) {
+	testCases := []struct {
+		description              string
+		kubeConfigPath           string
+		remoteKubeClients        map[string]IKubeClient
+		timeToWait               int
+		createKubeconfig         bool
+		expectedLogs             []string
+		substituteKubeConfigPath bool
+		recreateKubeConfigPath   bool
+		expected                 struct {
+			lastConfigHash string
+		}
+	}{
+		{
+			description:      "should wait for file creation and then start watching",
+			kubeConfigPath:   "./fixtures/non-existent-kubeconfig.yaml",
+			timeToWait:       3,
+			createKubeconfig: true,
+			expectedLogs: []string{ //
+				"Kubeconfig file does not exist yet: ./fixtures/non-existent-kubeconfig.yaml",
+				"Kubeconfig file does not exist yet: ./fixtures/non-existent-kubeconfig.yaml",
+				"Kubeconfig file found, starting watcher: ./fixtures/non-existent-kubeconfig.yaml",
+				"Added watcher for kubeconfig file: ./fixtures/non-existent-kubeconfig.yaml",
+				"Detected kubeconfig change, reloading: ./fixtures/non-existent-kubeconfig.yaml",
+				"Error loading kube config from path ./fixtures/non-existent-kubeconfig.yaml: couldn't get version/kind; json parse error: json: cannot unmarshal string into Go value of type struct { APIVersion string \"json:\\\"apiVersion,omitempty\\\"\"; Kind string \"json:\\\"kind,omitempty\\\"\" }",
+			},
+			expected: struct {
+				lastConfigHash string
+			}{
+				lastConfigHash: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+			},
+		},
+		{
+			description:    "should successfully load kubeconfig notice it was deleted and then wait for its recreation",
+			kubeConfigPath: "./fixtures/kubeconfig_empty.yaml",
+			timeToWait:     5,
+			expectedLogs: []string{
+				"Kubeconfig file found, starting watcher: ./fixtures/temp/generated_kubeconfig.yaml",
+				"Added watcher for kubeconfig file: ./fixtures/temp/generated_kubeconfig.yaml",
+				"Detected kubeconfig change, reloading: ./fixtures/temp/generated_kubeconfig.yaml",
+				"No contexts found in kubeconfig file: ./fixtures/temp/generated_kubeconfig.yaml",
+				"Kubeconfig file was removed: ./fixtures/temp/generated_kubeconfig.yaml",
+				"Removed watcher for kubeconfig file due to deletion: ./fixtures/temp/generated_kubeconfig.yaml",
+				"Waiting for kubeconfig file to be recreated: ./fixtures/temp/generated_kubeconfig.yaml",
+				"Kubeconfig file recreated, reloading: ./fixtures/temp/generated_kubeconfig.yaml",
+				"No changes detected in kubeconfig ./fixtures/temp/generated_kubeconfig.yaml, skipping reload",
+				"Re-added watcher for kubeconfig file: ./fixtures/temp/generated_kubeconfig.yaml",
+			},
+			substituteKubeConfigPath: true,
+			recreateKubeConfigPath:   true,
+			expected: struct {
+				lastConfigHash string
+			}{
+				lastConfigHash: "fd7ac3e961b70cee118473c502416e803b732b3415aebdf2138c598b61955976",
+			},
+		},
+	}
+
+	tempDir := "./fixtures/temp"
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			mockLogger, observedLogs := newMockLogger()
+			var dstFile string
+			if tc.substituteKubeConfigPath {
+				dstFile = tempDir + "/generated_kubeconfig.yaml"
+				src, err := os.ReadFile(tc.kubeConfigPath)
+				if err != nil {
+					t.Fatalf("Failed to read source kubeconfig file: %v", err)
+				}
+				err = os.WriteFile(dstFile, src, 0644)
+				if err != nil {
+					t.Fatalf("Failed to write destination kubeconfig file: %v", err)
+				}
+				t.Cleanup(func() {
+					os.Remove(dstFile)
+				})
+			} else {
+				dstFile = tc.kubeConfigPath
+			}
+			kcl := NewKubeconfigLoader(dstFile, mockLogger, tc.remoteKubeClients)
+
+			ctx := context.Background()
+			kcl.StartWatching(ctx)
+
+			if tc.createKubeconfig {
+				time.Sleep(time.Duration(2) * time.Second)
+				os.WriteFile(tc.kubeConfigPath, []byte("test"), 0644)
+				t.Cleanup(func() {
+					os.Remove(tc.kubeConfigPath)
+				})
+			}
+
+			if tc.recreateKubeConfigPath {
+				time.Sleep(time.Duration(3) * time.Second)
+				os.Remove(dstFile)
+				time.Sleep(time.Duration(3) * time.Second)
+				src, err := os.ReadFile(tc.kubeConfigPath)
+				if err != nil {
+					t.Fatalf("Failed to read source kubeconfig file: %v", err)
+				}
+				err = os.WriteFile(dstFile, src, 0644)
+				if err != nil {
+					t.Fatalf("Failed to write destination kubeconfig file: %v", err)
+				}
+			}
+
+			time.Sleep(time.Duration(tc.timeToWait) * time.Second)
+			ctx.Done()
+
+			kcl.logger.Sync()
+			logs := observedLogs.All()
+			assert.Equal(t, tc.expected.lastConfigHash, kcl.lastConfigHash, "Expected lastConfigHash to match expected value")
+			assert.Lenf(t, logs, len(tc.expectedLogs), "Expected %d log entries, got %d", len(tc.expectedLogs), len(logs))
+			for i, log := range logs {
+				if log.Message != tc.expectedLogs[i] {
+					t.Errorf("Expected log message '%s', got '%s'", tc.expectedLogs[i], log.Message)
+				}
+			}
+		},
+		)
 	}
 }

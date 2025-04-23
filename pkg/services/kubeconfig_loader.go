@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -22,6 +23,7 @@ type KubeconfigLoader struct {
 	lastConfigHash    string
 	remoteKubeClients map[string]IKubeClient
 	clientFactory     func(config *rest.Config) (IKubeClient, error)
+	maxRetries        int
 }
 
 // NewKubeconfigLoader creates a new KubeconfigLoader.
@@ -31,12 +33,19 @@ func NewKubeconfigLoader(kubeConfigPath string, logger *zap.SugaredLogger, remot
 		logger.Error("Error creating fsnotify watcher: ", err)
 		return nil
 	}
+	maxRetries, err := strconv.Atoi(getEnv("MAX_RETRIES", "60"))
+	if err != nil {
+		logger.Errorf("Error parsing MAX_RETRIES environment variable: %s", err)
+		return nil
+	}
 	return &KubeconfigLoader{
 		path:              kubeConfigPath,
 		logger:            logger,
 		watcher:           watcher,
 		remoteKubeClients: remoteKubeClients,
 		lastConfigHash:    "",
+		clientFactory:     nil,
+		maxRetries:        maxRetries,
 	}
 }
 
@@ -139,7 +148,7 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 // StartWatching starts watching the kubeconfig file for changes, including deletions and recreations.
 func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 	var debounceTimer *time.Timer // timer to debounce events and avoid multiple reloads
-	debounceDuration := 500 * time.Millisecond
+	debounceDuration := time.Duration(500) * time.Millisecond
 	go func() {
 		_, err := os.Stat(k.path)
 		for err != nil && os.IsNotExist(err) {
@@ -174,16 +183,15 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 					})
 				}
 
-				if event.Op&fsnotify.Remove != 0 { // TBH, I don't know if this is necessary, but it doesn't hurt
-					k.logger.Warnf("Kubeconfig file was removed: %s", event.Name)
+				if event.Op&(fsnotify.Remove) != 0 { // TBH, I don't know if this is necessary, but it doesn't hurt
+					k.logger.Warnf("Kubeconfig file was removed: %s", k.path)
 					k.watcher.Remove(k.path)
-					k.logger.Debug("Removed watcher for kubeconfig file due to deletion: %s", k.path)
+					k.logger.Debug("Removed watcher for kubeconfig file due to deletion: ", k.path)
 
 					// Attempt to re-add the watcher when the file is recreated
 					go func() {
 						k.logger.Infof("Waiting for kubeconfig file to be recreated: %s", k.path)
-						maxRetries := 60
-						for i := 0; i < maxRetries; i++ {
+						for i := 0; i < k.maxRetries; i++ {
 							if _, err := clientcmd.LoadFromFile(k.path); err == nil {
 								k.logger.Infof("Kubeconfig file recreated, reloading: %s", k.path)
 								k.LoadKubeconfig()
@@ -221,4 +229,11 @@ func BuildConfigWithContextFromFlags(context string, kubeconfigPath string) (*re
 		&clientcmd.ConfigOverrides{
 			CurrentContext: context,
 		}).ClientConfig()
+}
+
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
 }
