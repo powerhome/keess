@@ -21,6 +21,7 @@ type KubeconfigLoader struct {
 	watcher           *fsnotify.Watcher
 	lastConfigHash    string
 	remoteKubeClients map[string]IKubeClient
+	clientFactory     func(config *rest.Config) (IKubeClient, error)
 }
 
 // NewKubeconfigLoader creates a new KubeconfigLoader.
@@ -85,7 +86,7 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 		return
 	}
 	if len(kubeConfig.Contexts) == 0 {
-		k.logger.Warnf("No contexts found in kubeconfig file %s", k.path)
+		k.logger.Warnf("No contexts found in kubeconfig file: %s", k.path)
 		return
 	}
 
@@ -105,12 +106,17 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 			}
 
 			remoteClusterConfig.Timeout = 1 * time.Second // Set a timeout for the HTTP client, maybe this should be configurable
-			remoteClusterClient, err := kubernetes.NewForConfig(remoteClusterConfig)
+			var remoteClusterClient IKubeClient
+			if k.clientFactory != nil {
+				remoteClusterClient, err = k.clientFactory(remoteClusterConfig)
+			} else {
+				remoteClusterClient, err = kubernetes.NewForConfig(remoteClusterConfig)
+				remoteClusterClient = newKubeClientAdapter(remoteClusterClient.(*kubernetes.Clientset))
+			}
 			if err != nil {
 				k.logger.Errorf("Error creating remote clientset for cluster '%s': %s", cluster, err)
 				continue
 			}
-
 			output, err := remoteClusterClient.ServerVersion()
 			// This is a simple way to check if the server is reachable and the config is valid
 			if err != nil {
@@ -124,9 +130,9 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 			k.logger.Debugf("Initialized remote cluster client for '%s'", cluster)
 		}
 
-		k.logger.Infof("Remote clusters successfully initialized: %v", initializedClustersName)
-	} else {
-		k.logger.Info("No remote clusters to synchronize")
+		if len(initializedClustersName) > 0 {
+			k.logger.Infof("Remote clusters successfully initialized: %v", initializedClustersName)
+		}
 	}
 }
 
