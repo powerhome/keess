@@ -12,8 +12,8 @@ cleaningup=false
 clusters=(
     cluster-a
     cluster-b
-    cluster-c
-    cluster-d
+    # cluster-c
+    # cluster-d
 )
 mapfile -t kind_clusters < <(echo "${clusters[@]/#/kind-}" | tr ' ' '\n')
 
@@ -26,9 +26,6 @@ function cleanup() {
         for cluster in "${clusters[@]}"; do
             kind delete cluster --name "$cluster"
         done
-    else
-        gsed 's|<cluster>|wc-beta-gm|g' ./base.yaml | kubectl --context wc-beta-gm delete -f -
-        gsed 's|<cluster>|wc-prod-hq|g' ./base.yaml | kubectl --context wc-prod-hq delete -f -
     fi
     exit 0
 }
@@ -56,7 +53,7 @@ if [[ "$use_kind" == true ]]; then
         for namespace in "${clusters[@]/#/from-}"; do
             kubectl create namespace "$namespace" --context "kind-$cluster"
         done
-        gsed "s|<cluster>|kind-$cluster|g" ./base.yaml | kubectl --context "kind-$cluster" apply -f -
+        gsed "s|<cluster>|kind-$cluster|g" ./extra/functional-test/base.yaml | kubectl --context "kind-$cluster" apply -f -
         echo "sleeping..."
         gsleep 15
     done
@@ -135,18 +132,18 @@ data:
     random-value: "$(shuf -i 1-100000 -n 1 | base64)"
 EOF
     done
-    while true; do
-        for kind_cluster in "${kind_clusters[@]}"; do
-            for cluster in "${clusters[@]}"; do
-                kubectl get cm,secret -n "from-$cluster" --context "$kind_cluster"
-            done
-        done
-        gsleep 5
-    done
-else
-    gsed 's|<cluster>|wc-beta-gm|g' ./base.yaml | kubectl --context wc-beta-gm apply -f -
-    gsed 's|<cluster>|wc-prod-hq|g' ./base.yaml | kubectl --context wc-prod-hq apply -f -
+    watch -n 1 'echo "Cluster: cluster-a" && \
+        echo "Namespace: from-cluster-a" && \
+        kubectl get cm,secret -n from-cluster-a --context kind-cluster-a && \
+        echo && \
+        echo "Namespace: from-cluster-b" && \
+        kubectl get cm,secret -n from-cluster-b --context kind-cluster-a && \
+        echo "---" && \
+        echo cluster-b && \
+        echo "Namespace: from-cluster-a" && \
+        kubectl get cm,secret -n from-cluster-a --context kind-cluster-b && \
+        echo && \
+        echo "Namespace: from-cluster-b" && \
+        kubectl get cm,secret -n from-cluster-b --context kind-cluster-b && \
+        echo "---"'
 fi
-
-echo 'sleeping until interrupted...'
-gsleep infinity
