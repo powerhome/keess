@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 	"k8s.io/client-go/rest"
@@ -18,6 +19,17 @@ func newMockLogger() (*zap.SugaredLogger, *observer.ObservedLogs) {
 func newMockWatcher() *fsnotify.Watcher {
 	mockWatcher, _ := fsnotify.NewWatcher()
 	return mockWatcher
+}
+
+func TestKubeconfigLoader_NewKubeconfigLoader(t *testing.T) {
+	mockLogger, _ := newMockLogger()
+	kcl := NewKubeconfigLoader("/kubeconfig/path", mockLogger, nil)
+	assert.NotNil(t, kcl, "KubeconfigLoader should not be nil")
+	assert.Equal(t, tc.kubeConfigPath, kcl.path, "KubeconfigLoader path should match the provided path")
+	assert.NotNil(t, kcl.watcher, "KubeconfigLoader watcher should not be nil")
+	assert.Equal(t, mockLogger, kcl.logger, "KubeconfigLoader logger should match the provided logger")
+	assert.Empty(t, kcl.remoteKubeClients, "KubeconfigLoader remoteKubeClients should be empty")
+	assert.Empty(t, kcl.lastConfigHash, "KubeconfigLoader lastConfigHash should be empty")
 }
 
 func TestKubeconfigLoader_Cleanup(t *testing.T) {
@@ -42,11 +54,13 @@ func TestKubeconfigLoader_Cleanup(t *testing.T) {
 
 func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 	testCases := []struct {
-		description       string
-		kubeConfigPath    string
-		expectedLogs      []string
-		remoteKubeClients map[string]IKubeClient
-		overrideKCL       *KubeconfigLoader
+		description        string
+		kubeConfigPath     string
+		expectedLogs       []string
+		remoteKubeClients  map[string]IKubeClient
+		overrideKCL        *KubeconfigLoader
+		shouldHaveContexts bool
+		expectedContexts   []string
 	}{
 		{
 			description:    "should error with invalid kubeconfig path",
@@ -91,7 +105,7 @@ func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 			expectedLogs: []string{
 				"Detected kubeconfig change, reloading: ./fixtures/kubeconfig_with_test-cluster.yaml",
 				"Remote clusters found in kubeconfig: [test-cluster]",
-				"Error getting server version for cluster 'test-cluster': Get \"https://127.0.0.1:57000/version?timeout=1s\": dial tcp 127.0.0.1:57000: connect: connection refused",
+				"Error getting server version for cluster 'test-cluster': Get \"https://127.0.0.1:12345/version?timeout=1s\": dial tcp 127.0.0.1:12345: connect: connection refused",
 			},
 			remoteKubeClients: make(map[string]IKubeClient),
 		},
@@ -111,6 +125,8 @@ func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 					return &mockKubeClient{}, nil
 				},
 			},
+			shouldHaveContexts: true,
+			expectedContexts:   []string{"test-cluster"},
 		},
 	}
 
@@ -125,11 +141,20 @@ func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 			}
 
 			kcl.LoadKubeconfig()
+			if tc.shouldHaveContexts {
+				assert.NotEmpty(t, kcl.remoteKubeClients, "Expected remoteKubeClients to be initialized")
+				assert.Equal(t, len(tc.expectedContexts), len(kcl.remoteKubeClients), "Expected remoteKubeClients to match expected contexts")
+				for _, context := range tc.expectedContexts {
+					_, ok := kcl.remoteKubeClients[context]
+					assert.True(t, ok, "Expected remoteKubeClient for context '%s' to be found", context)
+				}
+			} else {
+				assert.Empty(t, kcl.remoteKubeClients, "Expected remoteKubeClients to be empty")
+			}
+
 			kcl.logger.Sync()
 			logs := observedLogs.All()
-			if len(logs) != len(tc.expectedLogs) {
-				t.Errorf("Expected %d log entries, got %d. Logs: %+v", len(tc.expectedLogs), len(logs), logs)
-			}
+			assert.Lenf(t, logs, len(tc.expectedLogs), "Expected %d log entries, got %d", len(tc.expectedLogs), len(logs))
 			for i, log := range logs {
 				if log.Message != tc.expectedLogs[i] {
 					t.Errorf("Expected log message '%s', got '%s'", tc.expectedLogs[i], log.Message)
