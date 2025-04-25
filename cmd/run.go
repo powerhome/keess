@@ -96,6 +96,8 @@ var runCmd = &cobra.Command{
 		namespacePollingInterval, _ := cmd.Flags().GetInt32("namespacePollingInterval")
 		pollingInterval, _ := cmd.Flags().GetInt32("pollingInterval")
 		housekeepingInterval, _ := cmd.Flags().GetInt32("housekeepingInterval")
+		configReloaderMaxRetries, _ := cmd.Flags().GetInt("configReloaderMaxRetries")
+		configReloaderDebounceTimer, _ := cmd.Flags().GetInt("configReloaderDebounceTimer")
 
 		logger.Sugar().Infof("Starting Keess. Running on local cluster: %s", localCluster)
 		logger.Sugar().Debugf("Namespace polling interval: %d seconds", namespacePollingInterval)
@@ -107,8 +109,7 @@ var runCmd = &cobra.Command{
 		// Create a map of remote clients
 		remoteKubeClients := make(map[string]services.IKubeClient)
 
-		kubeConfigLoader := services.NewKubeconfigLoader(kubeConfigPath, logger.Sugar(), remoteKubeClients)
-		defer kubeConfigLoader.Cleanup()
+		kubeConfigLoader := services.NewKubeconfigLoader(kubeConfigPath, logger.Sugar(), remoteKubeClients, configReloaderMaxRetries, configReloaderDebounceTimer)
 		kubeConfigLoader.StartWatching(ctx)
 
 		// Create a NamespacePoller
@@ -147,7 +148,10 @@ var runCmd = &cobra.Command{
 
 		// Create an HTTP server and add the health check handler as a handler
 		http.HandleFunc("/health", healthHandler)
-		http.ListenAndServe(":8080", nil) // we aren't handling errors here, maybe we should
+
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			logger.Sugar().Fatalf("Failed to start HTTP server: %v", err)
+		}
 	},
 }
 
@@ -182,6 +186,11 @@ func init() {
 	runCmd.Flags().Int32P("namespacePollingInterval", "n", int32(60), "Interval in seconds to poll the Kubernetes API for namespaces.")
 	runCmd.Flags().Int32P("pollingInterval", "s", int32(60), "Interval in seconds to poll the Kubernetes API for secrets and configmaps.")
 	runCmd.Flags().Int32P("housekeepingInterval", "k", int32(300), "Interval in seconds to delete orphans objects.")
+	runCmd.Flags().IntP("configReloaderMaxRetries", "r", 60, "Max retries for kubeconfig reloader. Each retry will wait 2 second before trying again.")
+	runCmd.Flags().IntP("configReloaderDebounceTimer", "d", 500, "Debounce timer for kubeconfig reloader in milliseconds. Each retry will wait this time before trying again.")
+
+	runCmd.MarkFlagRequired("localCluster")
+	runCmd.MarkFlagRequired("kubeConfigPath")
 
 }
 

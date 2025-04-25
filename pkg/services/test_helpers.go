@@ -29,8 +29,8 @@ type mockKubeClient struct {
 
 func (m *mockKubeClient) ServerVersion() (*version.Info, error) {
 	return &version.Info{
-		Major: "1",
-		Minor: "32.2",
+		Major:      "1",
+		Minor:      "32.2",
 		GitVersion: "v1.32.2",
 	}, nil
 }

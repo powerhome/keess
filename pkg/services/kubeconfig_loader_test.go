@@ -26,13 +26,16 @@ func newMockWatcher() *fsnotify.Watcher {
 
 func TestKubeconfigLoader_NewKubeconfigLoader(t *testing.T) {
 	mockLogger, _ := newMockLogger()
-	kcl := NewKubeconfigLoader("/kubeconfig/path", mockLogger, nil)
+	kcl := NewKubeconfigLoader("/kubeconfig/path", mockLogger, nil, 0, 0)
 	assert.NotNil(t, kcl, "KubeconfigLoader should not be nil")
 	assert.Equal(t, "/kubeconfig/path", kcl.path, "KubeconfigLoader path should match the provided path")
 	assert.NotNil(t, kcl.watcher, "KubeconfigLoader watcher should not be nil")
 	assert.Equal(t, mockLogger, kcl.logger, "KubeconfigLoader logger should match the provided logger")
 	assert.Empty(t, kcl.remoteKubeClients, "KubeconfigLoader remoteKubeClients should be empty")
 	assert.Empty(t, kcl.lastConfigHash, "KubeconfigLoader lastConfigHash should be empty")
+	assert.Nil(t, kcl.clientFactory, "KubeconfigLoader clientFactory should be nil")
+	assert.Equal(t, 0, kcl.maxRetries, "KubeconfigLoader maxRetries should be 0")
+	assert.Equal(t, time.Duration(0), kcl.debounceDuration, "KubeconfigLoader debounceDuration should be 0")
 }
 
 func TestKubeconfigLoader_Cleanup(t *testing.T) {
@@ -136,7 +139,7 @@ func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			mockLogger, observedLogs := newMockLogger()
-			kcl := NewKubeconfigLoader(tc.kubeConfigPath, mockLogger, tc.remoteKubeClients)
+			kcl := NewKubeconfigLoader(tc.kubeConfigPath, mockLogger, tc.remoteKubeClients, 0, 0)
 
 			if tc.overrideKCL != nil {
 				kcl.lastConfigHash = tc.overrideKCL.lastConfigHash
@@ -176,11 +179,23 @@ func TestKubeconfigLoader_StartWatching(t *testing.T) {
 		createKubeconfig         bool
 		expectedLogs             []string
 		substituteKubeConfigPath bool
+		deleteKubeConfigPath     bool
 		recreateKubeConfigPath   bool
+		configReloaderMaxRetries int
 		expected                 struct {
 			lastConfigHash string
 		}
 	}{
+		{
+			description:    "should wait for file creation and fail as it reached max retries",
+			kubeConfigPath: "./fixtures/non-existent-kubeconfig.yaml",
+			timeToWait:     3,
+			expectedLogs: []string{
+				"Kubeconfig file does not exist yet: ./fixtures/non-existent-kubeconfig.yaml",
+				"Error checking kubeconfig file existence: stat ./fixtures/non-existent-kubeconfig.yaml: no such file or directory",
+			},
+			configReloaderMaxRetries: 1,
+		},
 		{
 			description:      "should wait for file creation and then start watching",
 			kubeConfigPath:   "./fixtures/non-existent-kubeconfig.yaml",
@@ -192,18 +207,43 @@ func TestKubeconfigLoader_StartWatching(t *testing.T) {
 				"Kubeconfig file found, starting watcher: ./fixtures/non-existent-kubeconfig.yaml",
 				"Added watcher for kubeconfig file: ./fixtures/non-existent-kubeconfig.yaml",
 				"Detected kubeconfig change, reloading: ./fixtures/non-existent-kubeconfig.yaml",
-				"Error loading kube config from path ./fixtures/non-existent-kubeconfig.yaml: couldn't get version/kind; json parse error: json: cannot unmarshal string into Go value of type struct { APIVersion string \"json:\\\"apiVersion,omitempty\\\"\"; Kind string \"json:\\\"kind,omitempty\\\"\" }",
+				"No contexts found in kubeconfig file: ./fixtures/non-existent-kubeconfig.yaml",
 			},
 			expected: struct {
 				lastConfigHash string
 			}{
-				lastConfigHash: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+				lastConfigHash: "0078166d266f99e77f5369b52656a2a4ebee2f619aefa560fd0d2afb41a793c7",
 			},
+			configReloaderMaxRetries: 10,
 		},
 		{
-			description:    "should successfully load kubeconfig notice it was deleted and then wait for its recreation",
+			description:    "should successfully load kubeconfig, notice it was deleted and then fail as it reached max retries on polling",
 			kubeConfigPath: "./fixtures/kubeconfig_empty.yaml",
-			timeToWait:     5,
+			timeToWait:     3,
+			expectedLogs: []string{
+				"Kubeconfig file found, starting watcher: ./fixtures/temp/generated_kubeconfig.yaml",
+				"Added watcher for kubeconfig file: ./fixtures/temp/generated_kubeconfig.yaml",
+				"Detected kubeconfig change, reloading: ./fixtures/temp/generated_kubeconfig.yaml",
+				"No contexts found in kubeconfig file: ./fixtures/temp/generated_kubeconfig.yaml",
+				"Kubeconfig file was removed: ./fixtures/temp/generated_kubeconfig.yaml",
+				"Removed watcher for kubeconfig file due to deletion: ./fixtures/temp/generated_kubeconfig.yaml",
+				"Waiting for kubeconfig file to be recreated: ./fixtures/temp/generated_kubeconfig.yaml",
+				"Watched kubeconfig file ./fixtures/temp/generated_kubeconfig.yaml was not recreated within the timeout period. Stopping watcher.",
+				"Kubeconfig watcher closed",
+			},
+			substituteKubeConfigPath: true,
+			deleteKubeConfigPath:     true,
+			expected: struct {
+				lastConfigHash string
+			}{
+				lastConfigHash: "fd7ac3e961b70cee118473c502416e803b732b3415aebdf2138c598b61955976",
+			},
+			configReloaderMaxRetries: 1,
+		},
+		{
+			description:    "should successfully load kubeconfig, notice it was deleted, wait for its recreation and re-add watcher when its recreated",
+			kubeConfigPath: "./fixtures/kubeconfig_empty.yaml",
+			timeToWait:     3,
 			expectedLogs: []string{
 				"Kubeconfig file found, starting watcher: ./fixtures/temp/generated_kubeconfig.yaml",
 				"Added watcher for kubeconfig file: ./fixtures/temp/generated_kubeconfig.yaml",
@@ -213,16 +253,18 @@ func TestKubeconfigLoader_StartWatching(t *testing.T) {
 				"Removed watcher for kubeconfig file due to deletion: ./fixtures/temp/generated_kubeconfig.yaml",
 				"Waiting for kubeconfig file to be recreated: ./fixtures/temp/generated_kubeconfig.yaml",
 				"Kubeconfig file recreated, reloading: ./fixtures/temp/generated_kubeconfig.yaml",
-				"No changes detected in kubeconfig ./fixtures/temp/generated_kubeconfig.yaml, skipping reload",
 				"Re-added watcher for kubeconfig file: ./fixtures/temp/generated_kubeconfig.yaml",
+				"No changes detected in kubeconfig ./fixtures/temp/generated_kubeconfig.yaml, skipping reload",
 			},
 			substituteKubeConfigPath: true,
+			deleteKubeConfigPath:     true,
 			recreateKubeConfigPath:   true,
 			expected: struct {
 				lastConfigHash string
 			}{
 				lastConfigHash: "fd7ac3e961b70cee118473c502416e803b732b3415aebdf2138c598b61955976",
 			},
+			configReloaderMaxRetries: 10,
 		},
 	}
 
@@ -247,22 +289,26 @@ func TestKubeconfigLoader_StartWatching(t *testing.T) {
 			} else {
 				dstFile = tc.kubeConfigPath
 			}
-			kcl := NewKubeconfigLoader(dstFile, mockLogger, tc.remoteKubeClients)
+			kcl := NewKubeconfigLoader(dstFile, mockLogger, tc.remoteKubeClients, tc.configReloaderMaxRetries, 0)
 
-			ctx := context.Background()
+			ctx, cancel := context.WithCancel(context.Background())
 			kcl.StartWatching(ctx)
 
 			if tc.createKubeconfig {
 				time.Sleep(time.Duration(2) * time.Second)
-				os.WriteFile(tc.kubeConfigPath, []byte("test"), 0644)
+				emptyKubeConfig := []byte("apiVersion: v1\nclusters: []\ncontexts: []\n")
+				os.WriteFile(tc.kubeConfigPath, emptyKubeConfig, 0644)
 				t.Cleanup(func() {
 					os.Remove(tc.kubeConfigPath)
 				})
 			}
 
-			if tc.recreateKubeConfigPath {
+			if tc.deleteKubeConfigPath {
 				time.Sleep(time.Duration(3) * time.Second)
 				os.Remove(dstFile)
+			}
+
+			if tc.recreateKubeConfigPath {
 				time.Sleep(time.Duration(3) * time.Second)
 				src, err := os.ReadFile(tc.kubeConfigPath)
 				if err != nil {
@@ -275,7 +321,7 @@ func TestKubeconfigLoader_StartWatching(t *testing.T) {
 			}
 
 			time.Sleep(time.Duration(tc.timeToWait) * time.Second)
-			ctx.Done()
+			cancel()
 
 			kcl.logger.Sync()
 			logs := observedLogs.All()

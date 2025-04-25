@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -24,18 +23,14 @@ type KubeconfigLoader struct {
 	remoteKubeClients map[string]IKubeClient
 	clientFactory     func(config *rest.Config) (IKubeClient, error)
 	maxRetries        int
+	debounceDuration  time.Duration
 }
 
 // NewKubeconfigLoader creates a new KubeconfigLoader.
-func NewKubeconfigLoader(kubeConfigPath string, logger *zap.SugaredLogger, remoteKubeClients map[string]IKubeClient) *KubeconfigLoader {
+func NewKubeconfigLoader(kubeConfigPath string, logger *zap.SugaredLogger, remoteKubeClients map[string]IKubeClient, configReloaderMaxRetries, configReloaderDebounceTimer int) *KubeconfigLoader {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		logger.Error("Error creating fsnotify watcher: ", err)
-		return nil
-	}
-	maxRetries, err := strconv.Atoi(getEnv("MAX_RETRIES", "60"))
-	if err != nil {
-		logger.Errorf("Error parsing MAX_RETRIES environment variable: %s", err)
 		return nil
 	}
 	return &KubeconfigLoader{
@@ -45,7 +40,8 @@ func NewKubeconfigLoader(kubeConfigPath string, logger *zap.SugaredLogger, remot
 		remoteKubeClients: remoteKubeClients,
 		lastConfigHash:    "",
 		clientFactory:     nil,
-		maxRetries:        maxRetries,
+		maxRetries:        configReloaderMaxRetries,
+		debounceDuration:  time.Duration(configReloaderDebounceTimer) * time.Millisecond,
 	}
 }
 
@@ -148,13 +144,22 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 // StartWatching starts watching the kubeconfig file for changes, including deletions and recreations.
 func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 	var debounceTimer *time.Timer // timer to debounce events and avoid multiple reloads
-	debounceDuration := time.Duration(500) * time.Millisecond
+	debounceDuration := k.debounceDuration
 	go func() {
 		_, err := os.Stat(k.path)
-		for err != nil && os.IsNotExist(err) {
+		i := 0
+		for i < k.maxRetries && err != nil && os.IsNotExist(err) {
 			k.logger.Warnf("Kubeconfig file does not exist yet: %s", k.path)
 			time.Sleep(2 * time.Second) // Polling interval for file existence
 			_, err = os.Stat(k.path)
+			if err == nil {
+				break
+			}
+			i++
+		}
+		if err != nil {
+			k.logger.Errorf("Error checking kubeconfig file existence: %s", err)
+			return
 		}
 		k.logger.Infof("Kubeconfig file found, starting watcher: %s", k.path)
 		if err := k.watcher.Add(k.path); err != nil {
@@ -194,17 +199,18 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 						for i := 0; i < k.maxRetries; i++ {
 							if _, err := clientcmd.LoadFromFile(k.path); err == nil {
 								k.logger.Infof("Kubeconfig file recreated, reloading: %s", k.path)
-								k.LoadKubeconfig()
 								if err := k.watcher.Add(k.path); err != nil {
 									k.logger.Errorf("Failed to re-add watcher for kubeconfig: %s", err)
 								} else {
 									k.logger.Debugf("Re-added watcher for kubeconfig file: %s", k.path)
+									k.LoadKubeconfig()
 								}
 								return
 							}
 							time.Sleep(2 * time.Second) // Polling interval for file recreation
 						}
-						k.logger.Warn("Kubeconfig file was not recreated within the timeout period. Stopping watcher.")
+						k.logger.Warnf("Watched kubeconfig file %s was not recreated within the timeout period. Stopping watcher.", k.path)
+						k.Cleanup()
 					}()
 				}
 
