@@ -3,7 +3,7 @@
 # Declare variables to be passed into your templates.
 
 image:
-  repository: powerci/keess
+  repository: powerhome/keess
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -149,7 +149,7 @@ kubeconfigReloader:
     #     aws_access_key_id = ""
     #     aws_secret_access_key = ""
   image:
-    repository: powerci/keess-kubeconfig-reloader
+    repository: powerhome/keess-kubeconfig-reloader
     pullPolicy: IfNotPresent
     tag: ""
   config:
