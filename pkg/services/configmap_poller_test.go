@@ -15,7 +15,7 @@ import (
 
 func TestConfigMapPoller_PollConfigMaps(t *testing.T) {
 	cluster := "test-cluster"
-	mockKubeClient := fake.NewSimpleClientset()
+	mockKubeClient := &mockKubeClient{Clientset: fake.NewSimpleClientset()}
 	logger, _ := zap.NewProduction()
 	sugaredLogger := logger.Sugar()
 

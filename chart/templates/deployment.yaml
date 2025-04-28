@@ -34,15 +34,10 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"        
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           args:
             - --logLevel={{ .Values.logLevel }}
             - --localCluster={{ .Values.localCluster }}
-            {{- if .Values.remoteClusters }}
-            {{- range .Values.remoteClusters }}
-            - --remoteCluster={{ . }}
-            {{- end }}
-            {{- end }}            
             - --kubeConfigPath={{ .Values.kubeConfigPath }}
             - --pollingInterval={{ .Values.pollingInterval }}
             - --namespacePollingInterval={{ .Values.namespacePollingInterval }}

@@ -1,9 +1,7 @@
-.git
-.github
-.vscode
-.gitignore
-.sops.yaml
-keess
-README.md
-Dockerfile.localtest
-localTestKubeconfig
+*
+!*.go
+!go.mod
+!go.sum
+!cmd/
+!extra/
+!pkg/
