@@ -79,8 +79,9 @@ metadata:
 data:
   credentials: |-
     [default]
-    aws_access_key_id = M0FXSQJM26HDTOX5JVEI
-    aws_secret_access_key = KOnLdjQpckpNWw4ZGoVJhvnKV5CS5oEbcUZBQYb/
+    aws_access_key_id = <aws_access_key_id>
+    aws_secret_access_key = <aws_secret_access_key>
+    # aws_session_token = <aws_session_token>
 ---
 apiVersion: apps/v1
 kind: Deployment

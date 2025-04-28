@@ -3,11 +3,10 @@
 # Declare variables to be passed into your templates.
 
 image:
-  repository: image-registry.powerapp.cloud/keess/keess
+  repository: powerci/keess
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
-
 
 # Default Keess config
 logLevel: "info"
@@ -79,6 +78,7 @@ service:
   port: 8080
 
 # If you need to synchronize across different clusters you need to specify this configuration.
+# This will assume a static kubeconfig file.
 config:
   kubeconfigContent: {}
   #   apiVersion: v1
@@ -124,3 +124,49 @@ config:
   #       # See https://kubernetes.io/docs/reference/access-authn-authz/authentication/#client-go-credential-plugins
   #       password: some-password
   #       username: exp
+
+extraVolumes: []
+  # - name: extra-volume
+  #   secret:
+  #     secretName: extra-secret
+  #     defaultMode: 420
+
+extraVolumeMounts: []
+  # - name: extra-volume
+  #   mountPath: /path/to/mount
+  #   readOnly: true
+  #   subPath: extra-subpath
+
+kubeconfigReloader:
+  enabled: false
+  credentials: {}
+    # name: s3-credentials
+    # mountPath: /root/.aws # optional, defaults to /root/.aws
+    # readOnly: true # optional, defaults to true
+    # data:
+    #   credentials: |-
+    #     [default]
+    #     aws_access_key_id = ""
+    #     aws_secret_access_key = ""
+  image:
+    repository: powerci/keess-kubeconfig-reloader
+    pullPolicy: IfNotPresent
+    tag: ""
+  config:
+    s3:
+      endpoint: https://s3.us-east-1.amazonaws.com
+      bucket: keess-prod
+      bucketPath: kind
+    credentialsFile: /root/.aws/credentials
+  resources: {}
+    # limits:
+    #   cpu: 200m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 64Mi
+  extraVolumeMounts: []
+    # - name: extra-volume
+    #   mountPath: /path/to/mount
+    #   readOnly: true
+    #   subPath: extra-subpath
