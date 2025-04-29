@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -14,13 +15,18 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+type remoteKubeClient struct {
+	mutex   *sync.Mutex
+	clients map[string]IKubeClient
+}
+
 // KubeconfigLoader is a struct that can (re-)load the Kubeconfig from the local filesystem.
 type KubeconfigLoader struct {
 	path              string
 	logger            *zap.SugaredLogger
 	watcher           *fsnotify.Watcher
 	lastConfigHash    string
-	remoteKubeClients map[string]IKubeClient
+	remoteKubeClients remoteKubeClient
 	clientFactory     func(config *rest.Config) (IKubeClient, error)
 	maxRetries        int
 	debounceDuration  time.Duration
@@ -37,7 +43,7 @@ func NewKubeconfigLoader(kubeConfigPath string, logger *zap.SugaredLogger, remot
 		path:              kubeConfigPath,
 		logger:            logger,
 		watcher:           watcher,
-		remoteKubeClients: remoteKubeClients,
+		remoteKubeClients: remoteKubeClient{mutex: &sync.Mutex{}, clients: remoteKubeClients},
 		lastConfigHash:    "",
 		clientFactory:     nil,
 		maxRetries:        configReloaderMaxRetries,
@@ -77,10 +83,14 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 		return
 	}
 	k.logger.Debugf("Detected kubeconfig change, reloading: %s", k.path)
-	for client := range k.remoteKubeClients { // if we reassign the map, the synchronizers lose the reference to it
-		delete(k.remoteKubeClients, client)
+	k.remoteKubeClients.mutex.Lock()
+	k.logger.Debug("Locked remote clients mutex for cleanup")
+	for client := range k.remoteKubeClients.clients { // if we reassign the map, the synchronizers lose the reference to it
+		delete(k.remoteKubeClients.clients, client)
 		k.logger.Debugf("Removed remote client for cluster: %s", client)
 	}
+	k.remoteKubeClients.mutex.Unlock()
+	k.logger.Debug("Unlocked remote clients mutex after cleanup")
 
 	// Update stored hash
 	k.lastConfigHash = currentHash
@@ -101,6 +111,8 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 	}
 	k.logger.Debugf("Remote clusters found in kubeconfig: %v", remoteClustersName)
 
+	k.remoteKubeClients.mutex.Lock()
+	k.logger.Debug("Locked remote clients mutex for assignment")
 	if len(remoteClustersName) > 0 {
 		var initializedClustersName []string
 		for _, cluster := range remoteClustersName {
@@ -130,10 +142,12 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 			}
 			k.logger.Infof("Connected to remote cluster '%s' with server version: %s", cluster, output.String())
 
-			k.remoteKubeClients[cluster] = remoteClusterClient
+			k.remoteKubeClients.clients[cluster] = remoteClusterClient
 			initializedClustersName = append(initializedClustersName, cluster)
 			k.logger.Debugf("Initialized remote cluster client for '%s'", cluster)
 		}
+		k.remoteKubeClients.mutex.Unlock()
+		k.logger.Debug("Unlocked remote clients mutex after assignment")
 
 		if len(initializedClustersName) > 0 {
 			k.logger.Infof("Remote clusters successfully initialized: %v", initializedClustersName)
