@@ -134,8 +134,8 @@ func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 				"Locked remote clients mutex for assignment",
 				"Connected to remote cluster 'test-cluster' with server version: v1.32.2",
 				"Initialized remote cluster client for 'test-cluster'",
-				"Unlocked remote clients mutex after assignment",
 				"Remote clusters successfully initialized: [test-cluster]",
+				"Unlocked remote clients mutex after assignment",
 			},
 			remoteKubeClients: make(map[string]IKubeClient),
 			overrideKCL: &KubeconfigLoader{

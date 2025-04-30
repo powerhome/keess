@@ -113,46 +113,45 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 
 	k.remoteKubeClients.mutex.Lock()
 	k.logger.Debug("Locked remote clients mutex for assignment")
-	if len(remoteClustersName) > 0 {
-		var initializedClustersName []string
-		for _, cluster := range remoteClustersName {
-			remoteClusterConfig, err := BuildConfigWithContextFromFlags(cluster, k.path)
-			if err != nil {
-				k.logger.Errorf("Error building kubeconfig for cluster '%s': %s", cluster, err)
-				continue
-			}
-
-			remoteClusterConfig.Timeout = 1 * time.Second // Set a timeout for the HTTP client, maybe this should be configurable
-			var remoteClusterClient IKubeClient
-			if k.clientFactory != nil {
-				remoteClusterClient, err = k.clientFactory(remoteClusterConfig)
-			} else {
-				remoteClusterClient, err = kubernetes.NewForConfig(remoteClusterConfig)
-				remoteClusterClient = newKubeClientAdapter(remoteClusterClient.(*kubernetes.Clientset))
-			}
-			if err != nil {
-				k.logger.Errorf("Error creating remote clientset for cluster '%s': %s", cluster, err)
-				continue
-			}
-			output, err := remoteClusterClient.ServerVersion()
-			// This is a simple way to check if the server is reachable and the config is valid
-			if err != nil {
-				k.logger.Errorf("Error getting server version for cluster '%s': %s", cluster, err)
-				continue
-			}
-			k.logger.Infof("Connected to remote cluster '%s' with server version: %s", cluster, output.String())
-
-			k.remoteKubeClients.clients[cluster] = remoteClusterClient
-			initializedClustersName = append(initializedClustersName, cluster)
-			k.logger.Debugf("Initialized remote cluster client for '%s'", cluster)
+	var initializedClustersName []string
+	for _, cluster := range remoteClustersName {
+		remoteClusterConfig, err := BuildConfigWithContextFromFlags(cluster, k.path)
+		if err != nil {
+			k.logger.Errorf("Error building kubeconfig for cluster '%s': %s", cluster, err)
+			continue
 		}
-		k.remoteKubeClients.mutex.Unlock()
-		k.logger.Debug("Unlocked remote clients mutex after assignment")
 
-		if len(initializedClustersName) > 0 {
-			k.logger.Infof("Remote clusters successfully initialized: %v", initializedClustersName)
+		remoteClusterConfig.Timeout = 1 * time.Second // Set a timeout for the HTTP client, maybe this should be configurable
+		var remoteClusterClient IKubeClient
+		if k.clientFactory != nil {
+			remoteClusterClient, err = k.clientFactory(remoteClusterConfig)
+		} else {
+			remoteClusterClient, err = kubernetes.NewForConfig(remoteClusterConfig)
+			remoteClusterClient = newKubeClientAdapter(remoteClusterClient.(*kubernetes.Clientset))
 		}
+		if err != nil {
+			k.logger.Errorf("Error creating remote clientset for cluster '%s': %s", cluster, err)
+			continue
+		}
+		output, err := remoteClusterClient.ServerVersion()
+		// This is a simple way to check if the server is reachable and the config is valid
+		if err != nil {
+			k.logger.Errorf("Error getting server version for cluster '%s': %s", cluster, err)
+			continue
+		}
+		k.logger.Infof("Connected to remote cluster '%s' with server version: %s", cluster, output.String())
+
+		k.remoteKubeClients.clients[cluster] = remoteClusterClient
+		initializedClustersName = append(initializedClustersName, cluster)
+		k.logger.Debugf("Initialized remote cluster client for '%s'", cluster)
 	}
+
+	if len(initializedClustersName) > 0 {
+		k.logger.Infof("Remote clusters successfully initialized: %v", initializedClustersName)
+	}
+	
+	k.remoteKubeClients.mutex.Unlock()
+	k.logger.Debug("Unlocked remote clients mutex after assignment")
 }
 
 // StartWatching starts watching the kubeconfig file for changes, including deletions and recreations.
