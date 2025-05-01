@@ -31,7 +31,7 @@ func TestKubeconfigLoader_NewKubeconfigLoader(t *testing.T) {
 	assert.Equal(t, "/kubeconfig/path", kcl.path, "KubeconfigLoader path should match the provided path")
 	assert.NotNil(t, kcl.watcher, "KubeconfigLoader watcher should not be nil")
 	assert.Equal(t, mockLogger, kcl.logger, "KubeconfigLoader logger should match the provided logger")
-	assert.Empty(t, kcl.remoteKubeClients, "KubeconfigLoader remoteKubeClients should be empty")
+	assert.Empty(t, kcl.remoteKubeClients.clients, "KubeconfigLoader remoteKubeClients should be empty")
 	assert.Empty(t, kcl.lastConfigHash, "KubeconfigLoader lastConfigHash should be empty")
 	assert.Nil(t, kcl.clientFactory, "KubeconfigLoader clientFactory should be nil")
 	assert.Equal(t, 0, kcl.maxRetries, "KubeconfigLoader maxRetries should be 0")
@@ -90,6 +90,8 @@ func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 			kubeConfigPath: "./fixtures/kubeconfig_empty.yaml",
 			expectedLogs: []string{
 				"Detected kubeconfig change, reloading: ./fixtures/kubeconfig_empty.yaml",
+				"Locked remote clients mutex for cleanup",
+				"Unlocked remote clients mutex after cleanup",
 				"No contexts found in kubeconfig file: ./fixtures/kubeconfig_empty.yaml",
 			},
 		},
@@ -98,7 +100,9 @@ func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 			kubeConfigPath: "./fixtures/kubeconfig_empty.yaml",
 			expectedLogs: []string{
 				"Detected kubeconfig change, reloading: ./fixtures/kubeconfig_empty.yaml",
+				"Locked remote clients mutex for cleanup",
 				"Removed remote client for cluster: test-cluster",
+				"Unlocked remote clients mutex after cleanup",
 				"No contexts found in kubeconfig file: ./fixtures/kubeconfig_empty.yaml",
 			},
 			remoteKubeClients: map[string]IKubeClient{
@@ -110,8 +114,12 @@ func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 			kubeConfigPath: "./fixtures/kubeconfig_with_test-cluster.yaml",
 			expectedLogs: []string{
 				"Detected kubeconfig change, reloading: ./fixtures/kubeconfig_with_test-cluster.yaml",
+				"Locked remote clients mutex for cleanup",
+				"Unlocked remote clients mutex after cleanup",
 				"Remote clusters found in kubeconfig: [test-cluster]",
+				"Locked remote clients mutex for assignment",
 				"Error getting server version for cluster 'test-cluster': Get \"https://127.0.0.1:12345/version?timeout=1s\": dial tcp 127.0.0.1:12345: connect: connection refused",
+				"Unlocked remote clients mutex after assignment",
 			},
 			remoteKubeClients: make(map[string]IKubeClient),
 		},
@@ -120,10 +128,14 @@ func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 			kubeConfigPath: "./fixtures/kubeconfig_with_test-cluster.yaml",
 			expectedLogs: []string{
 				"Detected kubeconfig change, reloading: ./fixtures/kubeconfig_with_test-cluster.yaml",
+				"Locked remote clients mutex for cleanup",
+				"Unlocked remote clients mutex after cleanup",
 				"Remote clusters found in kubeconfig: [test-cluster]",
+				"Locked remote clients mutex for assignment",
 				"Connected to remote cluster 'test-cluster' with server version: v1.32.2",
 				"Initialized remote cluster client for 'test-cluster'",
 				"Remote clusters successfully initialized: [test-cluster]",
+				"Unlocked remote clients mutex after assignment",
 			},
 			remoteKubeClients: make(map[string]IKubeClient),
 			overrideKCL: &KubeconfigLoader{
@@ -148,14 +160,14 @@ func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 
 			kcl.LoadKubeconfig()
 			if tc.shouldHaveContexts {
-				assert.NotEmpty(t, kcl.remoteKubeClients, "Expected remoteKubeClients to be initialized")
-				assert.Equal(t, len(tc.expectedContexts), len(kcl.remoteKubeClients), "Expected remoteKubeClients to match expected contexts")
+				assert.NotEmpty(t, kcl.remoteKubeClients.clients, "Expected remoteKubeClients.clients to be initialized")
+				assert.Equal(t, len(tc.expectedContexts), len(kcl.remoteKubeClients.clients), "Expected remoteKubeClients.clients to match expected contexts")
 				for _, context := range tc.expectedContexts {
-					_, ok := kcl.remoteKubeClients[context]
+					_, ok := kcl.remoteKubeClients.clients[context]
 					assert.True(t, ok, "Expected remoteKubeClient for context '%s' to be found", context)
 				}
 			} else {
-				assert.Empty(t, kcl.remoteKubeClients, "Expected remoteKubeClients to be empty")
+				assert.Empty(t, kcl.remoteKubeClients.clients, "Expected remoteKubeClients.clients to be empty")
 			}
 
 			kcl.logger.Sync()
@@ -207,6 +219,8 @@ func TestKubeconfigLoader_StartWatching(t *testing.T) {
 				"Kubeconfig file found, starting watcher: ./fixtures/non-existent-kubeconfig.yaml",
 				"Added watcher for kubeconfig file: ./fixtures/non-existent-kubeconfig.yaml",
 				"Detected kubeconfig change, reloading: ./fixtures/non-existent-kubeconfig.yaml",
+				"Locked remote clients mutex for cleanup",
+				"Unlocked remote clients mutex after cleanup",
 				"No contexts found in kubeconfig file: ./fixtures/non-existent-kubeconfig.yaml",
 			},
 			expected: struct {
@@ -224,6 +238,8 @@ func TestKubeconfigLoader_StartWatching(t *testing.T) {
 				"Kubeconfig file found, starting watcher: ./fixtures/temp/generated_kubeconfig.yaml",
 				"Added watcher for kubeconfig file: ./fixtures/temp/generated_kubeconfig.yaml",
 				"Detected kubeconfig change, reloading: ./fixtures/temp/generated_kubeconfig.yaml",
+				"Locked remote clients mutex for cleanup",
+				"Unlocked remote clients mutex after cleanup",
 				"No contexts found in kubeconfig file: ./fixtures/temp/generated_kubeconfig.yaml",
 				"Kubeconfig file was removed: ./fixtures/temp/generated_kubeconfig.yaml",
 				"Removed watcher for kubeconfig file due to deletion: ./fixtures/temp/generated_kubeconfig.yaml",
@@ -248,6 +264,8 @@ func TestKubeconfigLoader_StartWatching(t *testing.T) {
 				"Kubeconfig file found, starting watcher: ./fixtures/temp/generated_kubeconfig.yaml",
 				"Added watcher for kubeconfig file: ./fixtures/temp/generated_kubeconfig.yaml",
 				"Detected kubeconfig change, reloading: ./fixtures/temp/generated_kubeconfig.yaml",
+				"Locked remote clients mutex for cleanup",
+				"Unlocked remote clients mutex after cleanup",
 				"No contexts found in kubeconfig file: ./fixtures/temp/generated_kubeconfig.yaml",
 				"Kubeconfig file was removed: ./fixtures/temp/generated_kubeconfig.yaml",
 				"Removed watcher for kubeconfig file due to deletion: ./fixtures/temp/generated_kubeconfig.yaml",
