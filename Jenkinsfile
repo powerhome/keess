@@ -18,8 +18,6 @@ app.build(
     logLevel: "FINEST",
     heapSize: "768m",
   ],
-  preferDiskAtLeast: 5,
-  requireDiskAtLeast: 1,
   timeout: 200,
 ) {
   app.composeBuild(
