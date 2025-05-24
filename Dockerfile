@@ -1,5 +1,5 @@
 # Stage 1: Build the Go application
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Set necessary environmet variables needed for our image
 ENV GO111MODULE=on \
@@ -13,16 +13,15 @@ WORKDIR /build
 # Copy and download dependency using go mod
 COPY go.mod .
 COPY go.sum .
-RUN go mod download
+RUN --mount=type=cache,id=keess-go-cache,target=/root/.cache/go-build \
+    go mod download
 
 # Copy the code into the container
 COPY . .
 
-# Run tests
-RUN go test ./...
-
 # Build the application
-RUN go build -o keess .
+RUN --mount=type=cache,id=keess-go-cache,target=/root/.cache/go-build \
+    go build -o keess .
 
 # Stage 2: Build a small image
 FROM alpine

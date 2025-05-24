@@ -25,36 +25,75 @@ spec:
       serviceAccountName: {{ include "keess.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if or .Values.config.kubeconfigContent (or .Values.extraVolumes .Values.kubeconfigReloader.credentials.name) }}
       volumes:
-      - name: config
-        secret:
-          secretName: {{ template "keess.fullname" . }}
-          defaultMode: 420        
+      {{- end }}
+      {{- if .Values.config.kubeconfigContent }}
+        - name: config
+          secret:
+            secretName: {{ template "keess.fullname" . }}
+      {{- end }}
+      {{- if .Values.kubeconfigReloader.credentials.name }}
+        - name: {{ .Values.kubeconfigReloader.credentials.name }}
+          secret:
+            secretName: {{ .Values.kubeconfigReloader.credentials.name }}
+      {{- end }}
+      {{- if .Values.extraVolumes }}
+        {{- toYaml .Values.extraVolumes | nindent 8 }}
+      {{- end }}
       containers:
+      {{- if and .Values.kubeconfigReloader.enabled (not .Values.config.kubeconfigContent) }}
+        - name: {{ .Chart.Name }}-config-reloader
+          image: "{{ .Values.kubeconfigReloader.image.repository }}:{{ .Values.kubeconfigReloader.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.kubeconfigReloader.image.pullPolicy }}
+          env:
+            - name: S3_ENDPOINT
+              value: {{ .Values.kubeconfigReloader.config.s3.endpoint }}
+            - name: S3_BUCKET
+              value: {{ .Values.kubeconfigReloader.config.s3.bucket }}
+            - name: S3_BUCKET_PATH
+              value: {{ .Values.kubeconfigReloader.config.s3.bucketPath }}
+            - name: CREDENTIALS_FILE
+              value: {{ .Values.kubeconfigReloader.config.credentialsFile }}
+            - name: LOCAL_CLUSTER_NAME
+              value: {{ .Values.localCluster }}
+          resources:
+            {{- toYaml .Values.kubeconfigReloader.resources | nindent 12 }}
+          {{- if or .Values.kubeconfigReloader.credentials .Values.kubeconfigReloader.extraVolumeMounts }}
+          volumeMounts:
+          {{- end }}
+          {{- if .Values.kubeconfigReloader.credentials.name }}
+            - mountPath: {{ .Values.kubeconfigReloader.credentials.mountPath | default "/root/.aws" }}
+              name: {{ .Values.kubeconfigReloader.credentials.name }}
+              readOnly: {{ .Values.kubeconfigReloader.credentials.readOnly | default true }}
+          {{- end }}
+          {{- with .Values.kubeconfigReloader.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- end }}
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          env:
-          - name: KEESS_SOURCE_CONTEXT
-            value: "{{ .Values.clusterName }}"
-          {{- if .Values.remoteClusters }}  
-          - name: KEESS_DESTINATION_CONTEXTS
-            value: "{{ .Values.remoteClusters }}"
-          {{- end }}
-          {{- if .Values.developmentMode }}
-          - name: KEESS_DEVELOPMENT_MODE
-            value: "{{ .Values.developmentMode }}"
-          {{- end }}
-          {{- if .Values.logLevel }}
-          - name: LOG_LEVEL
-            value: "{{ .Values.logLevel }}"
-          {{- end }}          
+          args:
+            - --logLevel={{ .Values.logLevel }}
+            - --localCluster={{ .Values.localCluster }}
+            - --kubeConfigPath={{ .Values.kubeConfigPath }}
+            - --pollingInterval={{ .Values.pollingInterval }}
+            - --namespacePollingInterval={{ .Values.namespacePollingInterval }}
+            - --housekeepingInterval={{ .Values.housekeepingInterval }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if or .Values.config.kubeconfigContent .Values.extraVolumeMounts }}
           volumeMounts:
-          - name: config
-            mountPath: /root/.kube
-            readOnly: true
+          {{- end }}
+          {{- if .Values.config.kubeconfigContent }}
+            - mountPath: /root/.kube
+              name: kubeconfig-dir
+              readOnly: true
+          {{- end }}
+          {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
@@ -63,6 +102,7 @@ spec:
             httpGet:
               path: /health
               port: http
+            initialDelaySeconds: 60
           readinessProbe:
             httpGet:
               path: /health

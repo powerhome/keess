@@ -1,7 +1,7 @@
-.git
-.github
-.vscode
-.gitignore
-.sops.yaml
-keess
-README.md
+*
+!*.go
+!go.mod
+!go.sum
+!cmd/
+!extra/
+!pkg/
