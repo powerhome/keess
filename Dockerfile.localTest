@@ -1,4 +1,4 @@
-FROM python:3.12.2-bullseye
+FROM python:3.13.5-bullseye@sha256:4dad5fc8eb40eec30ad0ef972b9137fe5d45a303074e0022842b6c5f27cd5a7f
 
 COPY ./requirements.txt .
 RUN pip install -r requirements.txt
