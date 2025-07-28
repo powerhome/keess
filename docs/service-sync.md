@@ -126,3 +126,33 @@ flowchart LR
 
   strip_sel[Strip<br>Selector] --> add_cilium_note[Add Cilium<br>Annotations`] --> create_svc((Create Svc))
 ```
+
+### When the origin service is deleted: Orphan management
+
+Using the examples above, what if mysql-svc on cluster A is removed, and the service on B remains? Keess calls svc on B an _orphan_, and removes those.
+
+To track orphans, Keess adds a `keess.powerhrg.com/managed` label to resources it creates, and a  `keess.powerhrg.com/source-cluster` annotation, and it uses then to periodically check if original sources exist.
+
+On service, though, we have an extra concern. We may also manage/create the namespaces:
+
+```mermaid
+---
+title: Orphan handling
+---
+flowchart LR
+  start((orphan check)) --> list_mng[List managed<br>services] --> get_source[Get source<br>cluster] --> if_source
+
+  if_source{If source<br>exists} -- Yes -->  noop((Do nothing))
+  if_source -- No --> if_local_end
+
+  if_local_end{If has local<br> endpoints} -- Yes -->  noop((Do nothing))
+  if_local_end -- No --> remove_svc[Remove Svc] --> if_ns_mng
+
+  if_ns_mng{Is namespace<br>managed?} -- No -->  noop((Do nothing))
+  if_ns_mng -- Yes --> if_ns_empty
+
+  if_ns_empty{Is namespace<br>empty?} -- No --> noop((Do nothing))
+  if_ns_empty -- Yes --> remove_ns((Remove<br>Namespace))
+```
+
+
