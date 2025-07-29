@@ -2,6 +2,8 @@
 PROJECT_NAME := "keess"
 DOCKER_IMAGE_NAME := "keess"
 DOCKER_TAG := "latest"
+LOCAL_TEST_KUBECONFIG_FILE := "localTestKubeconfig"
+LOCAL_CLUSTER := "kind-source-cluster"
 
 # Go related variables
 GOBASE := $(shell pwd)
@@ -11,7 +13,7 @@ GOBIN := $(GOBASE)/bin
 
 # Build the project
 build:
-	@echo "Building $(PROJECT_NAME)..."
+	@echo "Building $(GOBIN)/$(PROJECT_NAME)..."
 	@GOBIN=$(GOBIN) go build -o $(GOBIN)/$(PROJECT_NAME) $(GOBASE)
 
 # Run tests
@@ -42,14 +44,13 @@ coverage:
 # Target to execute the application
 run: build
 	@echo "Running the application..."
-	@./bin/keess run --localCluster=$(LOCAL_CLUSTER) --logLevel=debug
+	./bin/keess run --localCluster=$(LOCAL_CLUSTER) --logLevel=debug --kubeConfigPath=$(LOCAL_TEST_KUBECONFIG_FILE)
 
 # Target to run the Docker image with the .kube directory mounted
 docker-run:
 	@echo "Running Docker image with .kube directory mounted..."
 	@docker run --rm -it -v ${HOME}/.kube:/root/.kube $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) run --localCluster=$(LOCAL_CLUSTER) --logLevel=debug
 
-LOCAL_TEST_KUBECONFIG_FILE := "localTestKubeconfig"
 # Target to start local kube clusters for testing purposes
 create-local-clusters:
 	@kind create cluster --image=kindest/node:v1.22.17 -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE)
@@ -70,7 +71,6 @@ local-docker-run:
 		$(DOCKER_IMAGE_NAME):$(DOCKER_TAG) \
 		run \
 		  --localCluster=kind-source-cluster \
-			--remoteCluster=kind-destination-cluster \
 			--kubeConfigPath=/root/.kube/config \
 			--pollingInterval=10 \
 			--housekeepingInterval=10 \
