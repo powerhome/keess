@@ -5,8 +5,8 @@
 set -x
 
 use_kind=true
-keess_docker_image='leonardogodoyphrg/keess:1.2.0'
-kubeconfig_reloader_docker_image='leonardogodoyphrg/keess-kubeconfig-reloader:1.0.0'
+keess_docker_image='powerhome/keess:1.2.0'
+kubeconfig_reloader_docker_image='powerhome/keess-kubeconfig-reloader:1.0.0'
 cleaningup=false
 
 clusters=(
@@ -48,7 +48,7 @@ export KUBECONFIG="$HOME/.kube/kind"
 
 if [[ "$use_kind" == true ]]; then
     for cluster in "${clusters[@]}"; do
-        kind create cluster --config "$HOME/projetos/local/testes-locais/kind/kind-config.yaml" --name "$cluster"
+        kind create cluster --config extra/functional-test/kind-config.yaml --name "$cluster"
         kind load docker-image "$keess_docker_image" "$kubeconfig_reloader_docker_image" --name "$cluster"
         for namespace in "${clusters[@]/#/from-}"; do
             kubectl create namespace "$namespace" --context "kind-$cluster"
