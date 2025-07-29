@@ -1,0 +1,92 @@
+# Example: Service Synchronization with Keess
+# This example shows how to sync a MySQL service from cluster A to cluster B using Cilium Global Services
+
+---
+# Service on Cluster A (source cluster)
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-svc
+  namespace: my-namespace
+  labels:
+    keess.powerhrg.com/sync: "cluster"  # Enable cluster sync for this service
+  annotations:
+    service.cilium.io/global: "true"    # Enable Cilium Global Service
+    keess.powerhrg.com/clusters: "wc-beta-hq, wc-beta-px"  # Target clusters
+spec:
+  ports:
+  - name: mysql
+    port: 3306
+    protocol: TCP
+    targetPort: 3306
+  selector:
+    app.kubernetes.io/component: pxc
+  type: ClusterIP
+
+---
+# Pod that the service selects (for demonstration)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mysql-pod
+  namespace: my-namespace
+  labels:
+    app.kubernetes.io/component: pxc
+spec:
+  containers:
+  - name: mysql
+    image: mysql:8.0
+    ports:
+    - containerPort: 3306
+    env:
+    - name: MYSQL_ROOT_PASSWORD
+      value: "example"
+
+---
+# Example of what Keess will create on Cluster B (target cluster)
+# Note: This is for demonstration - Keess will create this automatically
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-svc          # Same name as source
+  namespace: my-namespace  # Same namespace as source
+  labels:
+    keess.powerhrg.com/managed: "true"  # Managed by Keess
+  annotations:
+    service.cilium.io/global: "true"    # Cilium Global Service
+    service.cilium.io/shared: "false"   # No local endpoints to share
+    keess.powerhrg.com/source-cluster: "cluster-a"  # Source cluster
+    keess.powerhrg.com/source-namespace: "my-namespace"  # Source namespace
+    keess.powerhrg.com/source-resource-version: "123"  # Source resource version
+spec:
+  ports:
+  - name: mysql
+    port: 3306
+    protocol: TCP
+    targetPort: 3306
+  selector: {}     # Empty selector - no local endpoints
+  type: ClusterIP
+
+---
+# Example: Client application on Cluster B that can now access the MySQL service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-client
+  namespace: my-namespace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-client
+  template:
+    metadata:
+      labels:
+        app: mysql-client
+    spec:
+      containers:
+      - name: client
+        image: mysql:8.0
+        command: ["mysql", "-h", "mysql-svc", "-P", "3306", "-u", "root", "-pexample"]
+        # The client can now connect to mysql-svc as if it were a local service
+        # Cilium will route the traffic to the actual MySQL pod in Cluster A
