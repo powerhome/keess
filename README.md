@@ -144,8 +144,8 @@ make local-test
 
 If you want to investigate the cluster you can do it by:
 ```
-kubectl cluster-info --context kind-source-cluster --kubeconfig test/kubeconfig
-kubectl cluster-info --context kind-destination-cluster --kubeconfig test/kubeconfig
+kubectl cluster-info --context kind-source-cluster --kubeconfig localTestKubeconfig
+kubectl cluster-info --context kind-destination-cluster --kubeconfig localTestKubeconfig
 ```
 
 Once we are done with the test and don't need the local clusters anymore you can delete them with
