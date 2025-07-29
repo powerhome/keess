@@ -1,0 +1,18 @@
+# Example: ConfigMap Synchronization with Keess
+# This example shows how to sync a ConfigMap from source cluster to kind-destination-cluster
+
+---
+# ConfigMap on source cluster
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: default
+  labels:
+    keess.powerhrg.com/sync: "cluster"  # Enable cluster sync for this ConfigMap
+  annotations:
+    keess.powerhrg.com/clusters: "kind-destination-cluster"  # Target cluster
+data:
+  database.url: "mysql://mysql-svc:3306/myapp"
+  app.name: "MyApplication"
+  logging.level: "INFO"
