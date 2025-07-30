@@ -145,21 +145,6 @@ var runCmd = &cobra.Command{
 		// Start the configMap synchronizer
 		configMapSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
 
-		// Create a ServicePoller
-		servicePoller := services.NewServicePoller(localCluster, localKubeClient, logger.Sugar())
-
-		// Create a ServiceSynchronizer
-		serviceSynchronizer := services.NewServiceSynchronizer(
-			localKubeClient,
-			remoteKubeClients,
-			servicePoller,
-			namespacePoller,
-			logger.Sugar(),
-		)
-
-		// Start the service synchronizer
-		serviceSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
-
 		// Create an HTTP server and add the health check handler as a handler
 		http.HandleFunc("/health", healthHandler)
 

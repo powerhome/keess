@@ -31,10 +31,6 @@ const SourceResourceVersionAnnotation string = "keess.powerhrg.com/source-resour
 // Constant with the annotation created by the kubectl apply command
 const KubectlApplyAnnotation string = "kubectl.kubernetes.io/last-applied-configuration"
 
-// Cilium Global Service annotations
-const CiliumGlobalServiceAnnotation string = "service.cilium.io/global"
-const CiliumSharedServiceAnnotation string = "service.cilium.io/shared"
-
 func splitAndTrim(input string, separator string) []string {
 	words := strings.Split(input, separator)
 	for i, word := range words {

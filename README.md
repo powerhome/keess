@@ -1,13 +1,12 @@
 
-# Keess: Kubernetes Secrets, ConfigMaps, and Services Synchronization
+# Keess: Kubernetes Secrets and ConfigMaps Synchronization
 
-Keess (Keep Stuff Synchronized) is a versatile command-line tool designed to synchronize secrets, configmaps, and services across different namespaces and Kubernetes clusters. Built with simplicity and efficiency in mind, it ensures that your Kubernetes environments are consistently updated, secure, and easy to manage.
+Keess (Keep Stuff Synchronized) is a versatile command-line tool designed to synchronize secrets and configmaps across different namespaces and Kubernetes clusters. Built with simplicity and efficiency in mind, it ensures that your Kubernetes environments are consistently updated, secure, and easy to manage.
 
 ## Features
 
-- **Cross-Namespace Synchronization**: Effortlessly sync secrets, configmaps, and services across multiple namespaces within a single Kubernetes cluster.
+- **Cross-Namespace Synchronization**: Effortlessly sync secrets and configmaps across multiple namespaces within a single Kubernetes cluster.
 - **Inter-Cluster Synchronization**: Extend your synchronization capabilities to multiple clusters, keeping your configurations consistent across different environments.
-- **Service Synchronization**: Sync services across clusters using Cilium Global Services, enabling seamless cross-cluster service access.
 - **Secure and Reliable**: Implements robust mechanisms to securely transfer sensitive information, ensuring data integrity and confidentiality.
 - **Automation**: Automates the synchronization process, reducing manual overhead and minimizing human error.
 - **Customizable**: Offers flexible command line options and Kubernetes annotations to tailor the synchronization process to your specific needs.
@@ -67,50 +66,6 @@ Configure which namespaces to synchronize with:
 #### Cluster Synchronization
 
 Specify the remote clusters for synchronization: `keess.powerhrg.com/clusters: clustera, clusterb`
-
-#### Service Synchronization
-
-Keess supports synchronizing services across clusters using Cilium Global Services. This feature enables applications in one cluster to access services in another cluster as if they were local.
-
-**Prerequisites:**
-- Cilium CNI with ClusterMesh enabled on all participating clusters
-- Services must have the `service.cilium.io/global: "true"` annotation
-
-**Configuration:**
-1. Add the sync label to your service: `keess.powerhrg.com/sync: cluster`
-2. Add the clusters annotation: `keess.powerhrg.com/clusters: clustera, clusterb`
-3. Ensure the service has the Cilium global annotation: `service.cilium.io/global: "true"`
-
-**Example:**
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: mysql-svc
-  namespace: my-namespace
-  labels:
-    keess.powerhrg.com/sync: "cluster"
-  annotations:
-    service.cilium.io/global: "true"
-    keess.powerhrg.com/clusters: "cluster-b, cluster-c"
-spec:
-  ports:
-  - name: mysql
-    port: 3306
-    protocol: TCP
-    targetPort: 3306
-  selector:
-    app.kubernetes.io/component: mysql
-  type: ClusterIP
-```
-
-Keess will automatically create service references in the target clusters with:
-- Same name and namespace as the source service
-- Cilium annotations for global service configuration
-- Empty selector (no local endpoints)
-- Keess management labels and annotations
-
-**Note:** Service synchronization only supports cluster-level sync. Namespace-level sync for services is not supported.
 
 ## Contributing
 
