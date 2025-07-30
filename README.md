@@ -81,42 +81,4 @@ Keess is open-source software licensed under the MIT license. See the [LICENSE](
 
 ## Local testing
 
-We will use [kind](https://kind.sigs.k8s.io/) for this
-
-First of all, create 2 clusters:
-
-```shell
-make setup-local-clusters
-```
-
-> [!NOTE]
-> This will create clusters in "PAC-v2 style": with recent Kubernetes version and Cilium CNI.
->
-> To create clusters for testing Keess on PAC-V1 (no Cilium, old Kubernetes version), use `create-local-clusters-pac-v1`
-
-Now build and run the application locally pointing to these new clusters:
-
-```shell
-make run
-```
-
-This will build and run Keess on your local machine, pointing to the created clusters. If you prefer to run it inside Docker, use `make docker-build local-docker-run`
-
-To execute the local test (needs the clusters and keess running, with the commands above):
-
-```shell
-make local-test
-```
-
-If you want to investigate the cluster you can do it by:
-
-```shell
-kubectl cluster-info --context kind-source-cluster --kubeconfig localTestKubeconfig
-kubectl cluster-info --context kind-destination-cluster --kubeconfig localTestKubeconfig
-```
-
-Once we are done with the test and don't need the local clusters anymore you can delete them with
-
-```shell
-make delete-local-clusters
-```
+See [tests/README.md](tests/README.md)
