@@ -101,20 +101,6 @@ func cleanupTestResources() {
 	}
 }
 
-// Helper function to wait for a ConfigMap to exist in a cluster
-func waitForConfigMap(client kubernetes.Interface, name, namespace string, timeout time.Duration) *corev1.ConfigMap {
-	var configMap *corev1.ConfigMap
-	Eventually(func() *corev1.ConfigMap {
-		cm, err := client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		if err != nil {
-			return nil
-		}
-		configMap = cm
-		return cm
-	}, timeout, time.Second*5).Should(Not(BeNil()), fmt.Sprintf("ConfigMap %s/%s should exist within %v", namespace, name, timeout))
-	return configMap
-}
-
 func kubectlApply(manifestFile, context string) {
 	cmd := exec.Command("kubectl", "apply", "-f", manifestFile, "--kubeconfig", kubeconfig, "--context", context)
 	output, err := cmd.CombinedOutput()
@@ -194,5 +180,22 @@ func BeEqualToSourceSecret() types.GomegaMatcher {
 
 		// Compare only the Data field, ignoring metadata differences
 		return reflect.DeepEqual(secret.Data, sourceSecret.Data)
+	}, BeTrue())
+}
+
+// Custom matcher to check if a ConfigMap on destination cluster matches the source ConfigMap
+func BeEqualToSourceConfigMap() types.GomegaMatcher {
+	return WithTransform(func(configmap *corev1.ConfigMap) bool {
+		sourceConfigMap, err := sourceClusterClient.CoreV1().ConfigMaps(configmap.Namespace).Get(context.Background(), configmap.Name, metav1.GetOptions{})
+		if err != nil {
+			return false
+		}
+
+		Expect(configmap.Labels).To(HaveKeyWithValue("keess.powerhrg.com/managed", "true"), "Destination ConfigMap should have correct managed label")
+		Expect(configmap.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-cluster", sourceClusterContext), "Destination ConfigMap should have correct source cluster annotation")
+		Expect(configmap.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-namespace", sourceConfigMap.Namespace), "Destination ConfigMap should have correct source namespace annotation")
+
+		// Compare only the Data field, ignoring metadata differences
+		return reflect.DeepEqual(configmap.Data, sourceConfigMap.Data)
 	}, BeTrue())
 }
