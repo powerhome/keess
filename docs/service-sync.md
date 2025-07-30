@@ -2,6 +2,9 @@
 
 The purpose of this feature is to facilitate exposing a service in one cluster to other clusters, using Cilium Global Services, available on PAC-v2 clusters.
 
+> [!WARNING]
+> This is a yet unreleased feature. For now consider it as a design document for a future feature.
+
 ## Context
 
 When you use [Cilium](https://docs.cilium.io/en/latest/overview/intro/) CNI in multiple related Kubernetes Clusters, you can use its ClusterMesh features to extend networking across them.

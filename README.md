@@ -86,16 +86,23 @@ We will use [kind](https://kind.sigs.k8s.io/) for this
 First of all, create 2 clusters:
 
 ```shell
-make create-local-clusters
+make setup-local-clusters
 ```
+
+> [!NOTE]
+> This will create clusters in "PAC-v2 style": with recent Kubernetes version and Cilium CNI.
+>
+> To create clusters for testing Keess on PAC-V1 (no Cilium, old Kubernetes version), use `create-local-clusters-pac-v1`
 
 Now build and run the application locally pointing to these new clusters:
 
 ```shell
-make docker-build local-docker-run
+make run
 ```
 
-To execute the local test:
+This will build and run Keess on your local machine, pointing to the created clusters. If you prefer to run it inside Docker, use `make docker-build local-docker-run`
+
+To execute the local test (needs the clusters and keess running, with the commands above):
 
 ```shell
 make local-test

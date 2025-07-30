@@ -50,7 +50,7 @@ coverage:
 # Target to execute the application
 run: build
 	@echo "Running the application..."
-	@./bin/keess run --localCluster=$(LOCAL_CLUSTER) --logLevel=debug --kubeConfigPath=$(LOCAL_TEST_KUBECONFIG_FILE)
+	@./bin/keess run --localCluster=$(LOCAL_CLUSTER) --logLevel=debug --kubeConfigPath=$(LOCAL_TEST_KUBECONFIG_FILE) --pollingInterval=10 --housekeepingInterval=10 --namespacePollingInterval=10
 
 # Target to run the Docker image with the .kube directory mounted
 docker-run:
