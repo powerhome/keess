@@ -80,30 +80,36 @@ If you encounter any issues or have questions, please file an issue on the [GitH
 Keess is open-source software licensed under the MIT license. See the [LICENSE](LICENSE) file for details.
 
 ## Local testing
+
 We will use [kind](https://kind.sigs.k8s.io/) for this
 
 First of all, create 2 clusters:
-```
+
+```shell
 make create-local-clusters
 ```
 
 Now build and run the application locally pointing to these new clusters:
-```
+
+```shell
 make docker-build local-docker-run
 ```
 
 To execute the local test:
-```
+
+```shell
 make local-test
 ```
 
 If you want to investigate the cluster you can do it by:
-```
+
+```shell
 kubectl cluster-info --context kind-source-cluster --kubeconfig localTestKubeconfig
 kubectl cluster-info --context kind-destination-cluster --kubeconfig localTestKubeconfig
 ```
 
 Once we are done with the test and don't need the local clusters anymore you can delete them with
-```
+
+```shell
 make delete-local-clusters
 ```
