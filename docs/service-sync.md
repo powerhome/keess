@@ -11,7 +11,7 @@ When you use [Cilium](https://docs.cilium.io/en/latest/overview/intro/) CNI in m
 
 When using a ClusterMesh, you cant load balance Kubernetes services over the clusters, or **expose a service on one cluster as a local service on the other ones**. Is this later use case that this Keess feature targets, to make it easier for our users to configure such service exposure across clusters.
 
-Cilium enables that through the concept of [Global Services](service.cilium.io/global). They are primarily made to balance across service instances deployed to many clusters. It will expose the remote endpoints inside each cluster's local service.
+Cilium enables that through the concept of [Global Services](https://docs.cilium.io/en/latest/network/clustermesh/services/#load-balancing-with-global-services). They are primarily made to balance across service instances deployed to many clusters. It will expose the remote endpoints inside each cluster's local service.
 
 But we can use it to access remote services like they were local, without needing to configure nodePort or ingress to get to the other cluster service.
 
