@@ -1,0 +1,58 @@
+# Minimal test manifest for Cilium Global Service testing
+# This manifest includes a namespace, nginx deployment, and service with Cilium global service annotation
+
+---
+# Namespace for testing
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-global-service
+
+---
+# Nginx deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-nginx
+  namespace: test-global-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-nginx
+  template:
+    metadata:
+      labels:
+        app: test-nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+
+---
+# Service for nginx deployment with Cilium global service annotation
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-nginx-svc
+  namespace: test-global-service
+  annotations:
+    service.cilium.io/global: "true"    # Enable Cilium Global Service
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: test-nginx
+  type: ClusterIP

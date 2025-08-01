@@ -1,0 +1,27 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: godoy-cluster
+networking:
+  podSubnet: "10.13.37.0/24"
+nodes:
+- role: control-plane
+  image: &clusterImage kindest/node:v1.32.2@sha256:142f543559cc55d64e1ab9341df08e5ced84bd2e893736da8f51320f26f5950b
+#   kubeadmConfigPatches:
+#   - |
+#     kind: InitConfiguration
+#     nodeRegistration:
+#       kubeletExtraArgs:
+#         node-labels: "ingress-ready=true"
+#   extraPortMappings:
+#   - containerPort: 80
+#     hostPort: 80
+#     protocol: TCP
+#   - containerPort: 443
+#     hostPort: 443
+#     protocol: TCP
+# - role: worker
+#   image: *clusterImage
+#   extraPortMappings:
+#   - containerPort: 4222
+#     hostPort: 4222
+#     protocol: TCP

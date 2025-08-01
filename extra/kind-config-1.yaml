@@ -1,0 +1,11 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+- role: worker
+- role: worker
+networking:
+  disableDefaultCNI: true
+  # >= 10.128.0.0/9 dodges networks routed to Power VPN
+  podSubnet: "10.128.0.0/16"
+  serviceSubnet: "10.129.0.0/16"

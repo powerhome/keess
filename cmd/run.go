@@ -27,7 +27,6 @@ import (
 	"keess/pkg/services"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -72,10 +71,23 @@ var runCmd = &cobra.Command{
 		))
 		defer logger.Sync()
 
+		namespacePollingInterval, _ := cmd.Flags().GetInt32("namespacePollingInterval")
+		pollingInterval, _ := cmd.Flags().GetInt32("pollingInterval")
+		housekeepingInterval, _ := cmd.Flags().GetInt32("housekeepingInterval")
+		configReloaderMaxRetries, _ := cmd.Flags().GetInt("configReloaderMaxRetries")
+		configReloaderDebounceTimer, _ := cmd.Flags().GetInt("configReloaderDebounceTimer")
+
+		logger.Sugar().Infof("Starting Keess. Running on local cluster: %s", localCluster)
+		logger.Sugar().Debugf("Namespace polling interval: %d seconds", namespacePollingInterval)
+		logger.Sugar().Debugf("Polling interval: %d seconds", pollingInterval)
+		logger.Sugar().Debugf("Housekeeping interval: %d seconds", housekeepingInterval)
+		logger.Sugar().Debugf("Log level: %s", logLevel)
+		logger.Sugar().Debugf("Kubeconfig path: %s", kubeConfigPath)
+
+
 		config, err := rest.InClusterConfig()
 		if err != nil {
-			kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
-			config, err = services.BuildConfigWithContextFromFlags(localCluster, kubeconfig)
+			config, err = services.BuildConfigWithContextFromFlags(localCluster, kubeConfigPath)
 			if err != nil {
 				logger.Sugar().Error("Error building localCluster kubeconfig: ", err)
 				return
@@ -92,19 +104,6 @@ var runCmd = &cobra.Command{
 		// Create a context
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-
-		namespacePollingInterval, _ := cmd.Flags().GetInt32("namespacePollingInterval")
-		pollingInterval, _ := cmd.Flags().GetInt32("pollingInterval")
-		housekeepingInterval, _ := cmd.Flags().GetInt32("housekeepingInterval")
-		configReloaderMaxRetries, _ := cmd.Flags().GetInt("configReloaderMaxRetries")
-		configReloaderDebounceTimer, _ := cmd.Flags().GetInt("configReloaderDebounceTimer")
-
-		logger.Sugar().Infof("Starting Keess. Running on local cluster: %s", localCluster)
-		logger.Sugar().Debugf("Namespace polling interval: %d seconds", namespacePollingInterval)
-		logger.Sugar().Debugf("Polling interval: %d seconds", pollingInterval)
-		logger.Sugar().Debugf("Housekeeping interval: %d seconds", housekeepingInterval)
-		logger.Sugar().Debugf("Log level: %s", logLevel)
-		logger.Sugar().Debugf("Kubeconfig path: %s", kubeConfigPath)
 
 		// Create a map of remote clients
 		remoteKubeClients := make(map[string]services.IKubeClient)
