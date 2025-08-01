@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-deepdiff = "==6.7.1"
+deepdiff = "==8.5.0"
 kubernetes = "*"
 
 [dev-packages]
