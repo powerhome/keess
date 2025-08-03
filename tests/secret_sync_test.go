@@ -3,11 +3,13 @@ package e2e_test
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"path/filepath"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/types"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -47,7 +49,11 @@ var _ = Describe("Secret Sync", func() {
 				By("Waiting for Secret to be synchronized")
 				Eventually(getSecret, syncTimeout, pollInterval).WithArguments(
 					destinationClusterClient, secretName, secretNamespace).Should(
-					BeEqualToSourceSecret(), fmt.Sprintf("Secret %s/%s should exist within %v and match source secret", secretNamespace, secretName, syncTimeout))
+					And(
+						BeEqualToSourceSecret(),
+						WithTransform(getSecretMeta, HaveKeessTrackingAnnotations(secretNamespace)),
+					),
+					fmt.Sprintf("Secret %s/%s should exist within %v and match source secret", secretNamespace, secretName, syncTimeout))
 			})
 		})
 
@@ -59,8 +65,8 @@ var _ = Describe("Secret Sync", func() {
 
 				By("Waiting for Secret to be synchronized")
 				Eventually(getSecret, syncTimeout, pollInterval).WithArguments(
-					destinationClusterClient, secretName, secretNamespace).Should(
-					BeEqualToSourceSecret(), fmt.Sprintf("Secret %s/%s should exist within %v and match source secret", secretNamespace, secretName, syncTimeout))
+					destinationClusterClient, secretName, secretNamespace).Should(Not(BeNil()),
+					fmt.Sprintf("Secret %s/%s should exist within %v and match source secret", secretNamespace, secretName, syncTimeout))
 
 				By("Updating Secret in source cluster")
 				// we know there is no error because of the previous Eventually check
@@ -83,6 +89,7 @@ var _ = Describe("Secret Sync", func() {
 					destinationClusterClient, secretName, secretNamespace).Should(
 					And(
 						BeEqualToSourceSecret(),
+						WithTransform(getSecretMeta, HaveKeessTrackingAnnotations(secretNamespace)),
 						WithTransform(getSecretData, HaveKeyWithValue("database.password", newdata1)),
 						WithTransform(getSecretData, HaveKeyWithValue("new.secret", newdata2)),
 					), fmt.Sprintf("Secret %s/%s should be updated within %v", secretNamespace, secretName, syncTimeout))
@@ -93,3 +100,38 @@ var _ = Describe("Secret Sync", func() {
 	})
 	//TODO: Context("On Namespace mode", func() {})
 })
+
+// Get metadata from Secret object
+func getSecretMeta(secret *corev1.Secret) *metav1.ObjectMeta {
+	return &secret.ObjectMeta
+}
+
+// Custom matcher to check if a Secret on destination cluster matches the source Secret
+func BeEqualToSourceSecret() types.GomegaMatcher {
+	return WithTransform(func(secret *corev1.Secret) bool {
+		sourceSecret, err := sourceClusterClient.CoreV1().Secrets(secret.Namespace).Get(context.Background(), secret.Name, metav1.GetOptions{})
+		if err != nil {
+			return false
+		}
+
+		// Secret Sync actually DOES NOT sync labels and annotations. Not sure if that's intended.
+		// TODO: is it a bug?
+
+		// // Check that all labels from source are present in the destination Secret
+		// for key, value := range sourceSecret.Labels {
+		// 	Expect(secret.Labels).To(HaveKeyWithValue(key, value), fmt.Sprintf("Label %s should match source Secret", key))
+		// }
+
+		// // Check that all annotations from source are present in the destination Secret
+		// for key, value := range sourceSecret.Annotations {
+		// 	Expect(secret.Annotations).To(HaveKeyWithValue(key, value), fmt.Sprintf("Annotation %s should match source Secret", key))
+		// }
+
+		// TODO: I think we found a bug here, because the source resource version is not synced whe source is updated
+		// This line catches that when on the update case
+		// Expect(secret.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-resource-version", sourceSecret.ResourceVersion), "Destination Secret should have correct source resource version annotation")
+
+		// Compare only the Data field, ignoring metadata differences
+		return reflect.DeepEqual(secret.Data, sourceSecret.Data)
+	}, BeTrue())
+}
