@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	exampleFile = filepath.Join("..", "examples", "secret-sync-example.yaml")
+	exampleFile = filepath.Join("..", "examples", "test-secret-sync-example.yaml")
 	// secretName and namespace must match the example file
 	secretName      = "app-secret"
 	secretNamespace = "test-keess"

@@ -19,6 +19,7 @@ func (s *PacService) Prepare(namespace string) v1.Service {
 	newService.Namespace = namespace
 
 	newService.UID = ""
+	newService.ResourceVersion = ""
 	newService.Labels = map[string]string{}
 	newService.Labels[ManagedLabelSelector] = "true"
 	newService.Annotations = map[string]string{}
@@ -30,10 +31,14 @@ func (s *PacService) Prepare(namespace string) v1.Service {
 	newService.Annotations[CiliumGlobalServiceAnnotation] = "true"
 	newService.Annotations[CiliumSharedServiceAnnotation] = "false"
 
-	newService.ResourceVersion = ""
-
 	// Clear the selector for remote service references (no local endpoints)
 	newService.Spec.Selector = map[string]string{}
+
+	// Clear IP information
+	newService.Spec.ClusterIP = ""
+	newService.Spec.ClusterIPs = []string{}
+	newService.Spec.Type = v1.ServiceTypeClusterIP
+	// TODO: are more preparations needed if source type is LoadBalancer or NodePort?
 
 	return *newService
 }
