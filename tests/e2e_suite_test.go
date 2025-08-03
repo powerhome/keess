@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"reflect"
 	"testing"
 	"time"
 
@@ -81,6 +80,7 @@ var _ = AfterSuite(func() {
 	cleanupTestResources()
 })
 
+// TODO: check if this function makes sense
 func cleanupTestResources() {
 	ctx := context.TODO()
 
@@ -98,6 +98,14 @@ func cleanupTestResources() {
 	}
 	if destinationClusterClient != nil {
 		destinationClusterClient.CoreV1().Secrets("default").Delete(ctx, "app-secret", metav1.DeleteOptions{})
+	}
+
+	// Clean up Services
+	if sourceClusterClient != nil {
+		sourceClusterClient.CoreV1().Services("my-namespace").Delete(ctx, "mysql-svc", metav1.DeleteOptions{})
+	}
+	if destinationClusterClient != nil {
+		destinationClusterClient.CoreV1().Services("my-namespace").Delete(ctx, "mysql-svc", metav1.DeleteOptions{})
 	}
 }
 
@@ -150,11 +158,45 @@ func deleteNamespaceOnAll(namespace string, wait bool) {
 }
 
 // Custom matcher to check if metadata has the Keess tracking annotations
+// It also checks if the source resource version annotation matches the expected source revision
 func HaveKeessTrackingAnnotations(sourceNamespace string) types.GomegaMatcher {
 	return WithTransform(func(metadata *metav1.ObjectMeta) bool {
+		// NOTE: we can only use Expect here, because the Service is already created with
+		// these annotations, so we don't need to wait for they eventually be synchronized.
+		// Expect fails the test immediately if the annotations are not present, breaking the Eventually() loop
 		Expect(metadata.Labels).To(HaveKeyWithValue("keess.powerhrg.com/managed", "true"), "Destination object should have correct managed label")
 		Expect(metadata.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-cluster", sourceClusterContext), "Destination object should have correct source cluster annotation")
 		Expect(metadata.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-namespace", sourceNamespace), "Destination object should have correct source namespace annotation")
 		return true
 	}, BeTrue())
+}
+
+func HaveRevisionMatchingSource(expectedRevision string) types.GomegaMatcher {
+	return WithTransform(func(metadata *metav1.ObjectMeta) bool {
+		// NOTE: Cannot use Expect here, because it could fail the test immediately. We got to let Eventually keep try this.
+		revNote, ok := metadata.Annotations["keess.powerhrg.com/source-resource-version"]
+		if ok && revNote == expectedRevision {
+			return true
+		}
+		GinkgoWriter.Printf("Expected source resource version annotation '%s' but got '%s'", expectedRevision, revNote)
+		return false
+	}, BeTrue())
+}
+
+// Generic function to get ObjectMeta from any Kubernetes object
+func getMetadata(obj metav1.Object) *metav1.ObjectMeta {
+	// Get the actual ObjectMeta from the object
+	switch o := obj.(type) {
+	case *corev1.Service:
+		return &o.ObjectMeta
+	case *corev1.Secret:
+		return &o.ObjectMeta
+	case *corev1.ConfigMap:
+		return &o.ObjectMeta
+	case *corev1.Namespace:
+		return &o.ObjectMeta
+	default:
+		// For any other object, return empty metadata
+		return &metav1.ObjectMeta{}
+	}
 }
