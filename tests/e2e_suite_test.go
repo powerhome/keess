@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"reflect"
 	"testing"
 	"time"
 
@@ -81,6 +80,7 @@ var _ = AfterSuite(func() {
 	cleanupTestResources()
 })
 
+// TODO: check if this function makes sense
 func cleanupTestResources() {
 	ctx := context.TODO()
 
@@ -98,6 +98,14 @@ func cleanupTestResources() {
 	}
 	if destinationClusterClient != nil {
 		destinationClusterClient.CoreV1().Secrets("default").Delete(ctx, "app-secret", metav1.DeleteOptions{})
+	}
+
+	// Clean up Services
+	if sourceClusterClient != nil {
+		sourceClusterClient.CoreV1().Services("my-namespace").Delete(ctx, "mysql-svc", metav1.DeleteOptions{})
+	}
+	if destinationClusterClient != nil {
+		destinationClusterClient.CoreV1().Services("my-namespace").Delete(ctx, "mysql-svc", metav1.DeleteOptions{})
 	}
 }
 
@@ -149,53 +157,46 @@ func deleteNamespaceOnAll(namespace string, wait bool) {
 	deleteNamespace(destinationClusterClient, namespace, wait)
 }
 
-// Custom matcher to check if a Secret on destination cluster matches the source Secret
-func BeEqualToSourceSecret() types.GomegaMatcher {
-	return WithTransform(func(secret *corev1.Secret) bool {
-		sourceSecret, err := sourceClusterClient.CoreV1().Secrets(secret.Namespace).Get(context.Background(), secret.Name, metav1.GetOptions{})
-		if err != nil {
-			return false
-		}
-
-		// Secret Sync actually DOES NOT sync labels and annotations. Not sure if that's intended.
-		// TODO: is it a bug?
-
-		// // Check that all labels from source are present in the destination Secret
-		// for key, value := range sourceSecret.Labels {
-		// 	Expect(secret.Labels).To(HaveKeyWithValue(key, value), fmt.Sprintf("Label %s should match source Secret", key))
-		// }
-
-		// // Check that all annotations from source are present in the destination Secret
-		// for key, value := range sourceSecret.Annotations {
-		// 	Expect(secret.Annotations).To(HaveKeyWithValue(key, value), fmt.Sprintf("Annotation %s should match source Secret", key))
-		// }
-
-		Expect(secret.Labels).To(HaveKeyWithValue("keess.powerhrg.com/managed", "true"), "Destination Secret should have correct managed label")
-		Expect(secret.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-cluster", sourceClusterContext), "Destination Secret should have correct source cluster annotation")
-		Expect(secret.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-namespace", sourceSecret.Namespace), "Destination Secret should have correct source namespace annotation")
-
-		// TODO: I think we found a bug here, because the source resource version is not synced whe source is updated
-		// This line catches that when on the update case
-		// Expect(secret.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-resource-version", sourceSecret.ResourceVersion), "Destination Secret should have correct source resource version annotation")
-
-		// Compare only the Data field, ignoring metadata differences
-		return reflect.DeepEqual(secret.Data, sourceSecret.Data)
+// Custom matcher to check if metadata has the Keess tracking annotations
+// It also checks if the source resource version annotation matches the expected source revision
+func HaveKeessTrackingAnnotations(sourceNamespace string) types.GomegaMatcher {
+	return WithTransform(func(metadata *metav1.ObjectMeta) bool {
+		// NOTE: we can only use Expect here, because the Service is already created with
+		// these annotations, so we don't need to wait for they eventually be synchronized.
+		// Expect fails the test immediately if the annotations are not present, breaking the Eventually() loop
+		Expect(metadata.Labels).To(HaveKeyWithValue("keess.powerhrg.com/managed", "true"), "Destination object should have correct managed label")
+		Expect(metadata.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-cluster", sourceClusterContext), "Destination object should have correct source cluster annotation")
+		Expect(metadata.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-namespace", sourceNamespace), "Destination object should have correct source namespace annotation")
+		return true
 	}, BeTrue())
 }
 
-// Custom matcher to check if a ConfigMap on destination cluster matches the source ConfigMap
-func BeEqualToSourceConfigMap() types.GomegaMatcher {
-	return WithTransform(func(configmap *corev1.ConfigMap) bool {
-		sourceConfigMap, err := sourceClusterClient.CoreV1().ConfigMaps(configmap.Namespace).Get(context.Background(), configmap.Name, metav1.GetOptions{})
-		if err != nil {
-			return false
+func HaveRevisionMatchingSource(expectedRevision string) types.GomegaMatcher {
+	return WithTransform(func(metadata *metav1.ObjectMeta) bool {
+		// NOTE: Cannot use Expect here, because it could fail the test immediately. We got to let Eventually keep try this.
+		revNote, ok := metadata.Annotations["keess.powerhrg.com/source-resource-version"]
+		if ok && revNote == expectedRevision {
+			return true
 		}
-
-		Expect(configmap.Labels).To(HaveKeyWithValue("keess.powerhrg.com/managed", "true"), "Destination ConfigMap should have correct managed label")
-		Expect(configmap.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-cluster", sourceClusterContext), "Destination ConfigMap should have correct source cluster annotation")
-		Expect(configmap.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-namespace", sourceConfigMap.Namespace), "Destination ConfigMap should have correct source namespace annotation")
-
-		// Compare only the Data field, ignoring metadata differences
-		return reflect.DeepEqual(configmap.Data, sourceConfigMap.Data)
+		GinkgoWriter.Printf("Expected source resource version annotation '%s' but got '%s'", expectedRevision, revNote)
+		return false
 	}, BeTrue())
+}
+
+// Generic function to get ObjectMeta from any Kubernetes object
+func getMetadata(obj metav1.Object) *metav1.ObjectMeta {
+	// Get the actual ObjectMeta from the object
+	switch o := obj.(type) {
+	case *corev1.Service:
+		return &o.ObjectMeta
+	case *corev1.Secret:
+		return &o.ObjectMeta
+	case *corev1.ConfigMap:
+		return &o.ObjectMeta
+	case *corev1.Namespace:
+		return &o.ObjectMeta
+	default:
+		// For any other object, return empty metadata
+		return &metav1.ObjectMeta{}
+	}
 }

@@ -1,0 +1,43 @@
+# Example: Service Synchronization with Keess for E2E testing
+# This is a simplified version of the service-sync example for testing purposes
+
+---
+# Service on Source Cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-svc
+  namespace: test-keess-service
+  labels:
+    keess.powerhrg.com/sync: "cluster"  # Enable cluster sync for this service
+  annotations:
+    service.cilium.io/global: "true"    # Enable Cilium Global Service
+    keess.powerhrg.com/clusters: "kind-destination-cluster"  # Target cluster for testing
+spec:
+  ports:
+  - name: mysql
+    port: 3306
+    protocol: TCP
+    targetPort: 3306
+  selector:
+    app.kubernetes.io/component: mysql
+  type: ClusterIP
+
+---
+# Pod that the service selects (for demonstration)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mysql-pod
+  namespace: test-keess-service
+  labels:
+    app.kubernetes.io/component: mysql
+spec:
+  containers:
+  - name: mysql
+    image: mysql:8.0
+    ports:
+    - containerPort: 3306
+    env:
+    - name: MYSQL_ROOT_PASSWORD
+      value: "example"
