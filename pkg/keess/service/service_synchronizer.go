@@ -1,4 +1,4 @@
-package services
+package service
 
 import (
 	"context"
@@ -8,23 +8,24 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"keess/pkg/keess"
 )
 
 // A struct that can synchronize services in a Kubernetes cluster.
 type ServiceSynchronizer struct {
-	localKubeClient   IKubeClient
-	remoteKubeClients map[string]IKubeClient
+	localKubeClient   keess.IKubeClient
+	remoteKubeClients map[string]keess.IKubeClient
 	servicePoller     *ServicePoller
-	namespacePoller   *NamespacePoller
+	namespacePoller   *keess.NamespacePoller
 	logger            *zap.SugaredLogger
 	Services          map[string]*PacService
 }
 
 func NewServiceSynchronizer(
-	localKubeClient IKubeClient,
-	remoteKubeClients map[string]IKubeClient,
+	localKubeClient keess.IKubeClient,
+	remoteKubeClients map[string]keess.IKubeClient,
 	servicePoller *ServicePoller,
-	namespacePoller *NamespacePoller,
+	namespacePoller *keess.NamespacePoller,
 	logger *zap.SugaredLogger,
 ) *ServiceSynchronizer {
 	return &ServiceSynchronizer{
@@ -55,7 +56,7 @@ func (s *ServiceSynchronizer) Start(ctx context.Context, pollInterval time.Durat
 // Start syncing services (Poller and Synchronizer).
 func (s *ServiceSynchronizer) startSyncing(ctx context.Context, pollInterval time.Duration) error {
 	servicesChan, err := s.servicePoller.PollServices(ctx, v1.ListOptions{
-		LabelSelector: ClusterLabelSelector, // remember service sync does not make sense for namespace sync
+		LabelSelector: keess.ClusterLabelSelector, // remember service sync does not make sense for namespace sync
 	}, pollInterval)
 
 	if err != nil {
@@ -94,7 +95,7 @@ func (s *ServiceSynchronizer) startSyncing(ctx context.Context, pollInterval tim
 func (s *ServiceSynchronizer) sync(ctx context.Context, pacService PacService) error {
 
 	// Check if the service has the clusters annotation
-	clustersAnnotation, exists := pacService.Service.Annotations[ClusterAnnotation]
+	clustersAnnotation, exists := pacService.Service.Annotations[keess.ClusterAnnotation]
 	if !exists {
 		// TODO: unit test
 		s.logger.Debug("[Service][sync] Service is marked for sync but does not have clusters annotation, skipping sync: ", pacService.Service.Name)
@@ -102,7 +103,7 @@ func (s *ServiceSynchronizer) sync(ctx context.Context, pacService PacService) e
 	}
 
 	// Parse the clusters
-	clusters := splitAndTrim(clustersAnnotation, ",")
+	clusters := keess.SplitAndTrim(clustersAnnotation, ",")
 
 	// Sync to each cluster
 	for _, cluster := range clusters {
@@ -151,16 +152,16 @@ func (s *ServiceSynchronizer) syncRemote(ctx context.Context, pacService PacServ
 	return nil
 }
 
-func (s *ServiceSynchronizer) CreateNamespaceForService(ctx context.Context, k IKubeClient, cluster string, svc PacService) error {
+func (s *ServiceSynchronizer) CreateNamespaceForService(ctx context.Context, k keess.IKubeClient, cluster string, svc PacService) error {
 	ns := &corev1.Namespace{
 		ObjectMeta: v1.ObjectMeta{
 			Name: svc.Service.Namespace,
 			Labels: map[string]string{
-				ManagedLabelSelector: "true",
+				keess.ManagedLabelSelector: "true",
 			},
 			Annotations: map[string]string{
-				SourceClusterAnnotation:   svc.Cluster,
-				SourceNamespaceAnnotation: svc.Service.Namespace,
+				keess.SourceClusterAnnotation:   svc.Cluster,
+				keess.SourceNamespaceAnnotation: svc.Service.Namespace,
 			},
 		},
 	}
@@ -176,7 +177,7 @@ func (s *ServiceSynchronizer) CreateNamespaceForService(ctx context.Context, k I
 }
 
 // Create or update a service
-func (s *ServiceSynchronizer) createOrUpdate(ctx context.Context, k IKubeClient, pacSvc PacService, cluster string, ns string) error {
+func (s *ServiceSynchronizer) createOrUpdate(ctx context.Context, k keess.IKubeClient, pacSvc PacService, cluster string, ns string) error {
 	// Prepare the service for the target namespace
 	svc := pacSvc.Prepare(ns)
 
@@ -198,7 +199,7 @@ func (s *ServiceSynchronizer) createOrUpdate(ctx context.Context, k IKubeClient,
 	}
 
 	// Service exist, check if we should manage it
-	managed, ok := existingService.Labels[ManagedLabelSelector]
+	managed, ok := existingService.Labels[keess.ManagedLabelSelector]
 	if !ok {
 		s.logger.Warnf("[Service][createOrUpdate] Cluster %s already has unmanaged Service %s/%s, skipping create/update", cluster, ns, svc.Name)
 		return nil
@@ -227,7 +228,7 @@ func (s *ServiceSynchronizer) createOrUpdate(ctx context.Context, k IKubeClient,
 // Delete orphan services in the local Kubernetes cluster.
 func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval time.Duration) error {
 	servicesChan, err := s.servicePoller.PollServices(ctx, v1.ListOptions{
-		LabelSelector: ManagedLabelSelector,
+		LabelSelector: keess.ManagedLabelSelector,
 	}, pollInterval)
 
 	if err != nil {
@@ -246,10 +247,10 @@ func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval ti
 				s.logger.Debugf("[Service][deleteOrphans] Processing service %s/%s", service.Service.Namespace, service.Service.Name)
 
 				// Process the service
-				sourceCluster := service.Service.Annotations[SourceClusterAnnotation]
-				sourceNamespace := service.Service.Annotations[SourceNamespaceAnnotation]
+				sourceCluster := service.Service.Annotations[keess.SourceClusterAnnotation]
+				sourceNamespace := service.Service.Annotations[keess.SourceNamespaceAnnotation]
 
-				var remoteKubeClient IKubeClient
+				var remoteKubeClient keess.IKubeClient
 				if sourceCluster == service.Cluster {
 					// TODO: this case should be impossible for services, since there is no namespace sync for services
 					remoteKubeClient = s.localKubeClient

@@ -1,4 +1,4 @@
-package services
+package keess
 
 import (
 	"context"
@@ -140,7 +140,7 @@ func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 			remoteKubeClients: make(map[string]IKubeClient),
 			overrideKCL: &KubeconfigLoader{
 				clientFactory: func(_ *rest.Config) (IKubeClient, error) {
-					return &mockKubeClient{}, nil
+					return &MockKubeClient{}, nil
 				},
 			},
 			shouldHaveContexts: true,

@@ -1,4 +1,4 @@
-package services
+package keess
 
 import (
 	"context"
@@ -149,7 +149,7 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 	if len(initializedClustersName) > 0 {
 		k.logger.Infof("Remote clusters successfully initialized: %v", initializedClustersName)
 	}
-	
+
 	k.remoteKubeClients.mutex.Unlock()
 	k.logger.Debug("Unlocked remote clients mutex after assignment")
 }
