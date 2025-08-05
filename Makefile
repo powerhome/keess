@@ -2,9 +2,11 @@
 PROJECT_NAME := "keess"
 DOCKER_IMAGE_NAME := "keess"
 DOCKER_TAG := "latest"
+# this file will host kubeconfig for local clusters created with kind
 LOCAL_TEST_KUBECONFIG_FILE := "localTestKubeconfig"
+# this file will host the same kubeconfig, but to be used within the clusters themselves
+LOCAL_INTERNAL_TEST_KUBECONFIG_FILE := "localInternalTestKubeconfig"
 LOCAL_CLUSTER := "kind-source-cluster"
-DEST_CLUSTER := "kind-destination-cluster"
 K8S_VERSION_PAC_V1 := v1.22.17
 K8S_VERSION := v1.32.2
 CILIUM_CLI_VERSION := v0.18.5
@@ -16,7 +18,7 @@ ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/arm64/arm64/;s/aarch64/arm64/'
 GOBASE := $(shell pwd)
 GOBIN := $(GOBASE)/bin
 
-.PHONY: build docker-build coverage run docker-run create-local-clusters delete-local-clusters local-docker-run help create-local-clusters-pac-v1 install-cilium-cli install-cilium-to-clusters tests e2e-tests python-e2e-tests
+.PHONY: build docker-build coverage run docker-run create-local-clusters create-local-clusters-pac-v1 delete-local-clusters install-cilium-cli install-cilium-to-clusters install-keess setup-local-clusters setup-local-clusters-with-keess local-docker-run tests tests-e2e tests-python-e2e help
 
 # Build the project
 build:
@@ -40,10 +42,6 @@ coverage:
 run: build
 	@echo "Running the application..."
 	@./bin/keess run --localCluster=$(LOCAL_CLUSTER) --logLevel=debug --kubeConfigPath=$(LOCAL_TEST_KUBECONFIG_FILE) --pollingInterval=10 --housekeepingInterval=10 --namespacePollingInterval=10
-
-run-destination: build
-	@echo "Running the application..."
-	@./bin/keess run --localCluster=$(DEST_CLUSTER) --logLevel=debug --kubeConfigPath=$(LOCAL_TEST_KUBECONFIG_FILE) --pollingInterval=10 --housekeepingInterval=10 --namespacePollingInterval=10
 
 # Target to run the Docker image with the .kube directory mounted
 docker-run:
@@ -84,8 +82,31 @@ install-cilium-to-clusters: install-cilium-cli
 	$(GOBIN)/cilium clustermesh status --wait --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-source-cluster
 	$(GOBIN)/cilium clustermesh status --wait --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-destination-cluster
 
-# Fully prepare local clusters for testing purposes
+install-keess:
+	@echo "Installing Keess on local clusters..."
+	KUBECONFIG=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) kind export kubeconfig -n source-cluster --internal
+	KUBECONFIG=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) kind export kubeconfig -n destination-cluster --internal
+
+	kind load docker-image $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) --name source-cluster
+	helm upgrade --install keess chart \
+		--kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --kube-context kind-source-cluster \
+		--namespace keess --create-namespace \
+		--set localCluster=kind-source-cluster \
+		--set-file config.kubeconfigContent=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) \
+		--values tests/helm-values.yaml
+	kind load docker-image $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) --name destination-cluster
+	helm upgrade --install keess chart \
+		--kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --kube-context kind-destination-cluster \
+		--namespace keess --create-namespace \
+		--set localCluster=kind-destination-cluster \
+		--set-file config.kubeconfigContent=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) \
+		--values tests/helm-values.yaml
+
+# Fully prepare local clusters for testing with Keess running outside of the clusters (with make run)
 setup-local-clusters: create-local-clusters install-cilium-to-clusters
+
+# Fully prepare local clusters for testing with Keess running inside the clusters
+setup-local-clusters-with-keess: setup-local-clusters install-keess
 
 # Target to run the Docker image with local test kubeconfig mounted
 local-docker-run:
@@ -140,6 +161,7 @@ help:
 	@echo "coverage                        - Generate and view code coverage report"
 	@echo "run                             - Run the application from local machine build"
 	@echo "setup-local-clusters            - Create 2 clusters locally using Kind ready for testing for PAC-V2 (includes Cilium)"
+	@echo "setup-local-clusters-with-keess - Create 2 clusters locally with Keess running inside the clusters"
 	@echo "tests                           - Run Unit tests"
 	@echo "tests-e2e                       - Run e2e tests (requires local clusters)"
 	@echo "delete-local-clusters           - Delete the 2 local clusters created with Kind"
@@ -150,6 +172,7 @@ help:
 	@echo "create-local-clusters-pac-v1    - Create 2 clusters locally using Kind with PAC-V1 Kubernetes version (no Cilium)"
 	@echo "install-cilium-cli              - Install Cilium CLI on the local machine"
 	@echo "install-cilium-to-clusters      - Install Cilium on the local clusters"
+	@echo "install-keess                   - Install Keess on local clusters using Helm"
 	@echo "docker-run                      - Run the Docker image with .kube directory mounted"
 	@echo "local-docker-run                - Run the application locally using docker and pointing to the local cluster created with Kind"
 	@echo "tests-python-e2e                - Run python e2e tests using docker"

@@ -1,0 +1,20 @@
+image:
+  repository: keess
+  pullPolicy: IfNotPresent
+  tag: latest
+
+logLevel: "debug"
+
+kubeConfigPath: "/root/.kube/config"
+pollingInterval: "10"
+namespacePollingInterval: "10"
+housekeepingInterval: "10"
+
+extraVolumes:
+  - name: kubeconfig-dir
+    secret:
+      secretName: keess
+      defaultMode: 0600
+
+kubeconfigReloader:
+  enabled: false
