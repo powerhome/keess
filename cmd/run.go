@@ -24,8 +24,8 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"keess/pkg/services"
-	"keess/pkg/services/service"
+	"keess/pkg/keess"
+	"keess/pkg/keess/service"
 	"net/http"
 	"os"
 	"time"
@@ -85,10 +85,9 @@ var runCmd = &cobra.Command{
 		logger.Sugar().Debugf("Log level: %s", logLevel)
 		logger.Sugar().Debugf("Kubeconfig path: %s", kubeConfigPath)
 
-
 		config, err := rest.InClusterConfig()
 		if err != nil {
-			config, err = services.BuildConfigWithContextFromFlags(localCluster, kubeConfigPath)
+			config, err = keess.BuildConfigWithContextFromFlags(localCluster, kubeConfigPath)
 			if err != nil {
 				logger.Sugar().Error("Error building localCluster kubeconfig: ", err)
 				return
@@ -107,20 +106,20 @@ var runCmd = &cobra.Command{
 		defer cancel()
 
 		// Create a map of remote clients
-		remoteKubeClients := make(map[string]services.IKubeClient)
+		remoteKubeClients := make(map[string]keess.IKubeClient)
 
-		kubeConfigLoader := services.NewKubeconfigLoader(kubeConfigPath, logger.Sugar(), remoteKubeClients, configReloaderMaxRetries, configReloaderDebounceTimer)
+		kubeConfigLoader := keess.NewKubeconfigLoader(kubeConfigPath, logger.Sugar(), remoteKubeClients, configReloaderMaxRetries, configReloaderDebounceTimer)
 		kubeConfigLoader.StartWatching(ctx)
 
 		// Create a NamespacePoller
-		namespacePoller := services.NewNamespacePoller(localKubeClient, logger.Sugar())
+		namespacePoller := keess.NewNamespacePoller(localKubeClient, logger.Sugar())
 		namespacePoller.PollNamespaces(ctx, metav1.ListOptions{}, time.Duration(namespacePollingInterval)*time.Second, localCluster)
 
 		// Create a SecretPoller
-		secretPoller := services.NewSecretPoller(localCluster, localKubeClient, logger.Sugar())
+		secretPoller := keess.NewSecretPoller(localCluster, localKubeClient, logger.Sugar())
 
 		// Create a SecretSynchronizer
-		secretSynchronizer := services.NewSecretSynchronizer(
+		secretSynchronizer := keess.NewSecretSynchronizer(
 			localKubeClient,
 			remoteKubeClients,
 			secretPoller,
@@ -132,10 +131,10 @@ var runCmd = &cobra.Command{
 		secretSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
 
 		// Create a ConfigMapPoller
-		configMapPoller := services.NewConfigMapPoller(localCluster, localKubeClient, logger.Sugar())
+		configMapPoller := keess.NewConfigMapPoller(localCluster, localKubeClient, logger.Sugar())
 
 		// Create a ConfigMapSynchronizer
-		configMapSynchronizer := services.NewConfigMapSynchronizer(
+		configMapSynchronizer := keess.NewConfigMapSynchronizer(
 			localKubeClient,
 			remoteKubeClients,
 			configMapPoller,

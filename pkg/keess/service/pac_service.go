@@ -2,7 +2,7 @@ package service
 
 import (
 	v1 "k8s.io/api/core/v1"
-	"keess/pkg/services"
+	"keess/pkg/keess"
 )
 
 // A struct that represents a service in a Kubernetes cluster.
@@ -22,15 +22,15 @@ func (s *PacService) Prepare(namespace string) v1.Service {
 	newService.UID = ""
 	newService.ResourceVersion = ""
 	newService.Labels = map[string]string{}
-	newService.Labels[services.ManagedLabelSelector] = "true"
+	newService.Labels[keess.ManagedLabelSelector] = "true"
 	newService.Annotations = map[string]string{}
-	newService.Annotations[services.SourceClusterAnnotation] = s.Cluster
-	newService.Annotations[services.SourceNamespaceAnnotation] = s.Service.Namespace
-	newService.Annotations[services.SourceResourceVersionAnnotation] = s.Service.ResourceVersion
+	newService.Annotations[keess.SourceClusterAnnotation] = s.Cluster
+	newService.Annotations[keess.SourceNamespaceAnnotation] = s.Service.Namespace
+	newService.Annotations[keess.SourceResourceVersionAnnotation] = s.Service.ResourceVersion
 
 	// Add Cilium Global Service annotations
-	newService.Annotations[services.CiliumGlobalServiceAnnotation] = "true"
-	newService.Annotations[services.CiliumSharedServiceAnnotation] = "false"
+	newService.Annotations[keess.CiliumGlobalServiceAnnotation] = "true"
+	newService.Annotations[keess.CiliumSharedServiceAnnotation] = "false"
 
 	// Clear the selector for remote service references (no local endpoints)
 	newService.Spec.Selector = map[string]string{}
@@ -46,28 +46,28 @@ func (s *PacService) Prepare(namespace string) v1.Service {
 
 // Check if the remote service has changed.
 func (s *PacService) HasChanged(remote v1.Service) bool {
-	if s.Service.ResourceVersion != remote.Annotations[services.SourceResourceVersionAnnotation] {
+	if s.Service.ResourceVersion != remote.Annotations[keess.SourceResourceVersionAnnotation] {
 		return true
 	}
 
-	if remote.Labels[services.ManagedLabelSelector] != "true" {
+	if remote.Labels[keess.ManagedLabelSelector] != "true" {
 		return true
 	}
 
-	if remote.Annotations[services.SourceClusterAnnotation] != s.Cluster {
+	if remote.Annotations[keess.SourceClusterAnnotation] != s.Cluster {
 		return true
 	}
 
-	if remote.Annotations[services.SourceNamespaceAnnotation] != s.Service.Namespace {
+	if remote.Annotations[keess.SourceNamespaceAnnotation] != s.Service.Namespace {
 		return true
 	}
 
 	// Check if Cilium annotations are correct
-	if remote.Annotations[services.CiliumGlobalServiceAnnotation] != "true" {
+	if remote.Annotations[keess.CiliumGlobalServiceAnnotation] != "true" {
 		return true
 	}
 
-	if remote.Annotations[services.CiliumSharedServiceAnnotation] != "false" {
+	if remote.Annotations[keess.CiliumSharedServiceAnnotation] != "false" {
 		return true
 	}
 

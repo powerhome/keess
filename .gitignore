@@ -35,6 +35,6 @@ _testmain.go
 apiserver.local.config/**
 .DS_Store
 .vscode
-keess
+/keess
 coverage.*
 localTestKubeconfig
