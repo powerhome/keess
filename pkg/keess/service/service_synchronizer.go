@@ -56,7 +56,8 @@ func (s *ServiceSynchronizer) Start(ctx context.Context, pollInterval time.Durat
 
 // Start syncing services (Poller and Synchronizer).
 func (s *ServiceSynchronizer) startSyncing(ctx context.Context, pollInterval time.Duration) error {
-	servicesChan, err := s.servicePoller.PollServices(ctx, v1.ListOptions{
+	// Poll for service to be synced. They will be pushed to this channel.
+	syncSvcChan, err := s.servicePoller.PollServices(ctx, v1.ListOptions{
 		LabelSelector: keess.ClusterLabelSelector, // remember service sync does not make sense for namespace sync
 	}, pollInterval)
 
@@ -68,7 +69,7 @@ func (s *ServiceSynchronizer) startSyncing(ctx context.Context, pollInterval tim
 	go func() {
 		for {
 			select {
-			case service, ok := <-servicesChan:
+			case service, ok := <-syncSvcChan:
 				if !ok {
 					// Channel closed, stop the goroutine
 					s.logger.Warn("[Service][startSyncing] Service syncing stopped because services channel was closed.")
