@@ -12,7 +12,8 @@ import (
 
 // Delete orphan services in the local Kubernetes cluster.
 func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval time.Duration) error {
-	servicesChan, err := s.servicePoller.PollServices(ctx, v1.ListOptions{
+	// Poll for managed services. They will be pushed to this channel.
+	mngSvcChan, err := s.servicePoller.PollServices(ctx, v1.ListOptions{
 		LabelSelector: keess.ManagedLabelSelector,
 	}, pollInterval)
 
@@ -24,7 +25,7 @@ func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval ti
 	go func() {
 		for {
 			select {
-			case service, ok := <-servicesChan:
+			case service, ok := <-mngSvcChan:
 				if !ok {
 					// Channel closed, stop the goroutine
 					return

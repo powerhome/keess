@@ -4,6 +4,7 @@ DOCKER_IMAGE_NAME := "keess"
 DOCKER_TAG := "latest"
 LOCAL_TEST_KUBECONFIG_FILE := "localTestKubeconfig"
 LOCAL_CLUSTER := "kind-source-cluster"
+DEST_CLUSTER := "kind-destination-cluster"
 K8S_VERSION_PAC_V1 := v1.22.17
 K8S_VERSION := v1.32.2
 CILIUM_CLI_VERSION := v0.18.5
@@ -39,6 +40,10 @@ coverage:
 run: build
 	@echo "Running the application..."
 	@./bin/keess run --localCluster=$(LOCAL_CLUSTER) --logLevel=debug --kubeConfigPath=$(LOCAL_TEST_KUBECONFIG_FILE) --pollingInterval=10 --housekeepingInterval=10 --namespacePollingInterval=10
+
+run-destination: build
+	@echo "Running the application..."
+	@./bin/keess run --localCluster=$(DEST_CLUSTER) --logLevel=debug --kubeConfigPath=$(LOCAL_TEST_KUBECONFIG_FILE) --pollingInterval=10 --housekeepingInterval=10 --namespacePollingInterval=10
 
 # Target to run the Docker image with the .kube directory mounted
 docker-run:
