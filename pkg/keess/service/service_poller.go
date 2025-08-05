@@ -7,19 +7,19 @@ import (
 	"go.uber.org/zap"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"keess/pkg/services"
+	"keess/pkg/keess"
 )
 
 // A ServicePoller polls services from a Kubernetes cluster.
 type ServicePoller struct {
 	cluster    string
-	kubeClient services.IKubeClient
+	kubeClient keess.IKubeClient
 	logger     *zap.SugaredLogger
 	startup    bool
 }
 
 // NewServicePoller creates a new ServicePoller.
-func NewServicePoller(cluster string, kubeClient services.IKubeClient, logger *zap.SugaredLogger) *ServicePoller {
+func NewServicePoller(cluster string, kubeClient keess.IKubeClient, logger *zap.SugaredLogger) *ServicePoller {
 	return &ServicePoller{
 		cluster:    cluster,
 		kubeClient: kubeClient,

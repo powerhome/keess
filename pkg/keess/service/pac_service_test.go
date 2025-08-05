@@ -5,7 +5,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"keess/pkg/services"
+	"keess/pkg/keess"
 )
 
 func TestPacService_Prepare(t *testing.T) {
@@ -18,7 +18,7 @@ func TestPacService_Prepare(t *testing.T) {
 				"app": "test",
 			},
 			Annotations: map[string]string{
-				services.CiliumGlobalServiceAnnotation: "true",
+				keess.CiliumGlobalServiceAnnotation: "true",
 			},
 			ResourceVersion: "123",
 		},
@@ -53,28 +53,28 @@ func TestPacService_Prepare(t *testing.T) {
 		t.Errorf("Expected name to be 'test-service', got %s", preparedService.Name)
 	}
 
-	if preparedService.Labels[services.ManagedLabelSelector] != "true" {
-		t.Errorf("Expected managed label to be 'true', got %s", preparedService.Labels[services.ManagedLabelSelector])
+	if preparedService.Labels[keess.ManagedLabelSelector] != "true" {
+		t.Errorf("Expected managed label to be 'true', got %s", preparedService.Labels[keess.ManagedLabelSelector])
 	}
 
-	if preparedService.Annotations[services.SourceClusterAnnotation] != "source-cluster" {
-		t.Errorf("Expected source cluster annotation to be 'source-cluster', got %s", preparedService.Annotations[services.SourceClusterAnnotation])
+	if preparedService.Annotations[keess.SourceClusterAnnotation] != "source-cluster" {
+		t.Errorf("Expected source cluster annotation to be 'source-cluster', got %s", preparedService.Annotations[keess.SourceClusterAnnotation])
 	}
 
-	if preparedService.Annotations[services.SourceNamespaceAnnotation] != "source-namespace" {
-		t.Errorf("Expected source namespace annotation to be 'source-namespace', got %s", preparedService.Annotations[services.SourceNamespaceAnnotation])
+	if preparedService.Annotations[keess.SourceNamespaceAnnotation] != "source-namespace" {
+		t.Errorf("Expected source namespace annotation to be 'source-namespace', got %s", preparedService.Annotations[keess.SourceNamespaceAnnotation])
 	}
 
-	if preparedService.Annotations[services.SourceResourceVersionAnnotation] != "123" {
-		t.Errorf("Expected source resource version annotation to be '123', got %s", preparedService.Annotations[services.SourceResourceVersionAnnotation])
+	if preparedService.Annotations[keess.SourceResourceVersionAnnotation] != "123" {
+		t.Errorf("Expected source resource version annotation to be '123', got %s", preparedService.Annotations[keess.SourceResourceVersionAnnotation])
 	}
 
-	if preparedService.Annotations[services.CiliumGlobalServiceAnnotation] != "true" {
-		t.Errorf("Expected Cilium global annotation to be 'true', got %s", preparedService.Annotations[services.CiliumGlobalServiceAnnotation])
+	if preparedService.Annotations[keess.CiliumGlobalServiceAnnotation] != "true" {
+		t.Errorf("Expected Cilium global annotation to be 'true', got %s", preparedService.Annotations[keess.CiliumGlobalServiceAnnotation])
 	}
 
-	if preparedService.Annotations[services.CiliumSharedServiceAnnotation] != "false" {
-		t.Errorf("Expected Cilium shared annotation to be 'false', got %s", preparedService.Annotations[services.CiliumSharedServiceAnnotation])
+	if preparedService.Annotations[keess.CiliumSharedServiceAnnotation] != "false" {
+		t.Errorf("Expected Cilium shared annotation to be 'false', got %s", preparedService.Annotations[keess.CiliumSharedServiceAnnotation])
 	}
 
 	if len(preparedService.Spec.Selector) != 0 {
@@ -106,14 +106,14 @@ func TestPacService_HasChanged(t *testing.T) {
 			Name:      "test-service",
 			Namespace: "target-namespace",
 			Labels: map[string]string{
-				services.ManagedLabelSelector: "true",
+				keess.ManagedLabelSelector: "true",
 			},
 			Annotations: map[string]string{
-				services.SourceClusterAnnotation:         "source-cluster",
-				services.SourceNamespaceAnnotation:       "source-namespace",
-				services.SourceResourceVersionAnnotation: "123",
-				services.CiliumGlobalServiceAnnotation:   "true",
-				services.CiliumSharedServiceAnnotation:   "false",
+				keess.SourceClusterAnnotation:         "source-cluster",
+				keess.SourceNamespaceAnnotation:       "source-namespace",
+				keess.SourceResourceVersionAnnotation: "123",
+				keess.CiliumGlobalServiceAnnotation:   "true",
+				keess.CiliumSharedServiceAnnotation:   "false",
 			},
 		},
 	}
@@ -128,14 +128,14 @@ func TestPacService_HasChanged(t *testing.T) {
 			Name:      "test-service",
 			Namespace: "target-namespace",
 			Labels: map[string]string{
-				services.ManagedLabelSelector: "true",
+				keess.ManagedLabelSelector: "true",
 			},
 			Annotations: map[string]string{
-				services.SourceClusterAnnotation:         "source-cluster",
-				services.SourceNamespaceAnnotation:       "source-namespace",
-				services.SourceResourceVersionAnnotation: "456", // Different resource version
-				services.CiliumGlobalServiceAnnotation:   "true",
-				services.CiliumSharedServiceAnnotation:   "false",
+				keess.SourceClusterAnnotation:         "source-cluster",
+				keess.SourceNamespaceAnnotation:       "source-namespace",
+				keess.SourceResourceVersionAnnotation: "456", // Different resource version
+				keess.CiliumGlobalServiceAnnotation:   "true",
+				keess.CiliumSharedServiceAnnotation:   "false",
 			},
 		},
 	}

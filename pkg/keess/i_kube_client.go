@@ -1,4 +1,4 @@
-package services
+package keess
 
 import (
 	"k8s.io/apimachinery/pkg/version"
