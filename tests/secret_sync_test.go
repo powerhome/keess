@@ -26,7 +26,7 @@ func getSecret(client kubernetes.Interface, name, namespace string) (*corev1.Sec
 	return client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
 
-var _ = Describe("Secret Sync", func() {
+var _ = Describe("Secret Sync", Label("secret"), func() {
 	Context("On Cluster mode", func() {
 
 		BeforeEach(func() {

@@ -38,7 +38,7 @@ const KubectlApplyAnnotation string = "kubectl.kubernetes.io/last-applied-config
 const CiliumGlobalServiceAnnotation string = "service.cilium.io/global"
 const CiliumSharedServiceAnnotation string = "service.cilium.io/shared"
 
-func splitAndTrim(input string, separator string) []string {
+func SplitAndTrim(input string, separator string) []string {
 	words := strings.Split(input, separator)
 	for i, word := range words {
 		words[i] = strings.TrimSpace(word)

@@ -1,4 +1,4 @@
-package services
+package service
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+	"keess/pkg/services"
 )
 
 func TestServicePoller_PollServices(t *testing.T) {
@@ -21,7 +22,7 @@ func TestServicePoller_PollServices(t *testing.T) {
 			Name:      "test-service-1",
 			Namespace: "default",
 			Labels: map[string]string{
-				LabelSelector: "true",
+				services.LabelSelector: "true",
 			},
 		},
 		Spec: corev1.ServiceSpec{
@@ -40,7 +41,7 @@ func TestServicePoller_PollServices(t *testing.T) {
 			Name:      "test-service-2",
 			Namespace: "kube-system",
 			Labels: map[string]string{
-				LabelSelector: "true",
+				services.LabelSelector: "true",
 			},
 		},
 		Spec: corev1.ServiceSpec{
@@ -69,7 +70,7 @@ func TestServicePoller_PollServices(t *testing.T) {
 	logger := zap.NewNop().Sugar()
 
 	// Create a mock client that implements IKubeClient
-	mockClient := &mockKubeClient{Clientset: fakeClient}
+	mockClient := &services.MockKubeClient{Clientset: fakeClient}
 
 	// Create a service poller
 	poller := NewServicePoller("test-cluster", mockClient, logger)
@@ -80,7 +81,7 @@ func TestServicePoller_PollServices(t *testing.T) {
 
 	// Start polling
 	servicesChan, err := poller.PollServices(ctx, metav1.ListOptions{
-		LabelSelector: LabelSelector,
+		LabelSelector: services.LabelSelector,
 	}, 1*time.Second)
 
 	if err != nil {
