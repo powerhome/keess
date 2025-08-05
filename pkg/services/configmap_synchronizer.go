@@ -117,7 +117,7 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 				keep := false
 				if remoteConfigMap.Labels[LabelSelector] == "namespace" {
 					if remoteConfigMap.Annotations[NamespaceLabelAnnotation] != "" {
-						keyValue := splitAndTrim(remoteConfigMap.Annotations[NamespaceLabelAnnotation], "=")
+						keyValue := SplitAndTrim(remoteConfigMap.Annotations[NamespaceLabelAnnotation], "=")
 						key := keyValue[0]
 						value := strings.Trim(keyValue[1], "\"")
 
@@ -135,7 +135,7 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 						if remoteConfigMap.Annotations[NamespaceNameAnnotation] == "all" {
 							keep = true
 						} else {
-							namespaces := splitAndTrim(remoteConfigMap.Annotations[NamespaceNameAnnotation], ",")
+							namespaces := SplitAndTrim(remoteConfigMap.Annotations[NamespaceNameAnnotation], ",")
 							for _, namespace := range namespaces {
 								if namespace == configMap.ConfigMap.Namespace {
 									keep = true
@@ -147,7 +147,7 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 				}
 
 				if remoteConfigMap.Labels[LabelSelector] == "cluster" {
-					destinationClusters := splitAndTrim(remoteConfigMap.Annotations[ClusterAnnotation], ",")
+					destinationClusters := SplitAndTrim(remoteConfigMap.Annotations[ClusterAnnotation], ",")
 					for _, cluster := range destinationClusters {
 						if cluster == configMap.Cluster {
 							keep = true
@@ -226,7 +226,7 @@ func (s *ConfigMapSynchronizer) sync(ctx context.Context, pacConfigMap PacConfig
 func (s *ConfigMapSynchronizer) syncLocal(ctx context.Context, pacConfigMap PacConfigMap) error {
 	// Synchronize based on the namespace label
 	if namespaceLabelAnnotationValue, ok := pacConfigMap.ConfigMap.Annotations[NamespaceLabelAnnotation]; ok {
-		keyValue := splitAndTrim(namespaceLabelAnnotationValue, "=")
+		keyValue := SplitAndTrim(namespaceLabelAnnotationValue, "=")
 		key := keyValue[0]
 		value := strings.Trim(keyValue[1], "\"")
 
@@ -249,7 +249,7 @@ func (s *ConfigMapSynchronizer) syncLocal(ctx context.Context, pacConfigMap PacC
 
 	// Synchronize based on the namespace name
 	if namespaceNameAnnotationValue, ok := pacConfigMap.ConfigMap.Annotations[NamespaceNameAnnotation]; ok && namespaceNameAnnotationValue != "all" {
-		namespaces := splitAndTrim(namespaceNameAnnotationValue, ",")
+		namespaces := SplitAndTrim(namespaceNameAnnotationValue, ",")
 		for _, namespace := range namespaces {
 			_, ok := s.namespacePoller.Namespaces[namespace]
 			if !ok {
@@ -290,7 +290,7 @@ func (s *ConfigMapSynchronizer) syncLocal(ctx context.Context, pacConfigMap PacC
 
 // Synchronize the configMap in the remote Kubernetes clusters.
 func (s *ConfigMapSynchronizer) syncRemote(ctx context.Context, pacConfigMap PacConfigMap) error {
-	clusters := splitAndTrim(pacConfigMap.ConfigMap.Annotations[ClusterAnnotation], ",")
+	clusters := SplitAndTrim(pacConfigMap.ConfigMap.Annotations[ClusterAnnotation], ",")
 
 	for _, cluster := range clusters {
 		client, ok := s.remoteKubeClients[cluster]

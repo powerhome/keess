@@ -25,7 +25,7 @@ func getConfigMap(client kubernetes.Interface, name, namespace string) (*corev1.
 	return client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
 
-var _ = Describe("ConfigMap Sync", func() {
+var _ = Describe("ConfigMap Sync", Label("configmap"), func() {
 	Context("On Cluster mode", func() {
 
 		BeforeEach(func() {

@@ -23,11 +23,11 @@ func newKubeClientAdapter(clientset *kubernetes.Clientset) IKubeClient {
 	return &kubeClientAdapter{clientset: clientset}
 }
 
-type mockKubeClient struct {
+type MockKubeClient struct {
 	*fake.Clientset
 }
 
-func (m *mockKubeClient) ServerVersion() (*version.Info, error) {
+func (m *MockKubeClient) ServerVersion() (*version.Info, error) {
 	return &version.Info{
 		Major:      "1",
 		Minor:      "32.2",

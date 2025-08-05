@@ -25,6 +25,7 @@ import (
 	"context"
 	"fmt"
 	"keess/pkg/services"
+	"keess/pkg/services/service"
 	"net/http"
 	"os"
 	"time"
@@ -146,10 +147,10 @@ var runCmd = &cobra.Command{
 		configMapSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
 
 		// Create a ServicePoller
-		servicePoller := services.NewServicePoller(localCluster, localKubeClient, logger.Sugar())
+		servicePoller := service.NewServicePoller(localCluster, localKubeClient, logger.Sugar())
 
 		// Create a ServiceSynchronizer
-		serviceSynchronizer := services.NewServiceSynchronizer(
+		serviceSynchronizer := service.NewServiceSynchronizer(
 			localKubeClient,
 			remoteKubeClients,
 			servicePoller,
