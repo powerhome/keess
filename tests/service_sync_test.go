@@ -149,14 +149,20 @@ var _ = Describe("Service Cluster Sync", Label("service"), func() {
 		})
 	})
 
-	When("the service is deleted from source cluster", Pending, func() {
+	When("the service is deleted from source cluster", Label("service-delete"), func() {
+
+		BeforeEach(func() {
+			By("Ensuring clean start by recreating namespaces on all clusters")
+			deleteNamespaceOnAll(serviceNamespace, true)
+			createNamespaceOnAll(serviceNamespace)
+
+			By("Applying Service to source cluster")
+			kubectlApply(serviceExampleFile, sourceClusterContext)
+		})
 
 		// It("it should NOT delete the service if it has local endpoints", func() {})
 
 		It("it should delete the orphaned service from destination cluster", func() {
-			By("Applying Service to source cluster")
-			kubectlApply(serviceExampleFile, sourceClusterContext)
-
 			By("Waiting for Service to be synchronized")
 			Eventually(getService, syncTimeout, pollInterval).WithArguments(
 				destinationClusterClient, serviceName, serviceNamespace).Should(Not(BeNil()),
