@@ -23,6 +23,7 @@ const (
 	destinationClusterContext = "kind-destination-cluster"
 	syncTimeout               = time.Minute * 1
 	pollInterval              = time.Second * 10
+	deleteTimeout             = time.Second * 15
 )
 
 var (
@@ -121,6 +122,11 @@ func kubectlApply(manifestFile, context string) {
 // 	Expect(err).NotTo(HaveOccurred(), "Failed to delete manifest: %s", string(output))
 // }
 
+// Get Namespace shortcut
+func getNamespace(client kubernetes.Interface, name string) (*corev1.Namespace, error) {
+	return client.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
+}
+
 // Creates a namespace using kubernetes client
 func createNamespace(client kubernetes.Interface, namespace string) {
 	_, err := client.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
@@ -129,9 +135,6 @@ func createNamespace(client kubernetes.Interface, namespace string) {
 		},
 	}, metav1.CreateOptions{})
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to create namespace %s", namespace))
-
-	// Wait a bit for the namespace to be fully created
-	time.Sleep(time.Second * 2)
 }
 
 // Deletes a namespace using kubernetes client
@@ -139,8 +142,10 @@ func deleteNamespace(client kubernetes.Interface, namespace string, wait bool) {
 	err := client.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
 	if err == nil && wait {
-		// Wait a bit for the namespace to be fully deleted
-		time.Sleep(time.Second * 15)
+		Eventually(func() error {
+			_, err := getNamespace(client, namespace)
+			return err
+		}, deleteTimeout).Should(HaveOccurred())
 	}
 	// having an error is ok, namespace might not exist
 }
