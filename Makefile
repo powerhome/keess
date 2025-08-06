@@ -23,7 +23,8 @@ GOBIN := $(GOBASE)/bin
 # Build the project
 build:
 	@echo "Building $(GOBIN)/$(PROJECT_NAME)..."
-	@GOBIN=$(GOBIN) go build -o $(GOBIN)/$(PROJECT_NAME) $(GOBASE)
+	mkdir -p $(GOBIN)
+	GOBIN=$(GOBIN) go build -o $(GOBIN)/$(PROJECT_NAME) $(GOBASE)
 
 # Build Docker image
 docker-build:
@@ -41,7 +42,7 @@ coverage:
 # Target to execute the application
 run: build
 	@echo "Running the application..."
-	@./bin/keess run --localCluster=$(LOCAL_CLUSTER) --logLevel=debug --kubeConfigPath=$(LOCAL_TEST_KUBECONFIG_FILE) --pollingInterval=10 --housekeepingInterval=10 --namespacePollingInterval=10
+	@$(GOBIN)/$(PROJECT_NAME) run --localCluster=$(LOCAL_CLUSTER) --logLevel=debug --kubeConfigPath=$(LOCAL_TEST_KUBECONFIG_FILE) --pollingInterval=10 --housekeepingInterval=10 --namespacePollingInterval=10
 
 # Target to run the Docker image with the .kube directory mounted
 docker-run:
@@ -63,8 +64,9 @@ delete-local-clusters:
 	@kind delete clusters source-cluster destination-cluster
 
 $(GOBIN)/cilium:
-	@curl -sL https://github.com/cilium/cilium-cli/releases/download/$(CILIUM_CLI_VERSION)/cilium-$(OS)-$(ARCH).tar.gz | tar -xzf - -C $(GOBIN);
-	@chmod +x $(GOBIN)/cilium
+	mkdir -p $(GOBIN)
+	curl -sL https://github.com/cilium/cilium-cli/releases/download/$(CILIUM_CLI_VERSION)/cilium-$(OS)-$(ARCH).tar.gz | tar -xzf - -C $(GOBIN);
+	chmod +x $(GOBIN)/cilium
 
 install-cilium-cli: $(GOBIN)/cilium
 
