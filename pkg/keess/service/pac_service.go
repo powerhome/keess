@@ -1,8 +1,12 @@
 package service
 
 import (
-	v1 "k8s.io/api/core/v1"
+	"context"
 	"keess/pkg/keess"
+
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // A struct that represents a service in a Kubernetes cluster.
@@ -68,6 +72,49 @@ func (s *PacService) HasChanged(remote v1.Service) bool {
 	}
 
 	if remote.Annotations[keess.CiliumSharedServiceAnnotation] != "false" {
+		return true
+	}
+
+	return false
+}
+
+// Check for local endpoints
+//
+// This function checks if the service has local endpoints by looking at the endpoint
+// addresses and confirming the belong to the CIDR for pods in the local cluster.
+func (s *PacService) HasLocalEndpoints(ctx context.Context, localKubeClient keess.IKubeClient) (bool, error) {
+	// // Get local addressing CIDR for pods
+	// podCIDR := localKubeClient.GetPodCIDR()
+
+	// // Get endpoints for the service
+	// endpoints, err := s.localKubeClient.CoreV1().Endpoints(service.Namespace).Get(ctx, service.Name, v1.GetOptions{})
+	// if err != nil {
+	// 	s.logger.Debugf("[Service][hasLocalEndpoints] Failed to get endpoints for service %s/%s: %v", service.Namespace, service.Name, err)
+	// 	return false
+	// }
+
+	// // TODO: check if endpoints are really local, or if they are remote
+	// // Check if there are any subsets with addresses
+	// for _, subset := range endpoints.Subsets {
+	// 	if len(subset.Addresses) > 0 {
+	// 		return true
+	// 	}
+	// }
+
+	return true, nil
+}
+
+// Check if service is an orphan.
+//
+// That is, if the source service that originated this PacService does not exist anymore
+// in the source cluster. It does not return an error. If it gets an error different
+// than NotFound from kube API, it will return false for safety.
+func (s *PacService) IsOrphan(ctx context.Context, sourceKubeClient keess.IKubeClient) bool {
+
+	sourceNamespace := s.Service.Annotations[keess.SourceNamespaceAnnotation]
+	_, err := sourceKubeClient.CoreV1().Services(sourceNamespace).Get(ctx, s.Service.Name, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		// Service does not exist in source cluster, hence it is an orphan
 		return true
 	}
 

@@ -56,8 +56,11 @@ create-local-clusters-pac-v1:
 
 # Target to start local kube clusters for testing purposes
 create-local-clusters:
-	@kind create cluster --image=kindest/node:$(K8S_VERSION) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-1.yaml
-	@kind create cluster --image=kindest/node:$(K8S_VERSION) -n destination-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-2.yaml
+	kind create cluster --image=kindest/node:$(K8S_VERSION) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-1.yaml
+	kind create cluster --image=kindest/node:$(K8S_VERSION) -n destination-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-2.yaml
+	KUBECONFIG=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) kind export kubeconfig -n source-cluster --internal
+	KUBECONFIG=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) kind export kubeconfig -n destination-cluster --internal
+
 
 # Target to delete local kube clusters
 delete-local-clusters:
@@ -84,11 +87,8 @@ install-cilium-to-clusters: install-cilium-cli
 	$(GOBIN)/cilium clustermesh status --wait --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-source-cluster
 	$(GOBIN)/cilium clustermesh status --wait --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-destination-cluster
 
-install-keess:
-	@echo "Installing Keess on local clusters..."
-	KUBECONFIG=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) kind export kubeconfig -n source-cluster --internal
-	KUBECONFIG=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) kind export kubeconfig -n destination-cluster --internal
-
+install-keess: build docker-build
+	@echo "Installing or updating Keess on local clusters..."
 	kind load docker-image $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) --name source-cluster
 	helm upgrade --install keess chart \
 		--kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --kube-context kind-source-cluster \
@@ -103,6 +103,9 @@ install-keess:
 		--set localCluster=kind-destination-cluster \
 		--set-file config.kubeconfigContent=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) \
 		--values tests/helm-values.yaml
+	@echo "Make sure we restart Keess pods to apply changes..."
+	kubectl --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-source-cluster -n keess delete pod --all
+	kubectl --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-destination-cluster -n keess delete pod --all
 
 # Fully prepare local clusters for testing with Keess running outside of the clusters (with make run)
 setup-local-clusters: create-local-clusters install-cilium-to-clusters

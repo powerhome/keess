@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/gomega/gstruct"
 	"github.com/onsi/gomega/types"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
@@ -27,6 +28,12 @@ var (
 // Get Service shortcut
 func getService(client kubernetes.Interface, name, namespace string) (*corev1.Service, error) {
 	return client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}
+
+// Check Service is not found shortcut
+func serviceIsNotFound(client kubernetes.Interface, name, namespace string) bool {
+	_, err := client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	return errors.IsNotFound(err)
 }
 
 // Get Service Ports shortcut
@@ -168,8 +175,8 @@ var _ = Describe("Service Cluster Sync", Label("service"), func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for orphaned Service to be deleted from destination cluster")
-			Eventually(getService, syncTimeout, pollInterval).WithArguments(
-				destinationClusterClient, serviceName, serviceNamespace).Should(BeNil(),
+			Eventually(serviceIsNotFound, syncTimeout, pollInterval).WithArguments(
+				destinationClusterClient, serviceName, serviceNamespace).Should(BeTrue(),
 				fmt.Sprintf("Orphaned Service %s/%s should be deleted within %v", serviceNamespace, serviceName, syncTimeout))
 		})
 
