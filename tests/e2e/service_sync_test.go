@@ -16,11 +16,11 @@ import (
 )
 
 var (
-	serviceExampleFile = filepath.Join("..", "examples", "test-service-sync-example.yaml")
+	serviceExampleFile = filepath.Join("..", "..", "examples", "test-service-sync-example.yaml")
 	// serviceName, serviceNamespace and servicePort must match the example file
 	serviceName                   = "mysql-svc"
 	serviceNamespace              = "test-keess-service"
-	serviceExampleConflictingFile = filepath.Join("..", "examples", "test-service-sync-example-conflict.yaml")
+	serviceExampleConflictingFile = filepath.Join("..", "..", "examples", "test-service-sync-example-conflict.yaml")
 	servicePort                   = 3306
 )
 

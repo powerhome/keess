@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	kubeconfig                = "../localTestKubeconfig"
+	kubeconfig                = "../../localTestKubeconfig"
 	sourceClusterContext      = "kind-source-cluster"
 	destinationClusterContext = "kind-destination-cluster"
 	syncTimeout               = time.Minute * 1
