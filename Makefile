@@ -127,10 +127,10 @@ local-docker-run:
 			--namespacePollingInterval=10 \
 			--logLevel=debug
 
-# Run tests
+# Run unit tests only (excludes e2e tests in /tests directory)
 tests:
 	@echo "Running Unit tests..."
-	@go test ./...
+	go test $(shell go list ./... | grep -v /tests)
 
 # Run e2e tests (requires local clusters to be running)
 tests-e2e:
@@ -142,9 +142,9 @@ tests-e2e:
 tests-python-e2e:
 	@echo "Running python e2e tests on docker ..."
 	@echo "Building keess-test image"
-	@docker build -f Dockerfile.localTest -t keess-test:1.0 .
+	docker build -f Dockerfile.localTest -t keess-test:1.0 .
 	@echo "Run container ..."
-	@docker run \
+	docker run \
 		-it \
 		--rm \
 		--mount type=bind,source="./$(LOCAL_TEST_KUBECONFIG_FILE)",target=/root/.kube/config,readonly \
@@ -152,6 +152,10 @@ tests-python-e2e:
 		--name keess-test \
 		keess-test:1.0 \
 		python test.py
+
+# Run all tests (unit + e2e)
+tests-all: tests tests-e2e tests-python-e2e
+
 
 # Help
 help:
@@ -164,8 +168,10 @@ help:
 	@echo "run                             - Run the application from local machine build"
 	@echo "setup-local-clusters            - Create 2 clusters locally using Kind ready for testing for PAC-V2 (includes Cilium)"
 	@echo "setup-local-clusters-with-keess - Create 2 clusters locally with Keess running inside the clusters"
-	@echo "tests                           - Run Unit tests"
-	@echo "tests-e2e                       - Run e2e tests (requires local clusters)"
+	@echo "tests                           - Run Unit tests only"
+	@echo "tests-e2e                       - Run e2e tests (cluster sync focused, requires local clusters)"
+	@echo "tests-python-e2e                - Run python e2e tests using docker (namespace sync focused)"
+	@echo "tests-all                       - Run all tests (unit + e2e)"
 	@echo "delete-local-clusters           - Delete the 2 local clusters created with Kind"
 	@echo "--------------------------------"
 	@echo "## Other Makefile commands:"
@@ -177,4 +183,3 @@ help:
 	@echo "install-keess                   - Install Keess on local clusters using Helm"
 	@echo "docker-run                      - Run the Docker image with .kube directory mounted"
 	@echo "local-docker-run                - Run the application locally using docker and pointing to the local cluster created with Kind"
-	@echo "tests-python-e2e                - Run python e2e tests using docker"
