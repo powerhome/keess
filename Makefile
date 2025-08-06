@@ -56,8 +56,8 @@ create-local-clusters-pac-v1:
 
 # Target to start local kube clusters for testing purposes
 create-local-clusters:
-	@kind create cluster --image=kindest/node:$(K8S_VERSION) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config extra/kind-config-1.yaml
-	@kind create cluster --image=kindest/node:$(K8S_VERSION) -n destination-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config extra/kind-config-2.yaml
+	@kind create cluster --image=kindest/node:$(K8S_VERSION) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-1.yaml
+	@kind create cluster --image=kindest/node:$(K8S_VERSION) -n destination-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-2.yaml
 
 # Target to delete local kube clusters
 delete-local-clusters:
@@ -136,7 +136,7 @@ tests:
 tests-e2e:
 	@echo "Running e2e tests..."
 	@echo "Make sure local clusters are running (use 'make setup-local-clusters' if needed)"
-	@cd tests && ginkgo -v
+	@cd tests/e2e && ginkgo -v
 
 # Original e2e tests on python
 tests-python-e2e:

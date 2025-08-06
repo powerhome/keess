@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	configMapExampleFile = filepath.Join("..", "examples", "test-configmap-sync-example.yaml")
+	configMapExampleFile = filepath.Join("..", "..", "examples", "test-configmap-sync-example.yaml")
 	// configMapName and configMapNamespace must match the example file
 	configMapName      = "app-config"
 	configMapNamespace = "test-keess"
