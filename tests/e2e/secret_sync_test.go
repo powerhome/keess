@@ -114,8 +114,8 @@ func BeEqualToSourceSecret() types.GomegaMatcher {
 			return false
 		}
 
-		// Secret Sync actually DOES NOT sync labels and annotations. Not sure if that's intended.
-		// TODO: is it a bug?
+		// Secret Sync actually DOES NOT sync labels and annotations.
+		// TODO: at some point we should fix that
 
 		// // Check that all labels from source are present in the destination Secret
 		// for key, value := range sourceSecret.Labels {
@@ -126,10 +126,6 @@ func BeEqualToSourceSecret() types.GomegaMatcher {
 		// for key, value := range sourceSecret.Annotations {
 		// 	Expect(secret.Annotations).To(HaveKeyWithValue(key, value), fmt.Sprintf("Annotation %s should match source Secret", key))
 		// }
-
-		// TODO: I think we found a bug here, because the source resource version is not synced whe source is updated
-		// This line catches that when on the update case
-		// Expect(secret.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-resource-version", sourceSecret.ResourceVersion), "Destination Secret should have correct source resource version annotation")
 
 		// Compare only the Data field, ignoring metadata differences
 		return reflect.DeepEqual(secret.Data, sourceSecret.Data)

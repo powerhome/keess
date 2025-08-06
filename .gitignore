@@ -38,4 +38,4 @@ apiserver.local.config/**
 /keess
 coverage.*
 localTestKubeconfig
-internalTestKubeconfig
+localInternalTestKubeconfig
