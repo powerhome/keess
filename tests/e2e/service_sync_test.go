@@ -29,11 +29,6 @@ func getService(client kubernetes.Interface, name, namespace string) (*corev1.Se
 	return client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
 
-// Get Namespace shortcut
-func getNamespace(client kubernetes.Interface, name string) (*corev1.Namespace, error) {
-	return client.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
-}
-
 // Get Service Ports shortcut
 func getServicePorts(service *corev1.Service) []corev1.ServicePort {
 	return service.Spec.Ports

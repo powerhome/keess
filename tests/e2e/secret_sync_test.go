@@ -69,8 +69,8 @@ var _ = Describe("Secret Sync", Label("secret"), func() {
 					fmt.Sprintf("Secret %s/%s should exist within %v and match source secret", secretNamespace, secretName, syncTimeout))
 
 				By("Updating Secret in source cluster")
-				// we know there is no error because of the previous Eventually check
-				sourceSecret, _ := getSecret(sourceClusterClient, secretName, secretNamespace)
+				sourceSecret, err := getSecret(sourceClusterClient, secretName, secretNamespace)
+				Expect(err).NotTo(HaveOccurred())
 
 				// Update existing key and add a new one
 				newdata1 := []byte("bmV3cGFzc3dvcmQ=") // "newpassword" in base64
@@ -78,7 +78,7 @@ var _ = Describe("Secret Sync", Label("secret"), func() {
 				sourceSecret.Data["database.password"] = newdata1
 				sourceSecret.Data["new.secret"] = newdata2
 
-				_, err := sourceClusterClient.CoreV1().Secrets(secretNamespace).Update(context.TODO(), sourceSecret, metav1.UpdateOptions{})
+				_, err = sourceClusterClient.CoreV1().Secrets(secretNamespace).Update(context.TODO(), sourceSecret, metav1.UpdateOptions{})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for updated Secret to be synchronized to destination cluster")

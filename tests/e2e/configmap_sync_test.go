@@ -67,14 +67,14 @@ var _ = Describe("ConfigMap Sync", Label("configmap"), func() {
 					fmt.Sprintf("ConfigMap %s/%s should exist within %v and match source configmap", configMapNamespace, configMapName, syncTimeout))
 
 				By("Updating ConfigMap in source cluster")
-				// we know there is no error because of the previous Eventually check
-				sourceConfigMap, _ := getConfigMap(sourceClusterClient, configMapName, configMapNamespace)
+				sourceConfigMap, err := getConfigMap(sourceClusterClient, configMapName, configMapNamespace)
+				Expect(err).NotTo(HaveOccurred())
 
 				// Update existing key and add a new one
 				sourceConfigMap.Data["logging.level"] = "DEBUG"
 				sourceConfigMap.Data["new.key"] = "new.value"
 
-				_, err := sourceClusterClient.CoreV1().ConfigMaps(configMapNamespace).Update(context.TODO(), sourceConfigMap, metav1.UpdateOptions{})
+				_, err = sourceClusterClient.CoreV1().ConfigMaps(configMapNamespace).Update(context.TODO(), sourceConfigMap, metav1.UpdateOptions{})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for updated ConfigMap to be synchronized to destination cluster")
