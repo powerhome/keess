@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"keess/pkg/keess"
+	keessnet "keess/pkg/keess/net"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -80,28 +82,37 @@ func (s *PacService) HasChanged(remote v1.Service) bool {
 
 // Check for local endpoints
 //
-// This function checks if the service has local endpoints by looking at the endpoint
-// addresses and confirming the belong to the CIDR for pods in the local cluster.
+// This function checks if the service has local endpoints. If the service has a non-empty
+// selector, it immediately returns true (assumes local endpoints exist). Otherwise, it looks 
+// at the endpoint addresses and confirms they belong to the CIDR for pods in the local cluster.
 func (s *PacService) HasLocalEndpoints(ctx context.Context, localKubeClient keess.IKubeClient) (bool, error) {
-	// // Get local addressing CIDR for pods
-	// podCIDR := localKubeClient.GetPodCIDR()
+	// If service has a selector, assume it has local endpoints
+	if len(s.Service.Spec.Selector) > 0 {
+		return true, nil
+	}
 
-	// // Get endpoints for the service
-	// endpoints, err := s.localKubeClient.CoreV1().Endpoints(service.Namespace).Get(ctx, service.Name, v1.GetOptions{})
-	// if err != nil {
-	// 	s.logger.Debugf("[Service][hasLocalEndpoints] Failed to get endpoints for service %s/%s: %v", service.Namespace, service.Name, err)
-	// 	return false
-	// }
+	// Get local addressing CIDRs for pods from all nodes
+	podCIDRs, err := keessnet.GetPodCIDRs(ctx, localKubeClient.CoreV1())
+	if err != nil {
+		return false, fmt.Errorf("failed to get pod CIDRs: %w", err)
+	}
 
-	// // TODO: check if endpoints are really local, or if they are remote
-	// // Check if there are any subsets with addresses
-	// for _, subset := range endpoints.Subsets {
-	// 	if len(subset.Addresses) > 0 {
-	// 		return true
-	// 	}
-	// }
+	// Get endpoints for the service
+	endpoints, err := localKubeClient.CoreV1().Endpoints(s.Service.Namespace).Get(ctx, s.Service.Name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil // No endpoints means no local endpoints
+		}
+		return false, fmt.Errorf("failed to get endpoints for service %s/%s: %w", s.Service.Namespace, s.Service.Name, err)
+	}
 
-	return true, nil
+	// Check if any endpoint addresses are in the local pod CIDRs
+	hasLocal, err := keessnet.IsEndpointFromLocalPodNet(endpoints, podCIDRs)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if endpoints are from local pod network: %w", err)
+	}
+
+	return hasLocal, nil
 }
 
 // Check if service is an orphan.

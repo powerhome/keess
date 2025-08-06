@@ -15,6 +15,7 @@ rules:
 - apiGroups: [""]
   resources:
   - namespaces
+  - endpoints
   verbs: ["get", "list", "watch"]
 - apiGroups: [""]
   resources:
