@@ -15,29 +15,17 @@ ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/arm64/arm64/;s/aarch64/arm64/'
 GOBASE := $(shell pwd)
 GOBIN := $(GOBASE)/bin
 
-.PHONY: build test docker-build coverage run docker-run create-local-clusters delete-local-clusters local-docker-run local-test help create-local-clusters-pac-v1 install-cilium-cli install-cilium-to-clusters
+.PHONY: build docker-build coverage run docker-run create-local-clusters delete-local-clusters local-docker-run help create-local-clusters-pac-v1 install-cilium-cli install-cilium-to-clusters tests e2e-tests python-e2e-tests
 
 # Build the project
 build:
 	@echo "Building $(GOBIN)/$(PROJECT_NAME)..."
 	@GOBIN=$(GOBIN) go build -o $(GOBIN)/$(PROJECT_NAME) $(GOBASE)
 
-# Run tests
-gotest:
-	@echo "Running tests..."
-	@go test ./...
-
 # Build Docker image
 docker-build:
 	@echo "Building Docker image..."
 	@docker build -t $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .
-
-# Install requirements and run test.py
-test:
-	@echo "Installing requirements..."
-	@pip3 install -r requirements.txt
-	@echo "Running test.py..."
-	@python3 test.py
 
 # New target for code coverage
 coverage:
@@ -111,11 +99,23 @@ local-docker-run:
 			--namespacePollingInterval=10 \
 			--logLevel=debug
 
-# Test locally using kind
-local-test:
+# Run tests
+tests:
+	@echo "Running Unit tests..."
+	@go test ./...
+
+# Run e2e tests (requires local clusters to be running)
+tests-e2e:
+	@echo "Running e2e tests..."
+	@echo "Make sure local clusters are running (use 'make setup-local-clusters' if needed)"
+	@cd tests && ginkgo -v
+
+# Original e2e tests on python
+tests-python-e2e:
+	@echo "Running python e2e tests on docker ..."
 	@echo "Building keess-test image"
 	@docker build -f Dockerfile.localTest -t keess-test:1.0 .
-	@echo "Running tests"
+	@echo "Run container ..."
 	@docker run \
 		-it \
 		--rm \
@@ -131,12 +131,12 @@ help:
 	@echo "## Most used Makefile commands:"
 	@echo "--------------------------------"
 	@echo "build                           - Build the project"
-	@echo "test                            - Run tests"
 	@echo "docker-build                    - Build Docker image"
 	@echo "coverage                        - Generate and view code coverage report"
 	@echo "run                             - Run the application from local machine build"
 	@echo "setup-local-clusters            - Create 2 clusters locally using Kind ready for testing for PAC-V2 (includes Cilium)"
-	@echo "local-test                      - Run the tests pointing to the local cluster created with Kind"
+	@echo "tests                           - Run Unit tests"
+	@echo "tests-e2e                       - Run e2e tests (requires local clusters)"
 	@echo "delete-local-clusters           - Delete the 2 local clusters created with Kind"
 	@echo "--------------------------------"
 	@echo "## Other Makefile commands:"
@@ -147,3 +147,4 @@ help:
 	@echo "install-cilium-to-clusters      - Install Cilium on the local clusters"
 	@echo "docker-run                      - Run the Docker image with .kube directory mounted"
 	@echo "local-docker-run                - Run the application locally using docker and pointing to the local cluster created with Kind"
+	@echo "tests-python-e2e                - Run python e2e tests using docker"

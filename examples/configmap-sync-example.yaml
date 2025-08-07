@@ -7,7 +7,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: app-config
-  namespace: default
+  namespace: test-keess
   labels:
     keess.powerhrg.com/sync: "cluster"  # Enable cluster sync for this ConfigMap
   annotations:
