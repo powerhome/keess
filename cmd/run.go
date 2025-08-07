@@ -34,7 +34,6 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc" // required for oidc
 	"k8s.io/client-go/rest"
 )
@@ -95,9 +94,9 @@ var runCmd = &cobra.Command{
 		}
 
 		// create the clientset
-		localKubeClient, err := kubernetes.NewForConfig(config)
+		localKubeClient, err := keess.NewKubeClientAdapter(config)
 		if err != nil {
-			logger.Sugar().Error("Error creating inCluster clientset: ", err)
+			logger.Sugar().Error("Error creating local kube client: ", err)
 			return
 		}
 

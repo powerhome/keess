@@ -156,10 +156,16 @@ var _ = Describe("Service Cluster Sync", Label("service"), func() {
 		BeforeEach(func() {
 			By("Ensuring clean start by recreating namespaces on all clusters")
 			deleteNamespaceOnAll(serviceNamespace, true)
-			createNamespaceOnAll(serviceNamespace)
+			// createNamespaceOnAll(serviceNamespace)
+			createNamespace(sourceClusterClient, serviceNamespace)
 
 			By("Applying Service to source cluster")
 			kubectlApply(serviceExampleFile, sourceClusterContext)
+		})
+
+		AfterEach(func() {
+			By("Cleaning up by removing test namespace on all clusters")
+			deleteNamespaceOnAll(serviceNamespace, false)
 		})
 
 		// It("it should NOT delete the service if it has local endpoints", func() {})

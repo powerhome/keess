@@ -2,29 +2,22 @@ package keess
 
 import (
 	"k8s.io/apimachinery/pkg/version"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes/fake"
-	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
-
-type kubeClientAdapter struct {
-	clientset *kubernetes.Clientset
-}
-
-func (k *kubeClientAdapter) CoreV1() v1.CoreV1Interface {
-	return k.clientset.CoreV1()
-}
-
-func (k *kubeClientAdapter) ServerVersion() (*version.Info, error) {
-	return k.clientset.Discovery().ServerVersion()
-}
-
-func newKubeClientAdapter(clientset *kubernetes.Clientset) IKubeClient {
-	return &kubeClientAdapter{clientset: clientset}
-}
 
 type MockKubeClient struct {
 	*fake.Clientset
+	dynamicClient dynamic.Interface
+}
+
+func (m *MockKubeClient) Discovery() discovery.DiscoveryInterface {
+	return m.Clientset.Discovery()
+}
+
+func (m *MockKubeClient) Dynamic() dynamic.Interface {
+	return m.dynamicClient
 }
 
 func (m *MockKubeClient) ServerVersion() (*version.Info, error) {
