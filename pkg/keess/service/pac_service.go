@@ -83,7 +83,7 @@ func (s *PacService) HasChanged(remote v1.Service) bool {
 // Check for local endpoints
 //
 // This function checks if the service has local endpoints. If the service has a non-empty
-// selector, it immediately returns true (assumes local endpoints exist). Otherwise, it looks 
+// selector, it immediately returns true (assumes local endpoints exist). Otherwise, it looks
 // at the endpoint addresses and confirms they belong to the CIDR for pods in the local cluster.
 func (s *PacService) HasLocalEndpoints(ctx context.Context, localKubeClient keess.IKubeClient) (bool, error) {
 	// If service has a selector, assume it has local endpoints

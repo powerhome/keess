@@ -5,10 +5,11 @@ import (
 	"strings"
 	"testing"
 
+	"keess/pkg/keess"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"keess/pkg/keess"
 )
 
 func TestPacService_Prepare(t *testing.T) {
@@ -207,12 +208,12 @@ func TestPacService_HasLocalEndpointsWithoutSelector(t *testing.T) {
 	// Test without selector - should proceed to check endpoints
 	// Since there are no endpoints and no nodes, we expect it to return an error about no nodes
 	_, err := pacService.HasLocalEndpoints(context.Background(), mockClient)
-	
+
 	// We expect an error here because there are no nodes in the mock cluster
 	if err == nil {
 		t.Error("Expected an error when checking endpoints with no nodes")
 	}
-	
+
 	// The error should be about no nodes found
 	if err != nil && !strings.Contains(err.Error(), "no nodes found") {
 		t.Errorf("Expected error about no nodes found, got: %v", err)

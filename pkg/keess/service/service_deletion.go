@@ -47,7 +47,7 @@ func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval ti
 
 // Process the service for deletion if it is an orphan.
 func (s *ServiceSynchronizer) proccessServiceDeleteOrphan(ctx context.Context, svc PacService) error {
-
+	//TODO: add delete toggle
 	sourceKubeClient, err := s.getSourceKubeClient(svc)
 	if err != nil {
 		return fmt.Errorf("[Service][processServiceDeleteOrphan] failed to get source kube client: %w", err)

@@ -101,7 +101,7 @@ func isIPInNetworks(ipStr string, networks []*net.IPNet) bool {
 	if ip == nil {
 		return false
 	}
-	
+
 	for _, network := range networks {
 		if network.Contains(ip) {
 			return true
