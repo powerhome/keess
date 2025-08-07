@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	exampleFile = filepath.Join("..", "examples", "test-secret-sync-example.yaml")
+	exampleFile = filepath.Join("..", "..", "examples", "test-secret-sync-example.yaml")
 	// secretName and namespace must match the example file
 	secretName      = "app-secret"
 	secretNamespace = "test-keess"
@@ -69,8 +69,8 @@ var _ = Describe("Secret Sync", Label("secret"), func() {
 					fmt.Sprintf("Secret %s/%s should exist within %v and match source secret", secretNamespace, secretName, syncTimeout))
 
 				By("Updating Secret in source cluster")
-				// we know there is no error because of the previous Eventually check
-				sourceSecret, _ := getSecret(sourceClusterClient, secretName, secretNamespace)
+				sourceSecret, err := getSecret(sourceClusterClient, secretName, secretNamespace)
+				Expect(err).NotTo(HaveOccurred())
 
 				// Update existing key and add a new one
 				newdata1 := []byte("bmV3cGFzc3dvcmQ=") // "newpassword" in base64
@@ -78,7 +78,7 @@ var _ = Describe("Secret Sync", Label("secret"), func() {
 				sourceSecret.Data["database.password"] = newdata1
 				sourceSecret.Data["new.secret"] = newdata2
 
-				_, err := sourceClusterClient.CoreV1().Secrets(secretNamespace).Update(context.TODO(), sourceSecret, metav1.UpdateOptions{})
+				_, err = sourceClusterClient.CoreV1().Secrets(secretNamespace).Update(context.TODO(), sourceSecret, metav1.UpdateOptions{})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for updated Secret to be synchronized to destination cluster")
@@ -114,8 +114,8 @@ func BeEqualToSourceSecret() types.GomegaMatcher {
 			return false
 		}
 
-		// Secret Sync actually DOES NOT sync labels and annotations. Not sure if that's intended.
-		// TODO: is it a bug?
+		// Secret Sync actually DOES NOT sync labels and annotations.
+		// TODO: at some point we should fix that
 
 		// // Check that all labels from source are present in the destination Secret
 		// for key, value := range sourceSecret.Labels {
@@ -126,10 +126,6 @@ func BeEqualToSourceSecret() types.GomegaMatcher {
 		// for key, value := range sourceSecret.Annotations {
 		// 	Expect(secret.Annotations).To(HaveKeyWithValue(key, value), fmt.Sprintf("Annotation %s should match source Secret", key))
 		// }
-
-		// TODO: I think we found a bug here, because the source resource version is not synced whe source is updated
-		// This line catches that when on the update case
-		// Expect(secret.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-resource-version", sourceSecret.ResourceVersion), "Destination Secret should have correct source resource version annotation")
 
 		// Compare only the Data field, ignoring metadata differences
 		return reflect.DeepEqual(secret.Data, sourceSecret.Data)

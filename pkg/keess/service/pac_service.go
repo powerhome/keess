@@ -1,8 +1,14 @@
 package service
 
 import (
-	v1 "k8s.io/api/core/v1"
+	"context"
+	"fmt"
 	"keess/pkg/keess"
+	keessnet "keess/pkg/keess/net"
+
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // A struct that represents a service in a Kubernetes cluster.
@@ -68,6 +74,58 @@ func (s *PacService) HasChanged(remote v1.Service) bool {
 	}
 
 	if remote.Annotations[keess.CiliumSharedServiceAnnotation] != "false" {
+		return true
+	}
+
+	return false
+}
+
+// Check for local endpoints
+//
+// This function checks if the service has local endpoints. If the service has a non-empty
+// selector, it immediately returns true (assumes local endpoints exist). Otherwise, it looks
+// at the endpoint addresses and confirms they belong to the CIDR for pods in the local cluster.
+func (s *PacService) HasLocalEndpoints(ctx context.Context, localKubeClient keess.IKubeClient) (bool, error) {
+	// If service has a selector, assume it has local endpoints
+	if len(s.Service.Spec.Selector) > 0 {
+		return true, nil
+	}
+
+	// Get local addressing CIDRs for pods from all nodes
+	podCIDRs, err := keessnet.GetPodCIDRs(ctx, localKubeClient.CoreV1())
+	if err != nil {
+		return false, fmt.Errorf("failed to get pod CIDRs: %w", err)
+	}
+
+	// Get endpoints for the service
+	endpoints, err := localKubeClient.CoreV1().Endpoints(s.Service.Namespace).Get(ctx, s.Service.Name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil // No endpoints means no local endpoints
+		}
+		return false, fmt.Errorf("failed to get endpoints for service %s/%s: %w", s.Service.Namespace, s.Service.Name, err)
+	}
+
+	// Check if any endpoint addresses are in the local pod CIDRs
+	hasLocal, err := keessnet.IsEndpointFromLocalPodNet(endpoints, podCIDRs)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if endpoints are from local pod network: %w", err)
+	}
+
+	return hasLocal, nil
+}
+
+// Check if service is an orphan.
+//
+// That is, if the source service that originated this PacService does not exist anymore
+// in the source cluster. It does not return an error. If it gets an error different
+// than NotFound from kube API, it will return false for safety.
+func (s *PacService) IsOrphan(ctx context.Context, sourceKubeClient keess.IKubeClient) bool {
+
+	sourceNamespace := s.Service.Annotations[keess.SourceNamespaceAnnotation]
+	_, err := sourceKubeClient.CoreV1().Services(sourceNamespace).Get(ctx, s.Service.Name, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		// Service does not exist in source cluster, hence it is an orphan
 		return true
 	}
 

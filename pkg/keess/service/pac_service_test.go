@@ -1,11 +1,15 @@
 package service
 
 import (
+	"context"
+	"strings"
 	"testing"
+
+	"keess/pkg/keess"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"keess/pkg/keess"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestPacService_Prepare(t *testing.T) {
@@ -142,5 +146,76 @@ func TestPacService_HasChanged(t *testing.T) {
 
 	if !pacService.HasChanged(changedService) {
 		t.Error("Expected service to have changed")
+	}
+}
+
+func TestPacService_HasLocalEndpointsWithSelector(t *testing.T) {
+	// Create a service with a non-empty selector
+	serviceWithSelector := corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-service",
+			Namespace: "test-namespace",
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: map[string]string{
+				"app": "test",
+			},
+		},
+	}
+
+	pacService := PacService{
+		Cluster: "test-cluster",
+		Service: serviceWithSelector,
+	}
+
+	// Mock kube client - doesn't matter what it returns since we should return immediately
+	mockClient := &keess.MockKubeClient{
+		Clientset: fake.NewSimpleClientset(),
+	}
+
+	// Test with selector - should return true immediately without checking endpoints
+	hasLocal, err := pacService.HasLocalEndpoints(context.Background(), mockClient)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if !hasLocal {
+		t.Error("Expected true for service with selector")
+	}
+}
+
+func TestPacService_HasLocalEndpointsWithoutSelector(t *testing.T) {
+	// Create a service without selector (empty map)
+	serviceWithoutSelector := corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-service",
+			Namespace: "test-namespace",
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: map[string]string{}, // Empty selector
+		},
+	}
+
+	pacService := PacService{
+		Cluster: "test-cluster",
+		Service: serviceWithoutSelector,
+	}
+
+	// Create a properly initialized mock client
+	mockClient := &keess.MockKubeClient{
+		Clientset: fake.NewSimpleClientset(),
+	}
+
+	// Test without selector - should proceed to check endpoints
+	// Since there are no endpoints and no nodes, we expect it to return an error about no nodes
+	_, err := pacService.HasLocalEndpoints(context.Background(), mockClient)
+
+	// We expect an error here because there are no nodes in the mock cluster
+	if err == nil {
+		t.Error("Expected an error when checking endpoints with no nodes")
+	}
+
+	// The error should be about no nodes found
+	if err != nil && !strings.Contains(err.Error(), "no nodes found") {
+		t.Errorf("Expected error about no nodes found, got: %v", err)
 	}
 }

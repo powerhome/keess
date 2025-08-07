@@ -48,12 +48,12 @@ export KUBECONFIG="$HOME/.kube/kind"
 
 if [[ "$use_kind" == true ]]; then
     for cluster in "${clusters[@]}"; do
-        kind create cluster --config extra/functional-test/kind-config.yaml --name "$cluster"
+        kind create cluster --config tests/functional-test/kind-config.yaml --name "$cluster"
         kind load docker-image "$keess_docker_image" "$kubeconfig_reloader_docker_image" --name "$cluster"
         for namespace in "${clusters[@]/#/from-}"; do
             kubectl create namespace "$namespace" --context "kind-$cluster"
         done
-        gsed "s|<cluster>|kind-$cluster|g" ./extra/functional-test/base.yaml | kubectl --context "kind-$cluster" apply -f -
+        gsed "s|<cluster>|kind-$cluster|g" ./tests/functional-test/base.yaml | kubectl --context "kind-$cluster" apply -f -
         echo "sleeping..."
         gsleep 15
     done

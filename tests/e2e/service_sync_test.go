@@ -10,17 +10,18 @@ import (
 	. "github.com/onsi/gomega/gstruct"
 	"github.com/onsi/gomega/types"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 )
 
 var (
-	serviceExampleFile = filepath.Join("..", "examples", "test-service-sync-example.yaml")
+	serviceExampleFile = filepath.Join("..", "..", "examples", "test-service-sync-example.yaml")
 	// serviceName, serviceNamespace and servicePort must match the example file
 	serviceName                   = "mysql-svc"
 	serviceNamespace              = "test-keess-service"
-	serviceExampleConflictingFile = filepath.Join("..", "examples", "test-service-sync-example-conflict.yaml")
+	serviceExampleConflictingFile = filepath.Join("..", "..", "examples", "test-service-sync-example-conflict.yaml")
 	servicePort                   = 3306
 )
 
@@ -29,9 +30,10 @@ func getService(client kubernetes.Interface, name, namespace string) (*corev1.Se
 	return client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
 
-// Get Namespace shortcut
-func getNamespace(client kubernetes.Interface, name string) (*corev1.Namespace, error) {
-	return client.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
+// Check Service is not found shortcut
+func serviceIsNotFound(client kubernetes.Interface, name, namespace string) bool {
+	_, err := client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	return errors.IsNotFound(err)
 }
 
 // Get Service Ports shortcut
@@ -149,14 +151,26 @@ var _ = Describe("Service Cluster Sync", Label("service"), func() {
 		})
 	})
 
-	When("the service is deleted from source cluster", Pending, func() {
+	When("the service is deleted from source cluster", Label("service-delete"), func() {
+
+		BeforeEach(func() {
+			By("Ensuring clean start by recreating namespaces on all clusters")
+			deleteNamespaceOnAll(serviceNamespace, true)
+			// createNamespaceOnAll(serviceNamespace)
+			createNamespace(sourceClusterClient, serviceNamespace)
+
+			By("Applying Service to source cluster")
+			kubectlApply(serviceExampleFile, sourceClusterContext)
+		})
+
+		AfterEach(func() {
+			By("Cleaning up by removing test namespace on all clusters")
+			deleteNamespaceOnAll(serviceNamespace, false)
+		})
 
 		// It("it should NOT delete the service if it has local endpoints", func() {})
 
 		It("it should delete the orphaned service from destination cluster", func() {
-			By("Applying Service to source cluster")
-			kubectlApply(serviceExampleFile, sourceClusterContext)
-
 			By("Waiting for Service to be synchronized")
 			Eventually(getService, syncTimeout, pollInterval).WithArguments(
 				destinationClusterClient, serviceName, serviceNamespace).Should(Not(BeNil()),
@@ -167,8 +181,8 @@ var _ = Describe("Service Cluster Sync", Label("service"), func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for orphaned Service to be deleted from destination cluster")
-			Eventually(getService, syncTimeout, pollInterval).WithArguments(
-				destinationClusterClient, serviceName, serviceNamespace).Should(BeNil(),
+			Eventually(serviceIsNotFound, syncTimeout, pollInterval).WithArguments(
+				destinationClusterClient, serviceName, serviceNamespace).Should(BeTrue(),
 				fmt.Sprintf("Orphaned Service %s/%s should be deleted within %v", serviceNamespace, serviceName, syncTimeout))
 		})
 
