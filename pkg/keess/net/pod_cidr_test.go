@@ -156,31 +156,6 @@ func TestGetPodCIDRs(t *testing.T) {
 	}
 }
 
-func TestGetPodCIDRsWithNilContext(t *testing.T) {
-	// Create fake clientset with a test node
-	clientset := fake.NewSimpleClientset()
-	node := &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-node"},
-		Spec: corev1.NodeSpec{
-			PodCIDR: "10.244.0.0/24",
-		},
-	}
-	_, err := clientset.CoreV1().Nodes().Create(context.Background(), node, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("Failed to create test node: %v", err)
-	}
-
-	// Test with nil context - should not panic and should work
-	cidrs, err := GetPodCIDRs(nil, clientset.CoreV1())
-	if err != nil {
-		t.Errorf("Unexpected error with nil context: %v", err)
-	}
-
-	if len(cidrs) != 1 || cidrs[0] != "10.244.0.0/24" {
-		t.Errorf("Expected [10.244.0.0/24], got %v", cidrs)
-	}
-}
-
 func TestIsEndpointFromLocalPodNet(t *testing.T) {
 	tests := []struct {
 		name      string

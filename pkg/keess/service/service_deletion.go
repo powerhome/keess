@@ -112,16 +112,10 @@ func (s *ServiceSynchronizer) getSourceKubeClient(svc PacService) (keess.IKubeCl
 	return s.remoteKubeClients[sourceCluster], nil
 }
 
-// // Check if a service has local endpoints
-// func (s *ServiceSynchronizer) hasLocalEndpoints(ctx context.Context, service corev1.Service) bool {
-// 	// Check if the service has a non-empty selector
-// 	if len(service.Spec.Selector) == 0 {
-// 		return false
-// 	}
-
-// }
-
 // Check if namespace is managed by keess
+//
+// It does not return an error. If it gets an error from kube API, it will return false
+// for safety.
 func (s *ServiceSynchronizer) isNamespaceManaged(namespace string) bool {
 	ns, err := s.localKubeClient.CoreV1().Namespaces().Get(context.TODO(), namespace, v1.GetOptions{})
 	if err != nil {
@@ -143,46 +137,3 @@ func (s *ServiceSynchronizer) isNamespaceEmpty(ctx context.Context, namespace st
 	// TODO: implement this
 	return false
 }
-
-// Check if namespace is managed by keess
-func (s *ServiceSynchronizer) deleteService(ctx context.Context, svc PacService) error {
-	// TODO: implement this
-	return nil
-}
-
-// Delete the namespace
-func (s *ServiceSynchronizer) deleteNamespace(ctx context.Context, namespace string) error {
-	return nil
-}
-
-// // Process the service
-// sourceNamespace := service.Service.Annotations[keess.SourceNamespaceAnnotation]
-
-// // TODO: extract this to a function
-
-// // Check if the service is orphan
-// _, err := sourceKubeClient.CoreV1().Services(sourceNamespace).Get(ctx, service.Service.Name, v1.GetOptions{})
-
-// // Delete the orphan service
-// if errors.IsNotFound(err) {
-// 	// Check if the service has local endpoints before deleting
-// 	hasLocalEndpoints := s.hasLocalEndpoints(ctx, service.Service)
-// 	if hasLocalEndpoints {
-// 		s.logger.Infof("[Service][deleteOrphans] Service %s/%s has local endpoints, skipping deletion", service.Service.Namespace, service.Service.Name)
-// 		continue
-// 	}
-
-// 	err := s.localKubeClient.CoreV1().Services(service.Service.Namespace).Delete(ctx, service.Service.Name, v1.DeleteOptions{})
-// 	if err == nil {
-// 		s.logger.Infof("[Service][deleteOrphans] Deleted orphan service %s/%s", service.Service.Namespace, service.Service.Name)
-// 	} else {
-// 		s.logger.Error("[Service][deleteOrphans] Failed to delete orphan service: ", err)
-// 	}
-
-// 	// Check if namespace is managed and empty
-// 	if s.isNamespaceManaged(service.Service.Namespace) {
-// 		s.checkAndDeleteEmptyNamespace(ctx, service.Service.Namespace)
-// 	}
-// } else if err != nil {
-// 	s.logger.Error("[Service][deleteOrphans] Failed to get remote service: ", err)
-// }
