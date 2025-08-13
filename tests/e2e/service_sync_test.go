@@ -186,60 +186,7 @@ var _ = Describe("Service Cluster Sync", Label("service"), func() {
 				fmt.Sprintf("Orphaned Service %s/%s should be deleted within %v", serviceNamespace, serviceName, syncTimeout))
 		})
 
-		// It("it should NOT delete a non-empty namespace on destination even it's was managed by Keess", func() {})
-		// It("it should delete an EMPTY namespace on destination IF it's managed by Keess", func() {})
 	})
-
-	// When("a managed service has local endpoints", func() {
-	// 	It("should not be deleted even if source is removed", func() {
-	// 		By("Creating a service with local endpoints on destination cluster")
-	// 		localService := &corev1.Service{
-	// 			ObjectMeta: metav1.ObjectMeta{
-	// 				Name:      "local-service",
-	// 				Namespace: serviceNamespace,
-	// 				Labels: map[string]string{
-	// 					"keess.powerhrg.com/managed": "true",
-	// 				},
-	// 				Annotations: map[string]string{
-	// 					"keess.powerhrg.com/source-cluster":          "kind-source-cluster",
-	// 					"keess.powerhrg.com/source-namespace":        serviceNamespace,
-	// 					"keess.powerhrg.com/source-resource-version": "123",
-	// 					"service.cilium.io/global":                   "true",
-	// 					"service.cilium.io/shared":                   "false",
-	// 				},
-	// 			},
-	// 			Spec: corev1.ServiceSpec{
-	// 				Ports: []corev1.ServicePort{
-	// 					{
-	// 						Name:       "http",
-	// 						Port:       80,
-	// 						Protocol:   corev1.ProtocolTCP,
-	// 						TargetPort: intstr.FromInt(8080),
-	// 					},
-	// 				},
-	// 				Selector: map[string]string{
-	// 					"app": "local-app", // Non-empty selector indicates local endpoints
-	// 				},
-	// 				Type: corev1.ServiceTypeClusterIP,
-	// 			},
-	// 		}
-
-	// 		_, err := destinationClusterClient.CoreV1().Services(serviceNamespace).Create(context.TODO(), localService, metav1.CreateOptions{})
-	// 		Expect(err).NotTo(HaveOccurred())
-
-	// 		By("Verifying service with local endpoints is not deleted during orphan cleanup")
-	// 		Consistently(func() error {
-	// 			_, err := getService(destinationClusterClient, "local-service", serviceNamespace)
-	// 			return err
-	// 		}, time.Second*30, time.Second*5).Should(BeNil(), "Service with local endpoints should not be deleted")
-
-	// 		By("Cleaning up the test service")
-	// 		err = destinationClusterClient.CoreV1().Services(serviceNamespace).Delete(context.TODO(), "local-service", metav1.DeleteOptions{})
-	// 		Expect(err).NotTo(HaveOccurred())
-	// 	})
-	// })
-
-	// TODO: When("the service is deleted from source cluster (orphaned)", func() {})
 })
 
 func HaveCiliumAnnotations() types.GomegaMatcher {

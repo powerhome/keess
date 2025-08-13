@@ -12,7 +12,6 @@ import (
 
 // GetPodCIDRs discovers the pod addressing CIDR ranges for the cluster by querying all nodes.
 // It collects unique CIDRs from both node.Spec.PodCIDR and node.Spec.PodCIDRs fields.
-// If ctx is nil, it defaults to context.Background().
 func GetPodCIDRs(ctx context.Context, coreV1 v1.CoreV1Interface) ([]string, error) {
 	if ctx == nil {
 		ctx = context.Background()
