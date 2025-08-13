@@ -13,7 +13,9 @@ rules:
   - services
   verbs: ["get", "create", "update", "patch", "delete", "list", "watch"]
 - apiGroups: [""]
-  resources: ["*"]
+  resources:
+  - namespaces
+  - endpoints
   verbs: ["get", "list", "watch"]
 - apiGroups: [""]
   resources:
