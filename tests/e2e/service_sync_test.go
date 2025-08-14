@@ -19,10 +19,13 @@ import (
 var (
 	serviceExampleFile = filepath.Join("..", "..", "examples", "test-service-sync-example.yaml")
 	// serviceName, serviceNamespace and servicePort must match the example file
-	serviceName                   = "mysql-svc"
-	serviceNamespace              = "test-keess-service"
-	serviceExampleConflictingFile = filepath.Join("..", "..", "examples", "test-service-sync-example-conflict.yaml")
-	servicePort                   = 3306
+	serviceName                      = "mysql-svc"
+	serviceNamespace                 = "test-keess-service"
+	serviceExampleConflictingFile    = filepath.Join("..", "..", "examples", "wrong", "test-service-sync-example-conflict.yaml")
+	serviceExampleLocalEndpointsFile = filepath.Join("..", "..", "examples", "wrong", "test-service-sync-example-local-endpoints.yaml")
+	// podName must match the example file for local endpoints
+	podName     = "mysql-other-pod"
+	servicePort = 3306
 )
 
 // Get Service shortcut
@@ -39,6 +42,22 @@ func serviceIsNotFound(client kubernetes.Interface, name, namespace string) bool
 // Get Service Ports shortcut
 func getServicePorts(service *corev1.Service) []corev1.ServicePort {
 	return service.Spec.Ports
+}
+
+// getPodReadiness returns if a pod exists and is in ready state
+func getPodReadiness(client kubernetes.Interface, podName, namespace string) (bool, error) {
+	pod, err := client.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	// Check if pod is ready by examining the PodReady condition
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady {
+			return condition.Status == corev1.ConditionTrue, nil
+		}
+	}
+	return false, nil
 }
 
 var _ = Describe("Service Cluster Sync", Label("service"), func() {
@@ -168,7 +187,29 @@ var _ = Describe("Service Cluster Sync", Label("service"), func() {
 			deleteNamespaceOnAll(serviceNamespace, false)
 		})
 
-		// It("it should NOT delete the service if it has local endpoints", func() {})
+		It("it should NOT delete the service if it has local endpoints", func() {
+			By("Waiting for Service to be synchronized")
+			Eventually(getService, syncTimeout, pollInterval).WithArguments(
+				destinationClusterClient, serviceName, serviceNamespace).Should(Not(BeNil()),
+				fmt.Sprintf("Service %s/%s not exists within %v", serviceNamespace, serviceName, syncTimeout))
+
+			By("Changing the service on destination cluster, adding local endpoints")
+			kubectlApply(serviceExampleLocalEndpointsFile, destinationClusterContext)
+
+			By("Waiting for pod on destination cluster to be ready")
+			Eventually(getPodReadiness, syncTimeout, pollInterval).WithArguments(
+				destinationClusterClient, podName, serviceNamespace).Should(BeTrue(),
+				fmt.Sprintf("Pod %s/%s not ready within %v", serviceNamespace, podName, syncTimeout))
+
+			By("Deleting Service from source cluster")
+			err := sourceClusterClient.CoreV1().Services(serviceNamespace).Delete(context.TODO(), serviceName, metav1.DeleteOptions{})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Checking that orphaned Service is not deleted from dest cluster")
+			Consistently(serviceIsNotFound, syncTimeout, pollInterval).WithArguments(
+				destinationClusterClient, serviceName, serviceNamespace).Should(BeFalse(),
+				fmt.Sprintf("Orphaned Service %s/%s should not be deleted (tested for %v)", serviceNamespace, serviceName, syncTimeout))
+		})
 
 		It("it should delete the orphaned service from destination cluster", func() {
 			By("Waiting for Service to be synchronized")

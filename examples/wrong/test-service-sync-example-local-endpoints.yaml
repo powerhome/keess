@@ -1,0 +1,37 @@
+# Example: Service Synchronization with Keess for E2E testing
+# When the synced service is changed on the destination cluster, to include a local
+# selector, this should refrain Keess from deleting the service when it becomes orphan
+---
+# Service on Source Cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-svc
+  namespace: test-keess-service
+spec:
+  ports:
+  - name: mysql
+    port: 3306
+    protocol: TCP
+    targetPort: 3306
+  selector:
+    app.kubernetes.io/component: mysql
+  type: ClusterIP
+---
+# Pod that the service selects (for demonstration)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mysql-other-pod
+  namespace: test-keess-service
+  labels:
+    app.kubernetes.io/component: mysql
+spec:
+  containers:
+  - name: mysql
+    image: mysql:8.0
+    ports:
+    - containerPort: 3306
+    env:
+    - name: MYSQL_ROOT_PASSWORD
+      value: "example"
