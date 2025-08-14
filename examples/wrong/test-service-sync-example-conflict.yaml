@@ -1,0 +1,37 @@
+# Example: Service Synchronization with Keess for E2E testing
+# Some other unannotated Service in the same namespace to test for conflicts between services in source and destination clusters.
+# when this is applied to the destination cluster, Keess should not sync the example mysql-svc service from source over this one.
+---
+# Service on Source Cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-svc
+  namespace: test-keess-service
+spec:
+  ports:
+  - name: mysql-alt
+    port: 3307
+    protocol: TCP
+    targetPort: 3307
+  selector:
+    app.kubernetes.io/component: mysql
+  type: ClusterIP
+---
+# Pod that the service selects (for demonstration)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mysql-other-pod
+  namespace: test-keess-service
+  labels:
+    app.kubernetes.io/component: mysql
+spec:
+  containers:
+  - name: mysql
+    image: mysql:8.0
+    ports:
+    - containerPort: 3307
+    env:
+    - name: MYSQL_ROOT_PASSWORD
+      value: "example"

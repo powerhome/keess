@@ -1,4 +1,4 @@
-package services
+package keess
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 
 func TestConfigMapPoller_PollConfigMaps(t *testing.T) {
 	cluster := "test-cluster"
-	mockKubeClient := &mockKubeClient{Clientset: fake.NewSimpleClientset()}
+	mockKubeClient := &MockKubeClient{Clientset: fake.NewSimpleClientset()}
 	logger, _ := zap.NewProduction()
 	sugaredLogger := logger.Sugar()
 

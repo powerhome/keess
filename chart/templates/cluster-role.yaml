@@ -10,10 +10,12 @@ rules:
   resources:
   - configmaps
   - secrets
+  - services
   verbs: ["get", "create", "update", "patch", "delete", "list", "watch"]
 - apiGroups: [""]
   resources:
   - namespaces
+  - endpoints
   verbs: ["get", "list", "watch"]
 - apiGroups: [""]
   resources:
