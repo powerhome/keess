@@ -22,6 +22,7 @@ var (
 	secretNamespace = "test-keess"
 )
 
+// getSecret gets a Secret using kubernetes client.
 func getSecret(client kubernetes.Interface, name, namespace string) (*corev1.Secret, error) {
 	return client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
@@ -101,12 +102,12 @@ var _ = Describe("Secret Sync", Label("secret"), func() {
 	//TODO: Context("On Namespace mode", func() {})
 })
 
-// Get metadata from Secret object
+// getSecretMeta gets metadata from Secret object.
 func getSecretMeta(secret *corev1.Secret) *metav1.ObjectMeta {
 	return &secret.ObjectMeta
 }
 
-// Custom matcher to check if a Secret on destination cluster matches the source Secret
+// BeEqualToSourceSecret is a custom matcher to check if a Secret on destination cluster matches the source Secret.
 func BeEqualToSourceSecret() types.GomegaMatcher {
 	return WithTransform(func(secret *corev1.Secret) bool {
 		sourceSecret, err := sourceClusterClient.CoreV1().Secrets(secret.Namespace).Get(context.Background(), secret.Name, metav1.GetOptions{})

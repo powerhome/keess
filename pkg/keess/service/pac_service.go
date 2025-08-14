@@ -20,7 +20,7 @@ type PacService struct {
 	Service v1.Service
 }
 
-// Prepare the service for persistence as a Cilium Global Service reference.
+// Prepare prepares the service for persistence as a Cilium Global Service reference.
 func (s *PacService) Prepare(namespace string) v1.Service {
 	newService := s.Service.DeepCopy()
 	newService.Namespace = namespace
@@ -50,7 +50,7 @@ func (s *PacService) Prepare(namespace string) v1.Service {
 	return *newService
 }
 
-// Check if the remote service has changed.
+// HasChanged checks if the remote service has changed.
 func (s *PacService) HasChanged(remote v1.Service) bool {
 	if s.Service.ResourceVersion != remote.Annotations[keess.SourceResourceVersionAnnotation] {
 		return true
@@ -80,7 +80,7 @@ func (s *PacService) HasChanged(remote v1.Service) bool {
 	return false
 }
 
-// Check for local endpoints
+// HasLocalEndpoints checks for local endpoints.
 //
 // This function checks if the service has local endpoints. If the service has a non-empty
 // selector, it immediately returns true (assumes local endpoints exist). Otherwise, it looks
@@ -115,7 +115,7 @@ func (s *PacService) HasLocalEndpoints(ctx context.Context, localKubeClient kees
 	return hasLocal, nil
 }
 
-// Check if service is an orphan.
+// IsOrphan checks if service is an orphan.
 //
 // That is, if the source service that originated this PacService does not exist anymore
 // in the source cluster. It does not return an error. If it gets an error different

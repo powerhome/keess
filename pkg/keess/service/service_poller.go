@@ -28,7 +28,7 @@ func NewServicePoller(cluster string, kubeClient keess.IKubeClient, logger *zap.
 	}
 }
 
-// Poll for services in a Kubernetes cluster.
+// PollServices polls for services in a Kubernetes cluster.
 func (w *ServicePoller) PollServices(ctx context.Context, opts metav1.ListOptions, pollInterval time.Duration) (<-chan PacService, error) {
 	servicesChan := make(chan PacService)
 	var interval time.Duration

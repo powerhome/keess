@@ -22,6 +22,7 @@ type ServiceSynchronizer struct {
 	Services          map[string]*PacService
 }
 
+// NewServiceSynchronizer creates a new ServiceSynchronizer.
 func NewServiceSynchronizer(
 	localKubeClient keess.IKubeClient,
 	remoteKubeClients map[string]keess.IKubeClient,
@@ -39,7 +40,7 @@ func NewServiceSynchronizer(
 	}
 }
 
-// Start the service synchronizer.
+// Start starts the service synchronizer.
 func (s *ServiceSynchronizer) Start(ctx context.Context, pollInterval time.Duration, housekeepingInterval time.Duration) error {
 	err := s.startSyncing(ctx, pollInterval)
 	if err != nil {
@@ -54,7 +55,7 @@ func (s *ServiceSynchronizer) Start(ctx context.Context, pollInterval time.Durat
 	return nil
 }
 
-// Start syncing services (Poller and Synchronizer).
+// startSyncing starts syncing services (Poller and Synchronizer).
 func (s *ServiceSynchronizer) startSyncing(ctx context.Context, pollInterval time.Duration) error {
 	// Poll for service to be synced. They will be pushed to this channel.
 	syncSvcChan, err := s.servicePoller.PollServices(ctx, v1.ListOptions{
@@ -93,7 +94,7 @@ func (s *ServiceSynchronizer) startSyncing(ctx context.Context, pollInterval tim
 	return nil
 }
 
-// Sync a service to all remote clusters
+// sync syncs a service to all remote clusters.
 func (s *ServiceSynchronizer) sync(ctx context.Context, pacService PacService) error {
 
 	// Check if the service has the clusters annotation
@@ -124,7 +125,7 @@ func (s *ServiceSynchronizer) sync(ctx context.Context, pacService PacService) e
 	return nil
 }
 
-// Sync a service to a remote cluster
+// syncRemote syncs a service to a remote cluster.
 // This function assumes that the remote cluster client is already set up in the ServiceSynchronizer.
 // It will create or update the service in the remote cluster.
 func (s *ServiceSynchronizer) syncRemote(ctx context.Context, pacService PacService, cluster string) error {
@@ -154,6 +155,7 @@ func (s *ServiceSynchronizer) syncRemote(ctx context.Context, pacService PacServ
 	return nil
 }
 
+// CreateNamespaceForService creates a namespace for the service.
 func (s *ServiceSynchronizer) CreateNamespaceForService(ctx context.Context, k keess.IKubeClient, cluster string, svc PacService) error {
 	ns := &corev1.Namespace{
 		ObjectMeta: v1.ObjectMeta{
@@ -178,7 +180,7 @@ func (s *ServiceSynchronizer) CreateNamespaceForService(ctx context.Context, k k
 	return nil
 }
 
-// Create or update a service
+// createOrUpdate creates or updates a service.
 func (s *ServiceSynchronizer) createOrUpdate(ctx context.Context, k keess.IKubeClient, pacSvc PacService, cluster string, ns string) error {
 	// Prepare the service for the target namespace
 	svc := pacSvc.Prepare(ns)

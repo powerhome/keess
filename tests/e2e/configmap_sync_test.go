@@ -21,6 +21,7 @@ var (
 	configMapNamespace = "test-keess"
 )
 
+// getConfigMap gets a ConfigMap using kubernetes client.
 func getConfigMap(client kubernetes.Interface, name, namespace string) (*corev1.ConfigMap, error) {
 	return client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
@@ -97,12 +98,12 @@ var _ = Describe("ConfigMap Sync", Label("configmap"), func() {
 	//TODO: Context("On Namespace mode", func() {})
 })
 
-// Get metadata from Secret object
+// getConfigMapMeta gets metadata from ConfigMap object.
 func getConfigMapMeta(config *corev1.ConfigMap) *metav1.ObjectMeta {
 	return &config.ObjectMeta
 }
 
-// Custom matcher to check if a ConfigMap on destination cluster matches the source ConfigMap
+// BeEqualToSourceConfigMap is a custom matcher to check if a ConfigMap on destination cluster matches the source ConfigMap.
 func BeEqualToSourceConfigMap() types.GomegaMatcher {
 	return WithTransform(func(configmap *corev1.ConfigMap) bool {
 		sourceConfigMap, err := sourceClusterClient.CoreV1().ConfigMaps(configmap.Namespace).Get(context.Background(), configmap.Name, metav1.GetOptions{})

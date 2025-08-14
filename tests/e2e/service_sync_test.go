@@ -28,23 +28,23 @@ var (
 	servicePort = 3306
 )
 
-// Get Service shortcut
+// getService gets a Service using kubernetes client (shortcut).
 func getService(client kubernetes.Interface, name, namespace string) (*corev1.Service, error) {
 	return client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
 
-// Check Service is not found shortcut
+// serviceIsNotFound checks if Service is not found (shortcut).
 func serviceIsNotFound(client kubernetes.Interface, name, namespace string) bool {
 	_, err := client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	return errors.IsNotFound(err)
 }
 
-// Get Service Ports shortcut
+// getServicePorts gets Service Ports (shortcut).
 func getServicePorts(service *corev1.Service) []corev1.ServicePort {
 	return service.Spec.Ports
 }
 
-// getPodReadiness returns if a pod exists and is in ready state
+// getPodReadiness returns if a pod exists and is in ready state.
 func getPodReadiness(client kubernetes.Interface, podName, namespace string) (bool, error) {
 	pod, err := client.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {
@@ -230,6 +230,7 @@ var _ = Describe("Service Cluster Sync", Label("service"), func() {
 	})
 })
 
+// HaveCiliumAnnotations is a custom matcher to check for Cilium annotations.
 func HaveCiliumAnnotations() types.GomegaMatcher {
 	return WithTransform(func(metadata *metav1.ObjectMeta) bool {
 		Expect(metadata.Annotations).To(HaveKeyWithValue("service.cilium.io/global", "true"), "Destination Service should have Cilium global annotation")
@@ -238,7 +239,7 @@ func HaveCiliumAnnotations() types.GomegaMatcher {
 	}, BeTrue())
 }
 
-// Gomega custom matcher for checking if Service has an empty Selector
+// HaveEmptySelector is a Gomega custom matcher for checking if Service has an empty Selector.
 func HaveEmptySelector() types.GomegaMatcher {
 	return WithTransform(func(service *corev1.Service) bool {
 		Expect(service.Spec.Selector).To(BeEmpty(), "Destination Service should have empty selector")

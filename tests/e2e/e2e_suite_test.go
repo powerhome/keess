@@ -31,6 +31,7 @@ var (
 	destinationClusterClient kubernetes.Interface
 )
 
+// TestE2E runs the Keess E2E test suite.
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Keess E2E Suite")
@@ -81,6 +82,7 @@ var _ = AfterSuite(func() {
 	cleanupTestResources()
 })
 
+// cleanupTestResources cleans up any remaining test resources.
 // TODO: check if this function makes sense
 func cleanupTestResources() {
 	ctx := context.TODO()
@@ -110,6 +112,7 @@ func cleanupTestResources() {
 	}
 }
 
+// kubectlApply applies a Kubernetes manifest using kubectl.
 func kubectlApply(manifestFile, context string) {
 	cmd := exec.Command("kubectl", "apply", "-f", manifestFile, "--kubeconfig", kubeconfig, "--context", context)
 	output, err := cmd.CombinedOutput()
@@ -122,12 +125,12 @@ func kubectlApply(manifestFile, context string) {
 // 	Expect(err).NotTo(HaveOccurred(), "Failed to delete manifest: %s", string(output))
 // }
 
-// Get Namespace shortcut
+// getNamespace gets a namespace using kubernetes client (shortcut).
 func getNamespace(client kubernetes.Interface, name string) (*corev1.Namespace, error) {
 	return client.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
 }
 
-// Creates a namespace using kubernetes client
+// createNamespace creates a namespace using kubernetes client.
 func createNamespace(client kubernetes.Interface, namespace string) {
 	_, err := client.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -137,7 +140,7 @@ func createNamespace(client kubernetes.Interface, namespace string) {
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to create namespace %s", namespace))
 }
 
-// Deletes a namespace using kubernetes client
+// deleteNamespace deletes a namespace using kubernetes client.
 func deleteNamespace(client kubernetes.Interface, namespace string, wait bool) {
 	err := client.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
@@ -150,20 +153,20 @@ func deleteNamespace(client kubernetes.Interface, namespace string, wait bool) {
 	// having an error is ok, namespace might not exist
 }
 
-// Creates namespace given as argument on all test clusters
+// createNamespaceOnAll creates namespace given as argument on all test clusters.
 func createNamespaceOnAll(namespace string) {
 	createNamespace(sourceClusterClient, namespace)
 	createNamespace(destinationClusterClient, namespace)
 }
 
-// Deletes namespace given as argument on all test clusters
+// deleteNamespaceOnAll deletes namespace given as argument on all test clusters.
 func deleteNamespaceOnAll(namespace string, wait bool) {
 	deleteNamespace(sourceClusterClient, namespace, wait)
 	deleteNamespace(destinationClusterClient, namespace, wait)
 }
 
-// Custom matcher to check if metadata has the Keess tracking annotations
-// It also checks if the source resource version annotation matches the expected source revision
+// HaveKeessTrackingAnnotations is a custom matcher to check if metadata has the Keess tracking annotations.
+// It also checks if the source resource version annotation matches the expected source revision.
 func HaveKeessTrackingAnnotations(sourceNamespace string) types.GomegaMatcher {
 	return WithTransform(func(metadata *metav1.ObjectMeta) bool {
 		// NOTE: we can only use Expect here, because the Service is already created with
@@ -176,6 +179,7 @@ func HaveKeessTrackingAnnotations(sourceNamespace string) types.GomegaMatcher {
 	}, BeTrue())
 }
 
+// HaveRevisionMatchingSource is a custom matcher to check if metadata has the expected revision.
 func HaveRevisionMatchingSource(expectedRevision string) types.GomegaMatcher {
 	return WithTransform(func(metadata *metav1.ObjectMeta) bool {
 		// NOTE: Cannot use Expect here, because it could fail the test immediately. We got to let Eventually keep try this.
@@ -188,7 +192,7 @@ func HaveRevisionMatchingSource(expectedRevision string) types.GomegaMatcher {
 	}, BeTrue())
 }
 
-// Generic function to get ObjectMeta from any Kubernetes object
+// getMetadata is a generic function to get ObjectMeta from any Kubernetes object.
 func getMetadata(obj metav1.Object) *metav1.ObjectMeta {
 	// Get the actual ObjectMeta from the object
 	switch o := obj.(type) {

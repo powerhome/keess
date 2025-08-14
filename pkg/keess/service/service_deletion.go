@@ -9,7 +9,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Delete orphan services in the local Kubernetes cluster.
+// deleteOrphans deletes orphan services in the local Kubernetes cluster.
 func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval time.Duration) error {
 	// Poll for managed services. They will be pushed to this channel.
 	mngSvcChan, err := s.servicePoller.PollServices(ctx, v1.ListOptions{
@@ -45,7 +45,7 @@ func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval ti
 	return nil
 }
 
-// Process the service for deletion if it is an orphan.
+// proccessServiceDeleteOrphan processes the service for deletion if it is an orphan.
 func (s *ServiceSynchronizer) proccessServiceDeleteOrphan(ctx context.Context, svc PacService) error {
 
 	sourceKubeClient, err := s.getSourceKubeClient(svc)
@@ -80,7 +80,7 @@ func (s *ServiceSynchronizer) proccessServiceDeleteOrphan(ctx context.Context, s
 	return nil
 }
 
-// Get the kube client for the source cluster
+// getSourceKubeClient gets the kube client for the source cluster.
 func (s *ServiceSynchronizer) getSourceKubeClient(svc PacService) (keess.IKubeClient, error) {
 
 	sourceCluster := svc.Service.Annotations[keess.SourceClusterAnnotation]
