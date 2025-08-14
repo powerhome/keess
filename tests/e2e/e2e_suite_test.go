@@ -24,6 +24,10 @@ const (
 	syncTimeout               = time.Minute * 1
 	pollInterval              = time.Second * 10
 	deleteTimeout             = time.Second * 15
+	// Test timeout constants
+	shortT  = time.Minute * 2
+	mediumT = time.Minute * 3
+	longT   = time.Minute * 5
 )
 
 var (
@@ -37,7 +41,7 @@ func TestE2E(t *testing.T) {
 	RunSpecs(t, "Keess E2E Suite")
 }
 
-var _ = BeforeSuite(func() {
+var _ = BeforeSuite(func(ctx SpecContext) {
 
 	// Check if kubeconfig exists
 	if _, err := os.Stat(kubeconfig); os.IsNotExist(err) {
@@ -68,24 +72,23 @@ var _ = BeforeSuite(func() {
 
 	// Verify both clusters are accessible
 	By("Verifying source cluster is accessible")
-	_, err = sourceClusterClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{})
+	_, err = sourceClusterClient.CoreV1().Namespaces().Get(ctx, "default", metav1.GetOptions{})
 	Expect(err).NotTo(HaveOccurred())
 
 	By("Verifying destination cluster is accessible")
-	_, err = destinationClusterClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{})
+	_, err = destinationClusterClient.CoreV1().Namespaces().Get(ctx, "default", metav1.GetOptions{})
 	Expect(err).NotTo(HaveOccurred())
-})
+}, NodeTimeout(shortT))
 
-var _ = AfterSuite(func() {
+var _ = AfterSuite(func(ctx SpecContext) {
 	// Cleanup any remaining test resources
 	By("Cleaning up test resources")
-	cleanupTestResources()
-})
+	cleanupTestResources(ctx)
+}, NodeTimeout(shortT))
 
 // cleanupTestResources cleans up any remaining test resources.
 // TODO: check if this function makes sense
-func cleanupTestResources() {
-	ctx := context.TODO()
+func cleanupTestResources(ctx context.Context) {
 
 	// Clean up ConfigMaps
 	if sourceClusterClient != nil {
@@ -126,13 +129,13 @@ func kubectlApply(manifestFile, context string) {
 // }
 
 // getNamespace gets a namespace using kubernetes client (shortcut).
-func getNamespace(client kubernetes.Interface, name string) (*corev1.Namespace, error) {
-	return client.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
+func getNamespace(ctx context.Context, client kubernetes.Interface, name string) (*corev1.Namespace, error) {
+	return client.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
 }
 
 // createNamespace creates a namespace using kubernetes client.
-func createNamespace(client kubernetes.Interface, namespace string) {
-	_, err := client.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
+func createNamespace(ctx context.Context, client kubernetes.Interface, namespace string) {
+	_, err := client.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
 		},
@@ -141,28 +144,28 @@ func createNamespace(client kubernetes.Interface, namespace string) {
 }
 
 // deleteNamespace deletes a namespace using kubernetes client.
-func deleteNamespace(client kubernetes.Interface, namespace string, wait bool) {
-	err := client.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+func deleteNamespace(ctx context.Context, client kubernetes.Interface, namespace string, wait bool) {
+	err := client.CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})
 
 	if err == nil && wait {
 		Eventually(func() error {
-			_, err := getNamespace(client, namespace)
+			_, err := getNamespace(ctx, client, namespace)
 			return err
-		}, deleteTimeout).Should(HaveOccurred())
+		}).WithContext(ctx).WithTimeout(deleteTimeout).Should(HaveOccurred())
 	}
 	// having an error is ok, namespace might not exist
 }
 
 // createNamespaceOnAll creates namespace given as argument on all test clusters.
-func createNamespaceOnAll(namespace string) {
-	createNamespace(sourceClusterClient, namespace)
-	createNamespace(destinationClusterClient, namespace)
+func createNamespaceOnAll(ctx context.Context, namespace string) {
+	createNamespace(ctx, sourceClusterClient, namespace)
+	createNamespace(ctx, destinationClusterClient, namespace)
 }
 
 // deleteNamespaceOnAll deletes namespace given as argument on all test clusters.
-func deleteNamespaceOnAll(namespace string, wait bool) {
-	deleteNamespace(sourceClusterClient, namespace, wait)
-	deleteNamespace(destinationClusterClient, namespace, wait)
+func deleteNamespaceOnAll(ctx context.Context, namespace string, wait bool) {
+	deleteNamespace(ctx, sourceClusterClient, namespace, wait)
+	deleteNamespace(ctx, destinationClusterClient, namespace, wait)
 }
 
 // HaveKeessTrackingAnnotations is a custom matcher to check if metadata has the Keess tracking annotations.

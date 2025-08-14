@@ -29,13 +29,13 @@ var (
 )
 
 // getService gets a Service using kubernetes client (shortcut).
-func getService(client kubernetes.Interface, name, namespace string) (*corev1.Service, error) {
-	return client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func getService(ctx context.Context, client kubernetes.Interface, name, namespace string) (*corev1.Service, error) {
+	return client.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
 // serviceIsNotFound checks if Service is not found (shortcut).
-func serviceIsNotFound(client kubernetes.Interface, name, namespace string) bool {
-	_, err := client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func serviceIsNotFound(ctx context.Context, client kubernetes.Interface, name, namespace string) bool {
+	_, err := client.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
 	return errors.IsNotFound(err)
 }
 
@@ -45,8 +45,8 @@ func getServicePorts(service *corev1.Service) []corev1.ServicePort {
 }
 
 // getPodReadiness returns if a pod exists and is in ready state.
-func getPodReadiness(client kubernetes.Interface, podName, namespace string) (bool, error) {
-	pod, err := client.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+func getPodReadiness(ctx context.Context, client kubernetes.Interface, podName, namespace string) (bool, error) {
+	pod, err := client.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -64,40 +64,40 @@ var _ = Describe("Service Cluster Sync", Label("service"), func() {
 
 	// Note this is an ordered test container, so each "It" will build upon the previous one
 	When("an annotated Service is created in the source cluster", Ordered, func() {
-		BeforeAll(func() {
+		BeforeAll(func(ctx SpecContext) {
 			By("Ensuring clean start by removing namespaces on all clusters")
-			deleteNamespaceOnAll(serviceNamespace, true)
+			deleteNamespaceOnAll(ctx, serviceNamespace, true)
 
 			By("Creating namespace only on source, to force keess to create it on destination")
-			createNamespace(sourceClusterClient, serviceNamespace)
+			createNamespace(ctx, sourceClusterClient, serviceNamespace)
 
 			By("Applying Service to source cluster")
 			kubectlApply(serviceExampleFile, sourceClusterContext)
 
-		})
+		}, NodeTimeout(shortT))
 
-		AfterAll(func() {
+		AfterAll(func(ctx SpecContext) {
 			By("Cleaning up by removing test namespace on all clusters")
-			deleteNamespaceOnAll(serviceNamespace, false)
-		})
+			deleteNamespaceOnAll(ctx, serviceNamespace, false)
+		}, NodeTimeout(shortT))
 
-		It("it should create namespace on destination if it does not exist", func() {
-			Eventually(getNamespace, syncTimeout, pollInterval).WithArguments(
+		It("it should create namespace on destination if it does not exist", func(ctx SpecContext) {
+			Eventually(getNamespace).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
 				destinationClusterClient, serviceNamespace).Should(
 				And(
 					Not(BeNil()),
 					WithTransform(getMetadata, HaveKeessTrackingAnnotations(serviceNamespace)),
 				), fmt.Sprintf("Namespace %s not created on destination cluster within %v", serviceNamespace, syncTimeout))
-		})
+		}, SpecTimeout(mediumT))
 
-		It("it should be synced to destination cluster", func() {
+		It("it should be synced to destination cluster", func(ctx SpecContext) {
 			// Note: we do NOT test for the destination Service Endpoints here, or for its reachability
 			// We test for Cilium's annotations and assume Cilium will do its job providing the connectivity
 			// Reasons:
 			// - It would be kind of testing Cilium's functionality from here, but maybe that would be ok because this is a n E2E test
 			// - Cilium does not update the Service's Endpoints on destination Service, unless an additional beta flag is set:
 			//   https://docs.cilium.io/en/latest/network/clustermesh/services/#synchronizing-kubernetes-endpointslice-beta
-			Eventually(getService, syncTimeout, pollInterval).WithArguments(
+			Eventually(getService).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
 				destinationClusterClient, serviceName, serviceNamespace).Should(
 				And(
 					Not(BeNil()),
@@ -105,12 +105,12 @@ var _ = Describe("Service Cluster Sync", Label("service"), func() {
 					WithTransform(getMetadata, HaveCiliumAnnotations()),
 					HaveEmptySelector(),
 				), fmt.Sprintf("Service %s/%s not synchronized as expected within %v", serviceNamespace, serviceName, syncTimeout))
-		})
+		}, SpecTimeout(mediumT))
 
-		It("it should sync Service updates in destination cluster", func() {
+		It("it should sync Service updates in destination cluster", func(ctx SpecContext) {
 			By("Updating Service in source cluster by adding a port")
 			// we know there is no error because of the previous Eventually check
-			sourceService, _ := getService(sourceClusterClient, serviceName, serviceNamespace)
+			sourceService, _ := getService(ctx, sourceClusterClient, serviceName, serviceNamespace)
 
 			// Add a new port
 			sourceService.Spec.Ports = append(sourceService.Spec.Ports, corev1.ServicePort{
@@ -120,12 +120,12 @@ var _ = Describe("Service Cluster Sync", Label("service"), func() {
 				TargetPort: intstr.FromInt(8080),
 			})
 
-			updatedService, err := sourceClusterClient.CoreV1().Services(serviceNamespace).Update(context.TODO(), sourceService, metav1.UpdateOptions{})
+			updatedService, err := sourceClusterClient.CoreV1().Services(serviceNamespace).Update(ctx, sourceService, metav1.UpdateOptions{})
 			Expect(err).NotTo(HaveOccurred())
 			sourceRevision := updatedService.ResourceVersion
 
 			By("Waiting and verifying the port is added to the destination cluster Service")
-			Eventually(getService, syncTimeout, pollInterval).WithArguments(
+			Eventually(getService).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
 				destinationClusterClient, serviceName, serviceNamespace).Should(
 				And(
 					WithTransform(getMetadata, HaveRevisionMatchingSource(sourceRevision)),
@@ -135,31 +135,31 @@ var _ = Describe("Service Cluster Sync", Label("service"), func() {
 						"Port": Equal(int32(8080)),
 					}))),
 				), fmt.Sprintf("Service %s/%s should be updated within %v with the new port", serviceNamespace, serviceName, syncTimeout))
-		})
+		}, SpecTimeout(mediumT))
 
 	})
 
 	When("the service already exists on destination cluster", Label("service-conflict"), func() {
-		BeforeEach(func() {
+		BeforeEach(func(ctx SpecContext) {
 			By("Ensuring clean start by recreating namespaces on all clusters")
-			deleteNamespaceOnAll(serviceNamespace, true)
-			createNamespaceOnAll(serviceNamespace)
+			deleteNamespaceOnAll(ctx, serviceNamespace, true)
+			createNamespaceOnAll(ctx, serviceNamespace)
 
 			By("Create service with same name on destination cluster")
 			kubectlApply(serviceExampleConflictingFile, destinationClusterContext)
 
 			By("Applying Service to source cluster")
 			kubectlApply(serviceExampleFile, sourceClusterContext)
-		})
+		}, NodeTimeout(shortT))
 
-		AfterEach(func() {
+		AfterEach(func(ctx SpecContext) {
 			By("Cleaning up by removing test namespace on all clusters")
-			deleteNamespaceOnAll(serviceNamespace, false)
-		})
+			deleteNamespaceOnAll(ctx, serviceNamespace, false)
+		}, NodeTimeout(shortT))
 
-		It("it should not sync if Service exists on destination", func() {
+		It("it should not sync if Service exists on destination", func(ctx SpecContext) {
 			By("Verifying the destination service is NOT updated with the source service port")
-			Consistently(getService, syncTimeout, pollInterval).WithArguments(
+			Consistently(getService).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
 				destinationClusterClient, serviceName, serviceNamespace).Should(
 				And(
 					WithTransform(getServicePorts, HaveLen(1)),
@@ -167,29 +167,29 @@ var _ = Describe("Service Cluster Sync", Label("service"), func() {
 						"Port": Equal(int32(servicePort)),
 					})))),
 				), fmt.Sprintf("Service %s/%s on destination should NOT be updated with the port from source-cluster service", serviceNamespace, serviceName))
-		})
+		}, SpecTimeout(mediumT))
 	})
 
 	When("the service is deleted from source cluster", Label("service-delete"), func() {
 
-		BeforeEach(func() {
+		BeforeEach(func(ctx SpecContext) {
 			By("Ensuring clean start by recreating namespaces on all clusters")
-			deleteNamespaceOnAll(serviceNamespace, true)
+			deleteNamespaceOnAll(ctx, serviceNamespace, true)
 			// createNamespaceOnAll(serviceNamespace)
-			createNamespace(sourceClusterClient, serviceNamespace)
+			createNamespace(ctx, sourceClusterClient, serviceNamespace)
 
 			By("Applying Service to source cluster")
 			kubectlApply(serviceExampleFile, sourceClusterContext)
-		})
+		}, NodeTimeout(shortT))
 
-		AfterEach(func() {
+		AfterEach(func(ctx SpecContext) {
 			By("Cleaning up by removing test namespace on all clusters")
-			deleteNamespaceOnAll(serviceNamespace, false)
-		})
+			deleteNamespaceOnAll(ctx, serviceNamespace, false)
+		}, NodeTimeout(shortT))
 
-		It("it should NOT delete the service if it has local endpoints", func() {
+		It("it should NOT delete the service if it has local endpoints", func(ctx SpecContext) {
 			By("Waiting for Service to be synchronized")
-			Eventually(getService, syncTimeout, pollInterval).WithArguments(
+			Eventually(getService).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
 				destinationClusterClient, serviceName, serviceNamespace).Should(Not(BeNil()),
 				fmt.Sprintf("Service %s/%s not exists within %v", serviceNamespace, serviceName, syncTimeout))
 
@@ -197,35 +197,35 @@ var _ = Describe("Service Cluster Sync", Label("service"), func() {
 			kubectlApply(serviceExampleLocalEndpointsFile, destinationClusterContext)
 
 			By("Waiting for pod on destination cluster to be ready")
-			Eventually(getPodReadiness, syncTimeout, pollInterval).WithArguments(
+			Eventually(getPodReadiness).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
 				destinationClusterClient, podName, serviceNamespace).Should(BeTrue(),
 				fmt.Sprintf("Pod %s/%s not ready within %v", serviceNamespace, podName, syncTimeout))
 
 			By("Deleting Service from source cluster")
-			err := sourceClusterClient.CoreV1().Services(serviceNamespace).Delete(context.TODO(), serviceName, metav1.DeleteOptions{})
+			err := sourceClusterClient.CoreV1().Services(serviceNamespace).Delete(ctx, serviceName, metav1.DeleteOptions{})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Checking that orphaned Service is not deleted from dest cluster")
-			Consistently(serviceIsNotFound, syncTimeout, pollInterval).WithArguments(
+			Consistently(serviceIsNotFound).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
 				destinationClusterClient, serviceName, serviceNamespace).Should(BeFalse(),
 				fmt.Sprintf("Orphaned Service %s/%s should not be deleted (tested for %v)", serviceNamespace, serviceName, syncTimeout))
-		})
+		}, SpecTimeout(longT))
 
-		It("it should delete the orphaned service from destination cluster", func() {
+		It("it should delete the orphaned service from destination cluster", func(ctx SpecContext) {
 			By("Waiting for Service to be synchronized")
-			Eventually(getService, syncTimeout, pollInterval).WithArguments(
+			Eventually(getService).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
 				destinationClusterClient, serviceName, serviceNamespace).Should(Not(BeNil()),
 				fmt.Sprintf("Service %s/%s not exists within %v", serviceNamespace, serviceName, syncTimeout))
 
 			By("Deleting Service from source cluster")
-			err := sourceClusterClient.CoreV1().Services(serviceNamespace).Delete(context.TODO(), serviceName, metav1.DeleteOptions{})
+			err := sourceClusterClient.CoreV1().Services(serviceNamespace).Delete(ctx, serviceName, metav1.DeleteOptions{})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for orphaned Service to be deleted from destination cluster")
-			Eventually(serviceIsNotFound, syncTimeout, pollInterval).WithArguments(
+			Eventually(serviceIsNotFound).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
 				destinationClusterClient, serviceName, serviceNamespace).Should(BeTrue(),
 				fmt.Sprintf("Orphaned Service %s/%s should be deleted within %v", serviceNamespace, serviceName, syncTimeout))
-		})
+		}, SpecTimeout(mediumT))
 
 	})
 })

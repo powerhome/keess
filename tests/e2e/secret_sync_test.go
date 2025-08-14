@@ -23,54 +23,54 @@ var (
 )
 
 // getSecret gets a Secret using kubernetes client.
-func getSecret(client kubernetes.Interface, name, namespace string) (*corev1.Secret, error) {
-	return client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func getSecret(ctx context.Context, client kubernetes.Interface, name, namespace string) (*corev1.Secret, error) {
+	return client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
 var _ = Describe("Secret Sync", Label("secret"), func() {
 	Context("On Cluster mode", func() {
 
-		BeforeEach(func() {
+		BeforeEach(func(ctx SpecContext) {
 			By("Ensuring clean start by recreating test namespace")
-			deleteNamespaceOnAll(secretNamespace, true)
-			createNamespaceOnAll(secretNamespace)
-		})
+			deleteNamespaceOnAll(ctx, secretNamespace, true)
+			createNamespaceOnAll(ctx, secretNamespace)
+		}, NodeTimeout(shortT))
 
-		AfterEach(func() {
+		AfterEach(func(ctx SpecContext) {
 			By("Cleaning up by removing test namespace")
-			deleteNamespaceOnAll(secretNamespace, false)
-		})
+			deleteNamespaceOnAll(ctx, secretNamespace, false)
+		}, NodeTimeout(shortT))
 
 		When("an annotated Secret is created in the source cluster", func() {
 
-			It("it should be synced to destination cluster", func() {
+			It("it should be synced to destination cluster", func(ctx SpecContext) {
 				By("Applying Secret to source cluster")
 				kubectlApply(exampleFile, sourceClusterContext)
 
 				By("Waiting for Secret to be synchronized")
-				Eventually(getSecret, syncTimeout, pollInterval).WithArguments(
+				Eventually(getSecret).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
 					destinationClusterClient, secretName, secretNamespace).Should(
 					And(
 						BeEqualToSourceSecret(),
 						WithTransform(getSecretMeta, HaveKeessTrackingAnnotations(secretNamespace)),
 					),
 					fmt.Sprintf("Secret %s/%s should exist within %v and match source secret", secretNamespace, secretName, syncTimeout))
-			})
+			}, SpecTimeout(mediumT))
 		})
 
 		When("the secret is updated on source cluster", func() {
-			It("it should be updated in destination cluster", func() {
+			It("it should be updated in destination cluster", func(ctx SpecContext) {
 
 				By("Applying Secret to source cluster")
 				kubectlApply(exampleFile, sourceClusterContext)
 
 				By("Waiting for Secret to be synchronized")
-				Eventually(getSecret, syncTimeout, pollInterval).WithArguments(
+				Eventually(getSecret).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
 					destinationClusterClient, secretName, secretNamespace).Should(Not(BeNil()),
 					fmt.Sprintf("Secret %s/%s should exist within %v and match source secret", secretNamespace, secretName, syncTimeout))
 
 				By("Updating Secret in source cluster")
-				sourceSecret, err := getSecret(sourceClusterClient, secretName, secretNamespace)
+				sourceSecret, err := getSecret(ctx, sourceClusterClient, secretName, secretNamespace)
 				Expect(err).NotTo(HaveOccurred())
 
 				// Update existing key and add a new one
@@ -79,14 +79,14 @@ var _ = Describe("Secret Sync", Label("secret"), func() {
 				sourceSecret.Data["database.password"] = newdata1
 				sourceSecret.Data["new.secret"] = newdata2
 
-				_, err = sourceClusterClient.CoreV1().Secrets(secretNamespace).Update(context.TODO(), sourceSecret, metav1.UpdateOptions{})
+				_, err = sourceClusterClient.CoreV1().Secrets(secretNamespace).Update(ctx, sourceSecret, metav1.UpdateOptions{})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for updated Secret to be synchronized to destination cluster")
 				getSecretData := func(secret *corev1.Secret) map[string][]byte {
 					return secret.Data
 				}
-				Eventually(getSecret, syncTimeout, pollInterval).WithArguments(
+				Eventually(getSecret).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
 					destinationClusterClient, secretName, secretNamespace).Should(
 					And(
 						BeEqualToSourceSecret(),
@@ -94,7 +94,7 @@ var _ = Describe("Secret Sync", Label("secret"), func() {
 						WithTransform(getSecretData, HaveKeyWithValue("database.password", newdata1)),
 						WithTransform(getSecretData, HaveKeyWithValue("new.secret", newdata2)),
 					), fmt.Sprintf("Secret %s/%s should be updated within %v", secretNamespace, secretName, syncTimeout))
-			})
+			}, SpecTimeout(mediumT))
 		})
 
 		// TODO: When("the secret is deleted from source cluster (orphaned)", func() {})

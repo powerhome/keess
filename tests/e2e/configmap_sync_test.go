@@ -22,67 +22,67 @@ var (
 )
 
 // getConfigMap gets a ConfigMap using kubernetes client.
-func getConfigMap(client kubernetes.Interface, name, namespace string) (*corev1.ConfigMap, error) {
-	return client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func getConfigMap(ctx context.Context, client kubernetes.Interface, name, namespace string) (*corev1.ConfigMap, error) {
+	return client.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
 var _ = Describe("ConfigMap Sync", Label("configmap"), func() {
 	Context("On Cluster mode", func() {
 
-		BeforeEach(func() {
+		BeforeEach(func(ctx SpecContext) {
 			By("Ensuring clean start by recreating test namespace")
-			deleteNamespaceOnAll(configMapNamespace, true)
-			createNamespaceOnAll(configMapNamespace)
-		})
+			deleteNamespaceOnAll(ctx, configMapNamespace, true)
+			createNamespaceOnAll(ctx, configMapNamespace)
+		}, NodeTimeout(shortT))
 
-		AfterEach(func() {
+		AfterEach(func(ctx SpecContext) {
 			By("Cleaning up by removing test namespace")
-			deleteNamespaceOnAll(configMapNamespace, false)
-		})
+			deleteNamespaceOnAll(ctx, configMapNamespace, false)
+		}, NodeTimeout(shortT))
 
 		When("an annotated ConfigMap is created in the source cluster", func() {
 
-			It("it should be synced to destination cluster", func() {
+			It("it should be synced to destination cluster", func(ctx SpecContext) {
 				By("Applying ConfigMap to source cluster")
 				kubectlApply(configMapExampleFile, sourceClusterContext)
 
 				By("Waiting for ConfigMap to be synchronized")
-				Eventually(getConfigMap, syncTimeout, pollInterval).WithArguments(
+				Eventually(getConfigMap).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
 					destinationClusterClient, configMapName, configMapNamespace).Should(
 					And(
 						BeEqualToSourceConfigMap(),
 						WithTransform(getConfigMapMeta, HaveKeessTrackingAnnotations(configMapNamespace)),
 					), fmt.Sprintf("ConfigMap %s/%s should exist within %v and match source configmap", configMapNamespace, configMapName, syncTimeout))
-			})
+			}, SpecTimeout(mediumT))
 		})
 
 		When("the configmap is updated on source cluster", func() {
-			It("it should be updated in destination cluster", func() {
+			It("it should be updated in destination cluster", func(ctx SpecContext) {
 
 				By("Applying ConfigMap to source cluster")
 				kubectlApply(configMapExampleFile, sourceClusterContext)
 
 				By("Waiting for ConfigMap to be synchronized")
-				Eventually(getConfigMap, syncTimeout, pollInterval).WithArguments(
+				Eventually(getConfigMap).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
 					destinationClusterClient, configMapName, configMapNamespace).Should(Not(BeNil()),
 					fmt.Sprintf("ConfigMap %s/%s should exist within %v and match source configmap", configMapNamespace, configMapName, syncTimeout))
 
 				By("Updating ConfigMap in source cluster")
-				sourceConfigMap, err := getConfigMap(sourceClusterClient, configMapName, configMapNamespace)
+				sourceConfigMap, err := getConfigMap(ctx, sourceClusterClient, configMapName, configMapNamespace)
 				Expect(err).NotTo(HaveOccurred())
 
 				// Update existing key and add a new one
 				sourceConfigMap.Data["logging.level"] = "DEBUG"
 				sourceConfigMap.Data["new.key"] = "new.value"
 
-				_, err = sourceClusterClient.CoreV1().ConfigMaps(configMapNamespace).Update(context.TODO(), sourceConfigMap, metav1.UpdateOptions{})
+				_, err = sourceClusterClient.CoreV1().ConfigMaps(configMapNamespace).Update(ctx, sourceConfigMap, metav1.UpdateOptions{})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for updated ConfigMap to be synchronized to destination cluster")
 				getConfigMapData := func(configMap *corev1.ConfigMap) map[string]string {
 					return configMap.Data
 				}
-				Eventually(getConfigMap, syncTimeout, pollInterval).WithArguments(
+				Eventually(getConfigMap).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
 					destinationClusterClient, configMapName, configMapNamespace).Should(
 					And(
 						BeEqualToSourceConfigMap(),
@@ -90,9 +90,8 @@ var _ = Describe("ConfigMap Sync", Label("configmap"), func() {
 						WithTransform(getConfigMapData, HaveKeyWithValue("logging.level", "DEBUG")),
 						WithTransform(getConfigMapData, HaveKeyWithValue("new.key", "new.value")),
 					), fmt.Sprintf("ConfigMap %s/%s should be updated within %v", configMapNamespace, configMapName, syncTimeout))
-			})
+			}, SpecTimeout(mediumT))
 		})
-
 		// TODO: When("the configmap is deleted from source cluster (orphaned)", func() {})
 	})
 	//TODO: Context("On Namespace mode", func() {})
