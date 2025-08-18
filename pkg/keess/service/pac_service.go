@@ -118,16 +118,29 @@ func (s *PacService) HasLocalEndpoints(ctx context.Context, localKubeClient kees
 // IsOrphan checks if service is an orphan.
 //
 // That is, if the source service that originated this PacService does not exist anymore
-// in the source cluster. It does not return an error. If it gets an error different
-// than NotFound from kube API, it will return false for safety.
+// in the source cluster. It does not return an error. If it can't determine if the
+// service exists or not it will return false for safety.
 func (s *PacService) IsOrphan(ctx context.Context, sourceKubeClient keess.IKubeClient) bool {
 
 	sourceNamespace := s.Service.Annotations[keess.SourceNamespaceAnnotation]
-	_, err := sourceKubeClient.CoreV1().Services(sourceNamespace).Get(ctx, s.Service.Name, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		// Service does not exist in source cluster, hence it is an orphan
-		return true
+
+	// list all services in sourceNamespace
+	svcList, err := sourceKubeClient.CoreV1().Services(sourceNamespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		// Some error occurred while listing services. Assume service is not orphan, for safety
+		return false
 	}
 
-	return false
+	// Check if the service exists in the list
+	for _, svc := range svcList.Items {
+		if svc.Name == s.Service.Name {
+			// Service exists in source cluster, not orphan
+			return false
+		}
+	}
+
+	// We listed the services in the source namespace without any errors
+	// And s.Service.Name is NOT among the returned services
+	// So it's safe to say the service is orphaned
+	return true
 }
