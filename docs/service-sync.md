@@ -152,6 +152,11 @@ flowchart LR
   if_local_end -- No --> remove_svc((Remove Svc))
 ```
 
+Notes:
+
+- When checking if the source service still exists on the source cluster, only services with the `keess.powerhrg.com/sync` are fetched. So if the that label was removed from the origin service, the destination service will be treated as an orphan, which is a desired behavior.
+- That also makes the check more efficient if used on a namespace with many services not managed by Keess.
+
 A more advanced procedure checks and removes the namespace (not implemented yet):
 
 ```mermaid
