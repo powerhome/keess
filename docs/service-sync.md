@@ -136,11 +136,32 @@ Using the examples above, what if mysql-svc on cluster A is removed, and the ser
 
 To track orphans, Keess adds a `keess.powerhrg.com/managed` label to resources it creates, and a  `keess.powerhrg.com/source-cluster` annotation, and it uses then to periodically check if original sources exist.
 
-On service, though, we have an extra concern. We may also manage/create the namespaces:
+On service, though, we have an extra concern: we may also manage/create the namespaces. On a first version of orphan handling, we ignore that and leave created namespaces behind:
 
 ```mermaid
 ---
-title: Orphan handling
+title: Orphan handling (without namespace removal)
+---
+flowchart LR
+  start((orphan check)) --> list_mng[List managed<br>services] --> get_source[Get source<br>cluster] --> if_source
+
+  if_source{If source<br>exists} -- Yes -->  noop((Do nothing))
+  if_source -- No --> if_local_end
+
+  if_local_end{If has local<br> endpoints} -- Yes -->  noop((Do nothing))
+  if_local_end -- No --> remove_svc((Remove Svc))
+```
+
+Notes:
+
+- When checking if the source service still exists on the source cluster, only services with the `keess.powerhrg.com/sync` are fetched. So if the that label was removed from the origin service, the destination service will be treated as an orphan, which is a desired behavior.
+- That also makes the check more efficient if used on a namespace with many services not managed by Keess.
+
+A more advanced procedure checks and removes the namespace (not implemented yet):
+
+```mermaid
+---
+title: Orphan handling (with namespace removal)
 ---
 flowchart LR
   start((orphan check)) --> list_mng[List managed<br>services] --> get_source[Get source<br>cluster] --> if_source
@@ -157,5 +178,3 @@ flowchart LR
   if_ns_empty{Is namespace<br>empty?} -- No --> noop((Do nothing))
   if_ns_empty -- Yes --> remove_ns((Remove<br>Namespace))
 ```
-
-

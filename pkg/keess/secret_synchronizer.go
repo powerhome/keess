@@ -1,4 +1,4 @@
-package services
+package keess
 
 import (
 	"context"
@@ -117,7 +117,7 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 				keep := false
 				if remoteSecret.Labels[LabelSelector] == "namespace" {
 					if remoteSecret.Annotations[NamespaceLabelAnnotation] != "" {
-						keyValue := splitAndTrim(remoteSecret.Annotations[NamespaceLabelAnnotation], "=")
+						keyValue := SplitAndTrim(remoteSecret.Annotations[NamespaceLabelAnnotation], "=")
 						key := keyValue[0]
 						value := strings.Trim(keyValue[1], "\"")
 
@@ -135,7 +135,7 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 						if remoteSecret.Annotations[NamespaceNameAnnotation] == "all" {
 							keep = true
 						} else {
-							namespaces := splitAndTrim(remoteSecret.Annotations[NamespaceNameAnnotation], ",")
+							namespaces := SplitAndTrim(remoteSecret.Annotations[NamespaceNameAnnotation], ",")
 							for _, namespace := range namespaces {
 								if namespace == secret.Secret.Namespace {
 									keep = true
@@ -147,7 +147,7 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 				}
 
 				if remoteSecret.Labels[LabelSelector] == "cluster" {
-					destinationClusters := splitAndTrim(remoteSecret.Annotations[ClusterAnnotation], ",")
+					destinationClusters := SplitAndTrim(remoteSecret.Annotations[ClusterAnnotation], ",")
 					for _, cluster := range destinationClusters {
 						if cluster == secret.Cluster {
 							keep = true
@@ -226,7 +226,7 @@ func (s *SecretSynchronizer) sync(ctx context.Context, pacSecret PacSecret) erro
 func (s *SecretSynchronizer) syncLocal(ctx context.Context, pacSecret PacSecret) error {
 	// Synchronize based on the namespace label
 	if namespaceLabelAnnotationValue, ok := pacSecret.Secret.Annotations[NamespaceLabelAnnotation]; ok {
-		keyValue := splitAndTrim(namespaceLabelAnnotationValue, "=")
+		keyValue := SplitAndTrim(namespaceLabelAnnotationValue, "=")
 		key := keyValue[0]
 		value := strings.Trim(keyValue[1], "\"")
 
@@ -249,7 +249,7 @@ func (s *SecretSynchronizer) syncLocal(ctx context.Context, pacSecret PacSecret)
 
 	// Synchronize based on the namespace name
 	if namespaceNameAnnotationValue, ok := pacSecret.Secret.Annotations[NamespaceNameAnnotation]; ok && namespaceNameAnnotationValue != "all" {
-		namespaces := splitAndTrim(namespaceNameAnnotationValue, ",")
+		namespaces := SplitAndTrim(namespaceNameAnnotationValue, ",")
 		for _, namespace := range namespaces {
 			_, ok := s.namespacePoller.Namespaces[namespace]
 			if !ok {
@@ -290,7 +290,7 @@ func (s *SecretSynchronizer) syncLocal(ctx context.Context, pacSecret PacSecret)
 
 // Synchronize the secret in the remote Kubernetes clusters.
 func (s *SecretSynchronizer) syncRemote(ctx context.Context, pacSecret PacSecret) error {
-	clusters := splitAndTrim(pacSecret.Secret.Annotations[ClusterAnnotation], ",")
+	clusters := SplitAndTrim(pacSecret.Secret.Annotations[ClusterAnnotation], ",")
 
 	for _, cluster := range clusters {
 		client, ok := s.remoteKubeClients[cluster]

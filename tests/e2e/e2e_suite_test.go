@@ -1,0 +1,214 @@
+package e2e_test
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"testing"
+	"time"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/types"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+)
+
+const (
+	kubeconfig                = "../../localTestKubeconfig"
+	sourceClusterContext      = "kind-source-cluster"
+	destinationClusterContext = "kind-destination-cluster"
+	syncTimeout               = time.Minute * 1
+	pollInterval              = time.Second * 10
+	deleteTimeout             = time.Second * 15
+	// Test timeout constants
+	shortT  = time.Minute * 2
+	mediumT = time.Minute * 3
+	longT   = time.Minute * 5
+)
+
+var (
+	sourceClusterClient      kubernetes.Interface
+	destinationClusterClient kubernetes.Interface
+)
+
+// TestE2E runs the Keess E2E test suite.
+func TestE2E(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Keess E2E Suite")
+}
+
+var _ = BeforeSuite(func(ctx SpecContext) {
+
+	// Check if kubeconfig exists
+	if _, err := os.Stat(kubeconfig); os.IsNotExist(err) {
+		Fail(fmt.Sprintf("Kubeconfig file not found at %s. Please run 'make setup-local-clusters' first.", kubeconfig))
+	}
+
+	// Load kubeconfig
+	config, err := clientcmd.LoadFromFile(kubeconfig)
+	Expect(err).NotTo(HaveOccurred())
+
+	// Create client for source cluster
+	sourceConfig, err := clientcmd.NewDefaultClientConfig(*config, &clientcmd.ConfigOverrides{
+		CurrentContext: "kind-source-cluster",
+	}).ClientConfig()
+	Expect(err).NotTo(HaveOccurred())
+
+	sourceClusterClient, err = kubernetes.NewForConfig(sourceConfig)
+	Expect(err).NotTo(HaveOccurred())
+
+	// Create client for destination cluster
+	destConfig, err := clientcmd.NewDefaultClientConfig(*config, &clientcmd.ConfigOverrides{
+		CurrentContext: "kind-destination-cluster",
+	}).ClientConfig()
+	Expect(err).NotTo(HaveOccurred())
+
+	destinationClusterClient, err = kubernetes.NewForConfig(destConfig)
+	Expect(err).NotTo(HaveOccurred())
+
+	// Verify both clusters are accessible
+	By("Verifying source cluster is accessible")
+	_, err = sourceClusterClient.CoreV1().Namespaces().Get(ctx, "default", metav1.GetOptions{})
+	Expect(err).NotTo(HaveOccurred())
+
+	By("Verifying destination cluster is accessible")
+	_, err = destinationClusterClient.CoreV1().Namespaces().Get(ctx, "default", metav1.GetOptions{})
+	Expect(err).NotTo(HaveOccurred())
+}, NodeTimeout(shortT))
+
+var _ = AfterSuite(func(ctx SpecContext) {
+	// Cleanup any remaining test resources
+	By("Cleaning up test resources")
+	cleanupTestResources(ctx)
+}, NodeTimeout(shortT))
+
+// cleanupTestResources cleans up any remaining test resources.
+// TODO: check if this function makes sense
+func cleanupTestResources(ctx context.Context) {
+
+	// Clean up ConfigMaps
+	if sourceClusterClient != nil {
+		sourceClusterClient.CoreV1().ConfigMaps("default").Delete(ctx, "app-config", metav1.DeleteOptions{})
+	}
+	if destinationClusterClient != nil {
+		destinationClusterClient.CoreV1().ConfigMaps("default").Delete(ctx, "app-config", metav1.DeleteOptions{})
+	}
+
+	// Clean up Secrets
+	if sourceClusterClient != nil {
+		sourceClusterClient.CoreV1().Secrets("default").Delete(ctx, "app-secret", metav1.DeleteOptions{})
+	}
+	if destinationClusterClient != nil {
+		destinationClusterClient.CoreV1().Secrets("default").Delete(ctx, "app-secret", metav1.DeleteOptions{})
+	}
+
+	// Clean up Services
+	if sourceClusterClient != nil {
+		sourceClusterClient.CoreV1().Services("my-namespace").Delete(ctx, "mysql-svc", metav1.DeleteOptions{})
+	}
+	if destinationClusterClient != nil {
+		destinationClusterClient.CoreV1().Services("my-namespace").Delete(ctx, "mysql-svc", metav1.DeleteOptions{})
+	}
+}
+
+// kubectlApply applies a Kubernetes manifest using kubectl.
+func kubectlApply(manifestFile, context string) {
+	cmd := exec.Command("kubectl", "apply", "-f", manifestFile, "--kubeconfig", kubeconfig, "--context", context)
+	output, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred(), "Failed to apply manifest: %s", string(output))
+}
+
+// func kubectlDelete(manifestFile, context string) {
+// 	cmd := exec.Command("kubectl", "delete", "-f", manifestFile, "--kubeconfig", kubeconfig, "--context", context)
+// 	output, err := cmd.CombinedOutput()
+// 	Expect(err).NotTo(HaveOccurred(), "Failed to delete manifest: %s", string(output))
+// }
+
+// getNamespace gets a namespace using kubernetes client (shortcut).
+func getNamespace(ctx context.Context, client kubernetes.Interface, name string) (*corev1.Namespace, error) {
+	return client.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
+}
+
+// createNamespace creates a namespace using kubernetes client.
+func createNamespace(ctx context.Context, client kubernetes.Interface, namespace string) {
+	_, err := client.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namespace,
+		},
+	}, metav1.CreateOptions{})
+	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to create namespace %s", namespace))
+}
+
+// deleteNamespace deletes a namespace using kubernetes client.
+func deleteNamespace(ctx context.Context, client kubernetes.Interface, namespace string, wait bool) {
+	err := client.CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})
+
+	if err == nil && wait {
+		Eventually(func() error {
+			_, err := getNamespace(ctx, client, namespace)
+			return err
+		}).WithContext(ctx).WithTimeout(deleteTimeout).Should(HaveOccurred())
+	}
+	// having an error is ok, namespace might not exist
+}
+
+// createNamespaceOnAll creates namespace given as argument on all test clusters.
+func createNamespaceOnAll(ctx context.Context, namespace string) {
+	createNamespace(ctx, sourceClusterClient, namespace)
+	createNamespace(ctx, destinationClusterClient, namespace)
+}
+
+// deleteNamespaceOnAll deletes namespace given as argument on all test clusters.
+func deleteNamespaceOnAll(ctx context.Context, namespace string, wait bool) {
+	deleteNamespace(ctx, sourceClusterClient, namespace, wait)
+	deleteNamespace(ctx, destinationClusterClient, namespace, wait)
+}
+
+// HaveKeessTrackingAnnotations is a custom matcher to check if metadata has the Keess tracking annotations.
+// It also checks if the source resource version annotation matches the expected source revision.
+func HaveKeessTrackingAnnotations(sourceNamespace string) types.GomegaMatcher {
+	return WithTransform(func(metadata *metav1.ObjectMeta) bool {
+		// NOTE: we can only use Expect here, because the Service is already created with
+		// these annotations, so we don't need to wait for they eventually be synchronized.
+		// Expect fails the test immediately if the annotations are not present, breaking the Eventually() loop
+		Expect(metadata.Labels).To(HaveKeyWithValue("keess.powerhrg.com/managed", "true"), "Destination object should have correct managed label")
+		Expect(metadata.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-cluster", sourceClusterContext), "Destination object should have correct source cluster annotation")
+		Expect(metadata.Annotations).To(HaveKeyWithValue("keess.powerhrg.com/source-namespace", sourceNamespace), "Destination object should have correct source namespace annotation")
+		return true
+	}, BeTrue())
+}
+
+// HaveRevisionMatchingSource is a custom matcher to check if metadata has the expected revision.
+func HaveRevisionMatchingSource(expectedRevision string) types.GomegaMatcher {
+	return WithTransform(func(metadata *metav1.ObjectMeta) bool {
+		// NOTE: Cannot use Expect here, because it could fail the test immediately. We got to let Eventually keep try this.
+		revNote, ok := metadata.Annotations["keess.powerhrg.com/source-resource-version"]
+		if ok && revNote == expectedRevision {
+			return true
+		}
+		GinkgoWriter.Printf("Expected source resource version annotation '%s' but got '%s'", expectedRevision, revNote)
+		return false
+	}, BeTrue())
+}
+
+// getMetadata is a generic function to get ObjectMeta from any Kubernetes object.
+func getMetadata(obj metav1.Object) *metav1.ObjectMeta {
+	// Get the actual ObjectMeta from the object
+	switch o := obj.(type) {
+	case *corev1.Service:
+		return &o.ObjectMeta
+	case *corev1.Secret:
+		return &o.ObjectMeta
+	case *corev1.ConfigMap:
+		return &o.ObjectMeta
+	case *corev1.Namespace:
+		return &o.ObjectMeta
+	default:
+		// For any other object, return empty metadata
+		return &metav1.ObjectMeta{}
+	}
+}

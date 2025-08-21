@@ -1,4 +1,4 @@
-package services
+package keess
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"go.uber.org/zap"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -126,8 +125,7 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 		if k.clientFactory != nil {
 			remoteClusterClient, err = k.clientFactory(remoteClusterConfig)
 		} else {
-			remoteClusterClient, err = kubernetes.NewForConfig(remoteClusterConfig)
-			remoteClusterClient = newKubeClientAdapter(remoteClusterClient.(*kubernetes.Clientset))
+			remoteClusterClient, err = NewKubeClientAdapter(remoteClusterConfig)
 		}
 		if err != nil {
 			k.logger.Errorf("Error creating remote clientset for cluster '%s': %s", cluster, err)
@@ -149,7 +147,7 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 	if len(initializedClustersName) > 0 {
 		k.logger.Infof("Remote clusters successfully initialized: %v", initializedClustersName)
 	}
-	
+
 	k.remoteKubeClients.mutex.Unlock()
 	k.logger.Debug("Unlocked remote clients mutex after assignment")
 }

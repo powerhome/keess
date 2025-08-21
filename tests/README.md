@@ -74,13 +74,13 @@ make tests-python-e2e
 
 This doest not need the local clusters to be up, it will create its own clusters.
 
-`extra/functional-test/test.sh`
+`tests/functional-test/test.sh`
 
 ## Source code organization and style
 
 ### Ginkgo and BDD
 
-The tests on tests/ folder use [Ginkgo](https://onsi.github.io/ginkgo) and follow Behavior-Driven Development (BDD) patterns:
+The tests on tests/e2e folder use [Ginkgo](https://onsi.github.io/ginkgo) and follow Behavior-Driven Development (BDD) patterns:
 
 ```go
 Describe("Resource Sync", func() {
