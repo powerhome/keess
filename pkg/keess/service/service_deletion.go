@@ -30,7 +30,7 @@ func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval ti
 					return
 				}
 
-				err := s.proccessServiceDeleteOrphan(ctx, service)
+				err := s.processServiceDeleteOrphan(ctx, service)
 				if err != nil {
 					s.logger.Error(err) // err message already contains context
 				}
@@ -46,7 +46,8 @@ func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval ti
 }
 
 // proccessServiceDeleteOrphan processes the service for deletion if it is an orphan.
-func (s *ServiceSynchronizer) proccessServiceDeleteOrphan(ctx context.Context, svc PacService) error {
+// processServiceDeleteOrphan processes the service for deletion if it is an orphan.
+func (s *ServiceSynchronizer) processServiceDeleteOrphan(ctx context.Context, svc PacService) error {
 
 	sourceKubeClient, err := s.getSourceKubeClient(svc)
 	if err != nil {
