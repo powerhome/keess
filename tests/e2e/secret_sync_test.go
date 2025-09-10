@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -25,6 +26,12 @@ var (
 // getSecret gets a Secret using kubernetes client.
 func getSecret(ctx context.Context, client kubernetes.Interface, name, namespace string) (*corev1.Secret, error) {
 	return client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+// secretIsNotFound checks if Secret is not found (shortcut).
+func secretIsNotFound(ctx context.Context, client kubernetes.Interface, name, namespace string) bool {
+	_, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+	return errors.IsNotFound(err)
 }
 
 var _ = Describe("Secret Sync", Label("secret"), func() {
@@ -97,9 +104,39 @@ var _ = Describe("Secret Sync", Label("secret"), func() {
 			}, SpecTimeout(mediumT))
 		})
 
-		// TODO: When("the secret is deleted from source cluster (orphaned)", func() {})
+		When("the secret is deleted from source cluster", Label("secret-delete"), func() {
+
+			BeforeEach(func(ctx SpecContext) {
+				By("Ensuring clean start by recreating namespaces on all clusters")
+				deleteNamespaceOnAll(ctx, secretNamespace, true)
+				createNamespaceOnAll(ctx, secretNamespace)
+
+				By("Applying Secret to source cluster")
+				kubectlApply(exampleFile, sourceClusterContext)
+			}, NodeTimeout(shortT))
+
+			AfterEach(func(ctx SpecContext) {
+				By("Cleaning up by removing test namespace on all clusters")
+				deleteNamespaceOnAll(ctx, secretNamespace, false)
+			}, NodeTimeout(shortT))
+
+			It("it should delete the orphaned secret from destination cluster", func(ctx SpecContext) {
+				By("Waiting for Secret to be synchronized")
+				Eventually(getSecret).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
+					destinationClusterClient, secretName, secretNamespace).Should(Not(BeNil()),
+					fmt.Sprintf("Secret %s/%s not exists within %v", secretNamespace, secretName, syncTimeout))
+
+				By("Deleting Secret from source cluster")
+				err := sourceClusterClient.CoreV1().Secrets(secretNamespace).Delete(ctx, secretName, metav1.DeleteOptions{})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Waiting for orphaned Secret to be deleted from destination cluster")
+				Eventually(secretIsNotFound).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
+					destinationClusterClient, secretName, secretNamespace).Should(BeTrue(),
+					fmt.Sprintf("Orphaned Secret %s/%s should be deleted within %v", secretNamespace, secretName, syncTimeout))
+			}, SpecTimeout(mediumT))
+		})
 	})
-	//TODO: Context("On Namespace mode", func() {})
 })
 
 // getSecretMeta gets metadata from Secret object.
