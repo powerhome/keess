@@ -1,7 +1,10 @@
 package keess
 
 import (
+	"context"
+
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // A struct that represents a secret in a Kubernetes cluster.
@@ -49,4 +52,37 @@ func (s *PacSecret) HasChanged(remote v1.Secret) bool {
 	}
 
 	return false
+}
+
+// IsOrphan checks if Secret is an orphan.
+//
+// That is, if the source Secret that originated this PacSecret does not exist anymore
+// in the source cluster (or exists but lost the keess sync label). It does not return
+// an error. If it can't determine if the Secret exists or not it will return false for
+// safety.
+func (s *PacSecret) IsOrphan(ctx context.Context, sourceKubeClient IKubeClient) bool {
+
+	sourceNamespace := s.Secret.Annotations[SourceNamespaceAnnotation]
+
+	// list all synced secrets in sourceNamespace
+	secretList, err := sourceKubeClient.CoreV1().Secrets(sourceNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: LabelSelector,
+	})
+	if err != nil {
+		// Some error occurred while listing services. Assume service is not orphan, for safety
+		return false
+	}
+
+	// Check if the secret exists in the list
+	for _, secret := range secretList.Items {
+		if secret.Name == s.Secret.Name {
+			// Secret exists in source cluster, not orphan
+			return false
+		}
+	}
+
+	// We listed the secrets in the source namespace without any errors
+	// And s.ConfigMap.Name is NOT among the returned configMaps
+	// So it's safe to say the configMap is orphaned
+	return true
 }
