@@ -54,11 +54,11 @@ func (s *PacConfigMap) HasChanged(remote v1.ConfigMap) bool {
 	return false
 }
 
-// IsOrphan checks if service is an orphan.
+// IsOrphan checks if ConfigMap is an orphan.
 //
-// That is, if the source service that originated this PacService does not exist anymore
+// That is, if the source ConfigMap that originated this PacConfigMap does not exist anymore
 // in the source cluster (or exists but lost the keess sync label). It does not return
-// an error. If it can't determine if the service exists or not it will return false for
+// an error. If it can't determine if the ConfigMap exists or not it will return false for
 // safety.
 func (s *PacConfigMap) IsOrphan(ctx context.Context, sourceKubeClient IKubeClient) bool {
 
