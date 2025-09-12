@@ -69,7 +69,7 @@ func (s *PacSecret) IsOrphan(ctx context.Context, sourceKubeClient IKubeClient) 
 		LabelSelector: LabelSelector,
 	})
 	if err != nil {
-		// Some error occurred while listing services. Assume service is not orphan, for safety
+		// Some error occurred while listing secrets. Assume secret is not orphan, for safety
 		return false
 	}
 
