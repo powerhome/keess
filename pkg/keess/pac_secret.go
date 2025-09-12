@@ -82,7 +82,7 @@ func (s *PacSecret) IsOrphan(ctx context.Context, sourceKubeClient IKubeClient) 
 	}
 
 	// We listed the secrets in the source namespace without any errors
-	// And s.ConfigMap.Name is NOT among the returned configMaps
-	// So it's safe to say the configMap is orphaned
+	// And s.Secret.Name is NOT among the returned secrets
+	// So it's safe to say the secret is orphaned
 	return true
 }
