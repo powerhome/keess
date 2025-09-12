@@ -69,7 +69,7 @@ func (s *PacConfigMap) IsOrphan(ctx context.Context, sourceKubeClient IKubeClien
 		LabelSelector: LabelSelector,
 	})
 	if err != nil {
-		// Some error occurred while listing services. Assume service is not orphan, for safety
+		// Some error occurred while listing configMaps. Assume configMap is not orphan, for safety
 		return false
 	}
 
