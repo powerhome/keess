@@ -8,7 +8,7 @@ metadata:
   labels:
     keess.powerhrg.com/sync: "namespace"
   annotations:
-    keess.powerhrg.com/namespace-label: keess.powerhrg.com/test-sync-dest="true
+    keess.powerhrg.com/namespace-label: keess.powerhrg.com/test-sync-dest="true"
 data:
   test: "namespace sync works!"
 
