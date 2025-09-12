@@ -73,15 +73,20 @@ Specify the remote clusters for synchronization: `keess.powerhrg.com/clusters: c
 Keess supports synchronizing services across clusters using Cilium Global Services. This feature enables applications in one cluster to access services in another cluster as if they were local.
 
 **Prerequisites:**
+
 - Cilium CNI with ClusterMesh enabled on all participating clusters
 - Services must have the `service.cilium.io/global: "true"` annotation
 
+Since it depends on Cilium, it's disabled by default. You need to pass `--enableServiceSync=true` to enable it
+
 **Configuration:**
+
 1. Add the sync label to your service: `keess.powerhrg.com/sync: cluster`
 2. Add the clusters annotation: `keess.powerhrg.com/clusters: clustera, clusterb`
 3. Ensure the service has the Cilium global annotation: `service.cilium.io/global: "true"`
 
 **Example:**
+
 ```yaml
 apiVersion: v1
 kind: Service
@@ -105,6 +110,7 @@ spec:
 ```
 
 Keess will automatically create service references in the target clusters with:
+
 - Same name and namespace as the source service
 - Cilium annotations for global service configuration
 - Empty selector (no local endpoints)

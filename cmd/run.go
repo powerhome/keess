@@ -144,20 +144,31 @@ var runCmd = &cobra.Command{
 		// Start the configMap synchronizer
 		configMapSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
 
-		// Create a ServicePoller
-		servicePoller := service.NewServicePoller(localCluster, localKubeClient, logger.Sugar())
+		// Get enableServiceSync flag value
+		enableServiceSync, err := cmd.Flags().GetBool("enableServiceSync")
+		if err != nil {
+			logger.Sugar().Errorf("Failed to parse enableServiceSync flag: %v", err)
+			enableServiceSync = true // fallback to default
+		}
 
-		// Create a ServiceSynchronizer
-		serviceSynchronizer := service.NewServiceSynchronizer(
-			localKubeClient,
-			remoteKubeClients,
-			servicePoller,
-			namespacePoller,
-			logger.Sugar(),
-		)
+		if enableServiceSync {
+			// Create a ServicePoller
+			servicePoller := service.NewServicePoller(localCluster, localKubeClient, logger.Sugar())
 
-		// Start the service synchronizer
-		serviceSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
+			// Create a ServiceSynchronizer
+			serviceSynchronizer := service.NewServiceSynchronizer(
+				localKubeClient,
+				remoteKubeClients,
+				servicePoller,
+				namespacePoller,
+				logger.Sugar(),
+			)
+
+			// Start the service synchronizer
+			serviceSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
+		} else {
+			logger.Sugar().Info("Service synchronization is disabled. Set --enableServiceSync=true to enable it (depends on Cilium Clustermesh features).")
+		}
 
 		// Create an HTTP server and add the health check handler as a handler
 		http.HandleFunc("/health", healthHandler)
@@ -201,6 +212,7 @@ func init() {
 	runCmd.Flags().Int32P("housekeepingInterval", "k", int32(300), "Interval in seconds to delete orphans objects.")
 	runCmd.Flags().IntP("configReloaderMaxRetries", "r", 60, "Max retries for kubeconfig reloader. Each retry will wait 2 second before trying again.")
 	runCmd.Flags().IntP("configReloaderDebounceTimer", "d", 500, "Debounce timer for kubeconfig reloader in milliseconds. Each retry will wait this time before trying again.")
+	runCmd.Flags().Bool("enableServiceSync", false, "Enable service synchronization. Depends on Cilium Clustermesh features. (default: false)")
 
 	runCmd.MarkFlagRequired("localCluster")
 	runCmd.MarkFlagRequired("kubeConfigPath")
