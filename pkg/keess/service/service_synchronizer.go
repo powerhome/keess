@@ -97,11 +97,25 @@ func (s *ServiceSynchronizer) startSyncing(ctx context.Context, pollInterval tim
 // sync syncs a service to all remote clusters.
 func (s *ServiceSynchronizer) sync(ctx context.Context, pacService PacService) error {
 
+	// Check sync label is set to "cluster"
+	syncMode, exists := pacService.Service.Labels[keess.LabelSelector]
+	if !exists || syncMode != "cluster" {
+		// TODO: unit test
+		s.logger.Error("[Service][sync] Service sync requires cluster sync mode, skipping sync: ", pacService.Service.Name)
+		return nil
+	}
+
 	// Check if the service has the clusters annotation
 	clustersAnnotation, exists := pacService.Service.Annotations[keess.ClusterAnnotation]
 	if !exists {
 		// TODO: unit test
 		s.logger.Debug("[Service][sync] Service is marked for sync but does not have clusters annotation, skipping sync: ", pacService.Service.Name)
+		return nil
+	}
+
+	if pacService.Service.Spec.Type != corev1.ServiceTypeClusterIP {
+		// TODO: unit test
+		s.logger.Error("[Service][sync] Only ClusterIP services are supported for sync, skipping sync: ", pacService.Service.Name)
 		return nil
 	}
 
