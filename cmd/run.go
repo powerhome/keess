@@ -76,6 +76,7 @@ var runCmd = &cobra.Command{
 		housekeepingInterval, _ := cmd.Flags().GetInt32("housekeepingInterval")
 		configReloaderMaxRetries, _ := cmd.Flags().GetInt("configReloaderMaxRetries")
 		configReloaderDebounceTimer, _ := cmd.Flags().GetInt("configReloaderDebounceTimer")
+		enableServiceSync, _ := cmd.Flags().GetBool("enableServiceSync")
 
 		logger.Sugar().Infof("Starting Keess. Running on local cluster: %s", localCluster)
 		logger.Sugar().Debugf("Namespace polling interval: %d seconds", namespacePollingInterval)
@@ -83,6 +84,7 @@ var runCmd = &cobra.Command{
 		logger.Sugar().Debugf("Housekeeping interval: %d seconds", housekeepingInterval)
 		logger.Sugar().Debugf("Log level: %s", logLevel)
 		logger.Sugar().Debugf("Kubeconfig path: %s", kubeConfigPath)
+		logger.Sugar().Debugf("Enable service sync: %t", enableServiceSync)
 
 		config, err := rest.InClusterConfig()
 		if err != nil {
@@ -143,13 +145,6 @@ var runCmd = &cobra.Command{
 
 		// Start the configMap synchronizer
 		configMapSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
-
-		// Get enableServiceSync flag value
-		enableServiceSync, err := cmd.Flags().GetBool("enableServiceSync")
-		if err != nil {
-			logger.Sugar().Errorf("Failed to parse enableServiceSync flag: %v", err)
-			enableServiceSync = true // fallback to default
-		}
 
 		if enableServiceSync {
 			// Create a ServicePoller
