@@ -77,7 +77,7 @@ var runCmd = &cobra.Command{
 		configReloaderMaxRetries, _ := cmd.Flags().GetInt("configReloaderMaxRetries")
 		configReloaderDebounceTimer, _ := cmd.Flags().GetInt("configReloaderDebounceTimer")
 
-		logger.Sugar().Infof("Starting Keess. Running on local cluster: %s", localCluster)
+		logger.Sugar().Infof("Starting Keess v%s. Running on local cluster: %s", Version, localCluster)
 		logger.Sugar().Debugf("Namespace polling interval: %d seconds", namespacePollingInterval)
 		logger.Sugar().Debugf("Polling interval: %d seconds", pollingInterval)
 		logger.Sugar().Debugf("Housekeeping interval: %d seconds", housekeepingInterval)
