@@ -78,7 +78,7 @@ var runCmd = &cobra.Command{
 		configReloaderDebounceTimer, _ := cmd.Flags().GetInt("configReloaderDebounceTimer")
 		enableServiceSync, _ := cmd.Flags().GetBool("enableServiceSync")
 
-		logger.Sugar().Infof("Starting Keess. Running on local cluster: %s", localCluster)
+		logger.Sugar().Infof("Starting Keess v%s. Running on local cluster: %s", Version, localCluster)
 		logger.Sugar().Debugf("Namespace polling interval: %d seconds", namespacePollingInterval)
 		logger.Sugar().Debugf("Polling interval: %d seconds", pollingInterval)
 		logger.Sugar().Debugf("Housekeeping interval: %d seconds", housekeepingInterval)
