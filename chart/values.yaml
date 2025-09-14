@@ -77,7 +77,13 @@ tolerations: []
 affinity: {}
 
 service:
+  type: ClusterIP
   port: 8080
+  annotations: {}
+    # Add custom annotations for the service
+    # prometheus.io/scrape: "true"
+    # prometheus.io/port: "8080" 
+    # prometheus.io/path: "/metrics"
 
 # If you need to synchronize across different clusters you need to specify this configuration.
 # This will assume a static kubeconfig file.

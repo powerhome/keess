@@ -25,11 +25,13 @@ import (
 	"context"
 	"fmt"
 	"keess/pkg/keess"
+	"keess/pkg/keess/metrics"
 	"keess/pkg/keess/service"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -85,6 +87,9 @@ var runCmd = &cobra.Command{
 		logger.Sugar().Debugf("Log level: %s", logLevel)
 		logger.Sugar().Debugf("Kubeconfig path: %s", kubeConfigPath)
 		logger.Sugar().Debugf("Enable service sync: %t", enableServiceSync)
+
+		// Register Prometheus metrics
+		metrics.RegisterMetrics()
 
 		config, err := rest.InClusterConfig()
 		if err != nil {
@@ -167,7 +172,9 @@ var runCmd = &cobra.Command{
 
 		// Create an HTTP server and add the health check handler as a handler
 		http.HandleFunc("/health", healthHandler)
+		http.Handle("/metrics", promhttp.Handler())
 
+		logger.Sugar().Info("Starting HTTP server on :8080 ...")
 		if err := http.ListenAndServe(":8080", nil); err != nil {
 			logger.Sugar().Fatalf("Failed to start HTTP server: %v", err)
 		}
