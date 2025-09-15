@@ -112,7 +112,7 @@ func (s *ServiceSynchronizer) sync(ctx context.Context, pacService PacService) e
 	}
 
 	if pacService.Service.Spec.Type != corev1.ServiceTypeClusterIP {
-		s.logger.Error("[Service][sync] Only ClusterIP services are supported for sync, skipping sync: ", pacService.Service.Name)
+		s.logger.Errorf("[Service][sync] Only ClusterIP services are supported for sync, found %s, skipping sync for service: %s", pacService.Service.Spec.Type, pacService.Service.Name)
 		return nil
 	}
 
