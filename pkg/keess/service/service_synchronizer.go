@@ -100,7 +100,7 @@ func (s *ServiceSynchronizer) sync(ctx context.Context, pacService PacService) e
 	// Check sync label is set to "cluster"
 	syncMode, exists := pacService.Service.Labels[keess.LabelSelector]
 	if !exists || syncMode != "cluster" {
-		s.logger.Error("[Service][sync] Service sync requires cluster sync mode, skipping sync: ", pacService.Service.Name)
+		s.logger.Error("[Service][sync] Service sync requires cluster sync mode (", keess.LabelSelector, ": cluster), skipping sync for service: ", pacService.Service.Name)
 		return nil
 	}
 
