@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -24,6 +25,12 @@ var (
 // getConfigMap gets a ConfigMap using kubernetes client.
 func getConfigMap(ctx context.Context, client kubernetes.Interface, name, namespace string) (*corev1.ConfigMap, error) {
 	return client.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+// configMapIsNotFound checks if ConfigMap is not found (shortcut).
+func configMapIsNotFound(ctx context.Context, client kubernetes.Interface, name, namespace string) bool {
+	_, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
+	return errors.IsNotFound(err)
 }
 
 var _ = Describe("ConfigMap Sync", Label("configmap"), func() {
@@ -92,7 +99,39 @@ var _ = Describe("ConfigMap Sync", Label("configmap"), func() {
 					), fmt.Sprintf("ConfigMap %s/%s should be updated within %v", configMapNamespace, configMapName, syncTimeout))
 			}, SpecTimeout(mediumT))
 		})
-		// TODO: When("the configmap is deleted from source cluster (orphaned)", func() {})
+
+		When("the configmap is deleted from source cluster", Label("cm-delete"), func() {
+
+			BeforeEach(func(ctx SpecContext) {
+				By("Ensuring clean start by recreating namespaces on all clusters")
+				deleteNamespaceOnAll(ctx, configMapNamespace, true)
+				createNamespaceOnAll(ctx, configMapNamespace)
+
+				By("Applying ConfigMap to source cluster")
+				kubectlApply(configMapExampleFile, sourceClusterContext)
+			}, NodeTimeout(shortT))
+
+			AfterEach(func(ctx SpecContext) {
+				By("Cleaning up by removing test namespace on all clusters")
+				deleteNamespaceOnAll(ctx, configMapNamespace, false)
+			}, NodeTimeout(shortT))
+
+			It("it should delete the orphaned configmap from destination cluster", func(ctx SpecContext) {
+				By("Waiting for ConfigMap to be synchronized")
+				Eventually(getConfigMap).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
+					destinationClusterClient, configMapName, configMapNamespace).Should(Not(BeNil()),
+					fmt.Sprintf("ConfigMap %s/%s not exists within %v", configMapNamespace, configMapName, syncTimeout))
+
+				By("Deleting ConfigMap from source cluster")
+				err := sourceClusterClient.CoreV1().ConfigMaps(configMapNamespace).Delete(ctx, configMapName, metav1.DeleteOptions{})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Waiting for orphaned ConfigMap to be deleted from destination cluster")
+				Eventually(configMapIsNotFound).WithContext(ctx).WithTimeout(syncTimeout).WithPolling(pollInterval).WithArguments(
+					destinationClusterClient, configMapName, configMapNamespace).Should(BeTrue(),
+					fmt.Sprintf("Orphaned ConfigMap %s/%s should be deleted within %v", configMapNamespace, configMapName, syncTimeout))
+			}, SpecTimeout(mediumT))
+		})
 	})
 	//TODO: Context("On Namespace mode", func() {})
 })
