@@ -17,6 +17,7 @@ kubeConfigPath: "/root/.kube/config"
 pollingInterval: "60"
 namespacePollingInterval: "60"
 housekeepingInterval: "60"
+enableServiceSync: false
 
 
 imagePullSecrets: []

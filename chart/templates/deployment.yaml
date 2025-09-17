@@ -82,6 +82,7 @@ spec:
             - --pollingInterval={{ .Values.pollingInterval }}
             - --namespacePollingInterval={{ .Values.namespacePollingInterval }}
             - --housekeepingInterval={{ .Values.housekeepingInterval }}
+            - --enableServiceSync={{ .Values.enableServiceSync }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- if or .Values.config.kubeconfigContent .Values.extraVolumeMounts }}
           volumeMounts:

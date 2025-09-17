@@ -91,17 +91,25 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 					remoteKubeClient = s.remoteKubeClients[sourceCluster]
 				}
 
-				// Check if the secret is orphan
-				remoteSecret, err := remoteKubeClient.CoreV1().Secrets(sourceNamespace).Get(ctx, secret.Secret.Name, v1.GetOptions{})
 
-				// Delete the orphan secret
-				if errors.IsNotFound(err) {
+				// Check if the secret is orphan
+				if secret.IsOrphan(ctx, remoteKubeClient) {
+					// Delete the orphan secret
 					err := s.localKubeClient.CoreV1().Secrets(secret.Secret.Namespace).Delete(ctx, secret.Secret.Name, v1.DeleteOptions{})
+
 					if err == nil {
 						s.logger.Infof("Orphan secret %s deleted on cluster %s in namespace %s", secret.Secret.Name, secret.Cluster, secret.Secret.Namespace)
 					} else {
 						s.logger.Errorf("Failed to delete orphan secret %s deleted on cluster %s in namespace %s: %s", secret.Secret.Name, secret.Cluster, secret.Secret.Namespace, err)
 					}
+
+					continue
+				}
+
+				remoteSecret, err := remoteKubeClient.CoreV1().Secrets(sourceNamespace).Get(ctx, secret.Secret.Name, v1.GetOptions{})
+				if err != nil {
+					s.logger.Error("Failed to get secret from source cluster: ", err)
+					continue
 				}
 
 				if remoteSecret.Labels[LabelSelector] == "cluster" && isLocal {
