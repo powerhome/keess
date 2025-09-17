@@ -92,16 +92,23 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 				}
 
 				// Check if the configMap is orphan
-				remoteConfigMap, err := remoteKubeClient.CoreV1().ConfigMaps(sourceNamespace).Get(ctx, configMap.ConfigMap.Name, v1.GetOptions{})
-
-				// Delete the orphan configMap
-				if errors.IsNotFound(err) {
+				if configMap.IsOrphan(ctx, remoteKubeClient) {
+					// Delete the orphan configMap
 					err := s.localKubeClient.CoreV1().ConfigMaps(configMap.ConfigMap.Namespace).Delete(ctx, configMap.ConfigMap.Name, v1.DeleteOptions{})
+
 					if err == nil {
 						s.logger.Infof("Orphan configMap %s deleted on cluster %s in namespace %s", configMap.ConfigMap.Name, configMap.Cluster, configMap.ConfigMap.Namespace)
 					} else {
 						s.logger.Errorf("Failed to delete orphan configMap %s deleted on cluster %s in namespace %s: %s", configMap.ConfigMap.Name, configMap.Cluster, configMap.ConfigMap.Namespace, err)
 					}
+
+					continue
+				}
+
+				remoteConfigMap, err := remoteKubeClient.CoreV1().ConfigMaps(sourceNamespace).Get(ctx, configMap.ConfigMap.Name, v1.GetOptions{})
+				if err != nil {
+					s.logger.Error("Failed to get configMap from source cluster: ", err)
+					continue
 				}
 
 				if remoteConfigMap.Labels[LabelSelector] == "cluster" && isLocal {
