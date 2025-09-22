@@ -2,9 +2,6 @@
 
 The purpose of this feature is to facilitate exposing a service in one cluster to other clusters, using Cilium Global Services, available on PAC-v2 clusters.
 
-> [!WARNING]
-> This is a yet unreleased feature. For now consider it as a design document for a future feature.
-
 ## Context
 
 When you use [Cilium](https://docs.cilium.io/en/latest/overview/intro/) CNI in multiple related Kubernetes Clusters, you can use its ClusterMesh features to extend networking across them.
@@ -136,7 +133,7 @@ Using the examples above, what if mysql-svc on cluster A is removed, and the ser
 
 To track orphans, Keess adds a `keess.powerhrg.com/managed` label to resources it creates, and a  `keess.powerhrg.com/source-cluster` annotation, and it uses then to periodically check if original sources exist.
 
-On service, though, we have an extra concern: we may also manage/create the namespaces. On a first version of orphan handling, we ignore that and leave created namespaces behind:
+On services, though, we have an extra concern: we may also manage/create the namespaces. On the current version, we ignore that and leave created namespaces behind:
 
 ```mermaid
 ---
@@ -156,25 +153,3 @@ Notes:
 
 - When checking if the source service still exists on the source cluster, only services with the `keess.powerhrg.com/sync` are fetched. So if the that label was removed from the origin service, the destination service will be treated as an orphan, which is a desired behavior.
 - That also makes the check more efficient if used on a namespace with many services not managed by Keess.
-
-A more advanced procedure checks and removes the namespace (not implemented yet):
-
-```mermaid
----
-title: Orphan handling (with namespace removal)
----
-flowchart LR
-  start((orphan check)) --> list_mng[List managed<br>services] --> get_source[Get source<br>cluster] --> if_source
-
-  if_source{If source<br>exists} -- Yes -->  noop((Do nothing))
-  if_source -- No --> if_local_end
-
-  if_local_end{If has local<br> endpoints} -- Yes -->  noop((Do nothing))
-  if_local_end -- No --> remove_svc[Remove Svc] --> if_ns_mng
-
-  if_ns_mng{Is namespace<br>managed?} -- No -->  noop((Do nothing))
-  if_ns_mng -- Yes --> if_ns_empty
-
-  if_ns_empty{Is namespace<br>empty?} -- No --> noop((Do nothing))
-  if_ns_empty -- Yes --> remove_ns((Remove<br>Namespace))
-```
