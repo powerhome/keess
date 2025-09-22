@@ -31,6 +31,15 @@ docker-build:
 	@echo "Building Docker image..."
 	@docker build -t $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .
 
+## Build and publish Docker image to Docker Hub Powerhome repo (requires appropriate Docker Hub credentials)
+## Run it with:
+##   make powerhome-build-and-publish DOCKER_TAG=x.y.z
+powerhome-build-and-publish:
+	docker build  --platform=linux/amd64 -t powerhome/keess:$(DOCKER_TAG) .
+	docker build  --platform=linux/amd64 -f Dockerfile.kubeconfig-reloader -t powerhome/keess-kubeconfig-reloader:$(DOCKER_TAG) .
+	docker push powerhome/keess:$(DOCKER_TAG)
+	docker push powerhome/keess-kubeconfig-reloader:$(DOCKER_TAG)
+
 # New target for code coverage
 coverage:
 	@echo "Generating code coverage..."
