@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"keess/pkg/keess"
+	"keess/pkg/keess/metrics"
 	"time"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +33,7 @@ func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval ti
 
 				err := s.processServiceDeleteOrphan(ctx, service)
 				if err != nil {
+					metrics.ErrorCount.Inc()
 					s.logger.Error(err) // err message already contains context
 				}
 
@@ -45,9 +47,10 @@ func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval ti
 	return nil
 }
 
-// proccessServiceDeleteOrphan processes the service for deletion if it is an orphan.
 // processServiceDeleteOrphan processes the service for deletion if it is an orphan.
 func (s *ServiceSynchronizer) processServiceDeleteOrphan(ctx context.Context, svc PacService) error {
+
+	metrics.OrphansDetected.WithLabelValues("service").Inc()
 
 	sourceKubeClient, err := s.getSourceKubeClient(svc)
 	if err != nil {
@@ -75,6 +78,7 @@ func (s *ServiceSynchronizer) processServiceDeleteOrphan(ctx context.Context, sv
 	if err != nil {
 		return fmt.Errorf("[Service][processServiceDeleteOrphan] failed to delete orphan service: %w", err)
 	}
+	metrics.OrphansRemoved.WithLabelValues("service").Inc()
 	s.logger.Infof("[Service][processServiceDeleteOrphan] Deleted orphan service %s/%s", svc.Service.Namespace, svc.Service.Name)
 
 	// NOTE: we decided not to implement managed namespace deletion for now
