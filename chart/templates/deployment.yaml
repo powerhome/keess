@@ -89,7 +89,7 @@ spec:
           {{- end }}
           {{- if .Values.config.kubeconfigContent }}
             - mountPath: /root/.kube
-              name: kubeconfig-dir
+              name: config
               readOnly: true
           {{- end }}
           {{- with .Values.extraVolumeMounts }}
