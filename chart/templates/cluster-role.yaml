@@ -10,7 +10,11 @@ rules:
   resources:
   - configmaps
   - secrets
+{{- if .Values.enableDeletes }}
   verbs: ["get", "create", "update", "patch", "delete", "list", "watch"]
+{{- else }}
+  verbs: ["get", "create", "update", "patch", "list", "watch"]
+{{- end }}
 - apiGroups: [""]
   resources:
   - namespaces
