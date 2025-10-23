@@ -18,6 +18,7 @@ pollingInterval: "60"
 namespacePollingInterval: "60"
 housekeepingInterval: "60"
 enableServiceSync: false
+enableDeletes: true  # Give Keess permission to delete objects (like orphaned ones)
 
 
 imagePullSecrets: []
