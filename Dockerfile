@@ -1,5 +1,5 @@
 # Stage 1: Build the Go application
-FROM golang:1.24-alpine@sha256:fc2cff6625f3c1c92e6c85938ac5bd09034ad0d4bc2dfb08278020b68540dbb5 AS builder
+FROM golang:1.24-alpine@sha256:12c199a889439928e36df7b4c5031c18bfdad0d33cdeae5dd35b2de369b5fbf5 AS builder
 
 # Set necessary environmet variables needed for our image
 ENV GO111MODULE=on \
