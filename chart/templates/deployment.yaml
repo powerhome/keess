@@ -6,6 +6,7 @@ metadata:
   labels:
     {{- include "keess.labels" . | nindent 4 }}
 spec:
+  replicas: {{ .Values.replicaCount | default 1 }}
   selector:
     matchLabels:
       {{- include "keess.selectorLabels" . | nindent 6 }}
