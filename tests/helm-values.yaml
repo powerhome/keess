@@ -4,6 +4,7 @@ image:
   tag: latest
 
 logLevel: "debug"
+enablePprof: true
 
 kubeConfigPath: "/root/.kube/config"
 pollingInterval: "10"
