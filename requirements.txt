@@ -1,2 +1,2 @@
-kubernetes==33.1.0
+kubernetes==34.1.0
 deepdiff==8.6.1
