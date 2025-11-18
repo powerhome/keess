@@ -40,19 +40,29 @@ make tests-all
 
 See `make help` for individual test options.
 
-Once we are done with the test and don't need the local clusters anymore you can delete them with
+### Updating Keess on local clusters
 
-```shell
-make delete-local-clusters
-```
+To update Keess on the running local clusters, just run:
 
-## Investigating cluster state
+ `make install-keess`
+
+It build the new image, install it on the kind clusters, and restart the running pods.
+
+### Investigating cluster state
 
 If you want to investigate the cluster you can do it by:
 
 ```shell
 kubectl cluster-info --context kind-source-cluster --kubeconfig localTestKubeconfig
 kubectl cluster-info --context kind-destination-cluster --kubeconfig localTestKubeconfig
+```
+
+### Cleaning up
+
+Once we are done with the test and don't need the local clusters anymore you can delete them with
+
+```shell
+make delete-local-clusters
 ```
 
 ## Running selected tests with Ginkgo
