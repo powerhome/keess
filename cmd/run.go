@@ -28,6 +28,7 @@ import (
 	"keess/pkg/keess/metrics"
 	"keess/pkg/keess/service"
 	"net/http"
+	_ "net/http/pprof" // Import pprof for profiling endpoints
 	"os"
 	"time"
 
@@ -79,6 +80,7 @@ var runCmd = &cobra.Command{
 		configReloaderMaxRetries, _ := cmd.Flags().GetInt("configReloaderMaxRetries")
 		configReloaderDebounceTimer, _ := cmd.Flags().GetInt("configReloaderDebounceTimer")
 		enableServiceSync, _ := cmd.Flags().GetBool("enableServiceSync")
+		enablePprof, _ := cmd.Flags().GetBool("enablePprof")
 
 		logger.Sugar().Infof("Starting Keess v%s. Running on local cluster: %s", Version, localCluster)
 		logger.Sugar().Debugf("Namespace polling interval: %d seconds", namespacePollingInterval)
@@ -87,6 +89,7 @@ var runCmd = &cobra.Command{
 		logger.Sugar().Debugf("Log level: %s", logLevel)
 		logger.Sugar().Debugf("Kubeconfig path: %s", kubeConfigPath)
 		logger.Sugar().Debugf("Enable service sync: %t", enableServiceSync)
+		logger.Sugar().Debugf("Enable pprof: %t", enablePprof)
 
 		// Register Prometheus metrics
 		metrics.RegisterMetrics()
@@ -170,6 +173,18 @@ var runCmd = &cobra.Command{
 			logger.Sugar().Info("Service synchronization is disabled. Set --enableServiceSync=true to enable it (depends on Cilium Clustermesh features).")
 		}
 
+		// Conditionally start pprof server
+		if enablePprof {
+			go func() {
+				logger.Sugar().Info("Starting pprof server on :6060 ...")
+				if err := http.ListenAndServe(":6060", nil); err != nil {
+					logger.Sugar().Errorf("Failed to start pprof server: %v", err)
+				}
+			}()
+		} else {
+			logger.Sugar().Info("Pprof server is disabled. Use --enablePprof=true to enable runtime profiling.")
+		}
+
 		// Create an HTTP server and add the health check handler as a handler
 		http.HandleFunc("/health", healthHandler)
 		http.Handle("/metrics", promhttp.Handler())
@@ -215,6 +230,7 @@ func init() {
 	runCmd.Flags().IntP("configReloaderMaxRetries", "r", 60, "Max retries for kubeconfig reloader. Each retry will wait 2 second before trying again.")
 	runCmd.Flags().IntP("configReloaderDebounceTimer", "d", 500, "Debounce timer for kubeconfig reloader in milliseconds. Each retry will wait this time before trying again.")
 	runCmd.Flags().Bool("enableServiceSync", false, "Enable service synchronization. Depends on Cilium Clustermesh features. (default: false)")
+	runCmd.Flags().Bool("enablePprof", false, "Enable pprof server for runtime profiling and debugging. (default: false)")
 
 	runCmd.MarkFlagRequired("localCluster")
 	runCmd.MarkFlagRequired("kubeConfigPath")
