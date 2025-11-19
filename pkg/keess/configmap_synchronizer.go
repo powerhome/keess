@@ -90,6 +90,7 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 				} else {
 
 					if _, ok := s.remoteKubeClients[sourceCluster]; !ok {
+						metrics.ErrorCount.Inc()
 						s.logger.Error("[ConfigMap][deleteOrphans] Remote client not found: ", sourceCluster)
 						continue
 					}
@@ -107,6 +108,7 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 						metrics.OrphansRemoved.WithLabelValues("configmap").Inc()
 						s.logger.Infof("Orphan configMap %s deleted on cluster %s in namespace %s", configMap.ConfigMap.Name, configMap.Cluster, configMap.ConfigMap.Namespace)
 					} else {
+						metrics.ErrorCount.Inc()
 						s.logger.Errorf("Failed to delete orphan configMap %s deleted on cluster %s in namespace %s: %s", configMap.ConfigMap.Name, configMap.Cluster, configMap.ConfigMap.Namespace, err)
 					}
 
@@ -115,6 +117,7 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 
 				remoteConfigMap, err := remoteKubeClient.CoreV1().ConfigMaps(sourceNamespace).Get(ctx, configMap.ConfigMap.Name, v1.GetOptions{})
 				if err != nil {
+					metrics.ErrorCount.Inc()
 					s.logger.Error("Failed to get configMap from source cluster: ", err)
 					continue
 				}
@@ -124,6 +127,7 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 					if err == nil {
 						s.logger.Infof("Orphan configMap %s deleted on cluster %s in namespace %s", configMap.ConfigMap.Name, configMap.Cluster, configMap.ConfigMap.Namespace)
 					} else {
+						metrics.ErrorCount.Inc()
 						s.logger.Errorf("Failed to delete orphan configMap %s deleted on cluster %s in namespace %s: %s", configMap.ConfigMap.Name, configMap.Cluster, configMap.ConfigMap.Namespace, err)
 					}
 				}
@@ -138,6 +142,7 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 
 						namespace, err := s.localKubeClient.CoreV1().Namespaces().Get(ctx, configMap.ConfigMap.Namespace, v1.GetOptions{})
 						if err != nil {
+							metrics.ErrorCount.Inc()
 							s.logger.Error("Failed to get namespace: ", err)
 							continue
 						}
@@ -175,6 +180,7 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 					if err == nil {
 						s.logger.Infof("Orphan configMap %s deleted on cluster %s in namespace %s", configMap.ConfigMap.Name, configMap.Cluster, configMap.ConfigMap.Namespace)
 					} else {
+						metrics.ErrorCount.Inc()
 						s.logger.Errorf("Failed to delete orphan configMap %s deleted on cluster %s in namespace %s: %s", configMap.ConfigMap.Name, configMap.Cluster, configMap.ConfigMap.Namespace, err)
 					}
 				}
@@ -316,6 +322,7 @@ func (s *ConfigMapSynchronizer) syncRemote(ctx context.Context, pacConfigMap Pac
 		client, ok := s.remoteKubeClients[cluster]
 
 		if !ok {
+			metrics.ErrorCount.Inc()
 			s.logger.Error("[ConfigMap][syncRemote] Remote client not found: ", cluster)
 			continue
 		}
@@ -345,11 +352,13 @@ func (s *ConfigMapSynchronizer) createOrUpdate(ctx context.Context, client IKube
 			if err == nil {
 				s.logger.Infof("ConfigMap %s created on cluster %s in namespace %s", pacConfigMap.ConfigMap.Name, cluster, namespace)
 			} else {
+				metrics.ErrorCount.Inc()
 				s.logger.Errorf("Failed to create configMap %s on cluster %s in namespace %s: %s", pacConfigMap.ConfigMap.Name, cluster, namespace, err)
 			}
 
 			return err
 		} else {
+			metrics.ErrorCount.Inc()
 			s.logger.Error("Failed to get configMap: ", err)
 		}
 
@@ -364,6 +373,7 @@ func (s *ConfigMapSynchronizer) createOrUpdate(ctx context.Context, client IKube
 		if err == nil {
 			s.logger.Infof("ConfigMap %s updated on cluster %s in namespace %s", pacConfigMap.ConfigMap.Name, cluster, namespace)
 		} else {
+			metrics.ErrorCount.Inc()
 			s.logger.Errorf("Failed to update configMap %s on cluster %s in namespace %s: %s", pacConfigMap.ConfigMap.Name, cluster, namespace, err)
 		}
 

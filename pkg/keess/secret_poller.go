@@ -52,6 +52,7 @@ func (w *SecretPoller) PollSecrets(ctx context.Context, opts metav1.ListOptions,
 			case <-time.After(interval):
 				secrets, err := w.kubeClient.CoreV1().Secrets(metav1.NamespaceAll).List(ctx, opts)
 				if err != nil {
+					metrics.ErrorCount.Inc()
 					w.logger.Error("Failed to list secrets: ", err)
 					return
 				} else {

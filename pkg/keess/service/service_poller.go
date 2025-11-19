@@ -53,6 +53,7 @@ func (w *ServicePoller) PollServices(ctx context.Context, opts metav1.ListOption
 			case <-time.After(interval):
 				services, err := w.kubeClient.CoreV1().Services(metav1.NamespaceAll).List(ctx, opts)
 				if err != nil {
+					metrics.ErrorCount.Inc()
 					w.logger.Error("Failed to list services: ", err)
 					return
 				} else {

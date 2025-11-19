@@ -52,6 +52,7 @@ func (w *ConfigMapPoller) PollConfigMaps(ctx context.Context, opts metav1.ListOp
 			case <-time.After(interval):
 				configMaps, err := w.kubeClient.CoreV1().ConfigMaps(metav1.NamespaceAll).List(ctx, opts)
 				if err != nil {
+					metrics.ErrorCount.Inc()
 					w.logger.Error("Failed to list configMaps: ", err)
 					return
 				} else {

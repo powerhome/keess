@@ -36,6 +36,7 @@ type KubeconfigLoader struct {
 func NewKubeconfigLoader(kubeConfigPath string, logger *zap.SugaredLogger, remoteKubeClients map[string]IKubeClient, configReloaderMaxRetries, configReloaderDebounceTimer int) *KubeconfigLoader {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
+		metrics.ErrorCount.Inc()
 		logger.Error("Error creating fsnotify watcher: ", err)
 		return nil
 	}
@@ -75,6 +76,7 @@ func (k *KubeconfigLoader) hasKubeconfigChanged() (bool, string, error) {
 func (k *KubeconfigLoader) LoadKubeconfig() {
 	changed, currentHash, err := k.hasKubeconfigChanged()
 	if err != nil {
+		metrics.ErrorCount.Inc()
 		k.logger.Errorf("Failed to check kubeconfig changes: %s", err)
 		return
 	}
@@ -97,6 +99,7 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 
 	kubeConfig, err := clientcmd.LoadFromFile(k.path)
 	if err != nil { // kubeConfig is nil only if the file is empty or invalid
+		metrics.ErrorCount.Inc()
 		k.logger.Errorf("Error loading kube config from path %s: %s", k.path, err)
 		return
 	}
@@ -117,6 +120,7 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 	for _, cluster := range remoteClustersName {
 		remoteClusterConfig, err := BuildConfigWithContextFromFlags(cluster, k.path)
 		if err != nil {
+			metrics.ErrorCount.Inc()
 			k.logger.Errorf("Error building kubeconfig for cluster '%s': %s", cluster, err)
 			continue
 		}
@@ -129,12 +133,14 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 			remoteClusterClient, err = NewKubeClientAdapter(remoteClusterConfig)
 		}
 		if err != nil {
+			metrics.ErrorCount.Inc()
 			k.logger.Errorf("Error creating remote clientset for cluster '%s': %s", cluster, err)
 			continue
 		}
 		output, err := remoteClusterClient.ServerVersion()
 		// This is a simple way to check if the server is reachable and the config is valid
 		if err != nil {
+			metrics.ErrorCount.Inc()
 			k.logger.Errorf("Error getting server version for cluster '%s': %s", cluster, err)
 			continue
 		}
@@ -175,11 +181,13 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 			i++
 		}
 		if err != nil {
+			metrics.ErrorCount.Inc()
 			k.logger.Errorf("Error checking kubeconfig file existence: %s", err)
 			return
 		}
 		k.logger.Infof("Kubeconfig file found, starting watcher: %s", k.path)
 		if err := k.watcher.Add(k.path); err != nil {
+			metrics.ErrorCount.Inc()
 			k.logger.Errorf("Error adding watcher for kubeconfig: %s", err)
 			return
 		}

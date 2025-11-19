@@ -52,6 +52,7 @@ func (w *NamespacePoller) PollNamespaces(ctx context.Context, opts metav1.ListOp
 			case <-time.After(interval):
 				namespaces, err := w.kubeClient.CoreV1().Namespaces().List(ctx, opts)
 				if err != nil {
+					metrics.ErrorCount.Inc()
 					w.logger.Error("Failed to list namespaces: ", err)
 					return
 				} else {

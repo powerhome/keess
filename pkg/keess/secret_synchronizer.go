@@ -90,6 +90,7 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 				} else {
 
 					if _, ok := s.remoteKubeClients[sourceCluster]; !ok {
+						metrics.ErrorCount.Inc()
 						s.logger.Error("[Secret][deleteOrphans] Remote client not found: ", sourceCluster)
 						continue
 					}
@@ -107,6 +108,7 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 						metrics.OrphansRemoved.WithLabelValues("secret").Inc()
 						s.logger.Infof("Orphan secret %s deleted on cluster %s in namespace %s", secret.Secret.Name, secret.Cluster, secret.Secret.Namespace)
 					} else {
+						metrics.ErrorCount.Inc()
 						s.logger.Errorf("Failed to delete orphan secret %s deleted on cluster %s in namespace %s: %s", secret.Secret.Name, secret.Cluster, secret.Secret.Namespace, err)
 					}
 
@@ -115,6 +117,7 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 
 				remoteSecret, err := remoteKubeClient.CoreV1().Secrets(sourceNamespace).Get(ctx, secret.Secret.Name, v1.GetOptions{})
 				if err != nil {
+					metrics.ErrorCount.Inc()
 					s.logger.Error("Failed to get secret from source cluster: ", err)
 					continue
 				}
@@ -124,6 +127,7 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 					if err == nil {
 						s.logger.Infof("Orphan secret %s deleted on cluster %s in namespace %s", secret.Secret.Name, secret.Cluster, secret.Secret.Namespace)
 					} else {
+						metrics.ErrorCount.Inc()
 						s.logger.Errorf("Failed to delete orphan secret %s deleted on cluster %s in namespace %s: %s", secret.Secret.Name, secret.Cluster, secret.Secret.Namespace, err)
 					}
 				}
@@ -138,6 +142,7 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 
 						namespace, err := s.localKubeClient.CoreV1().Namespaces().Get(ctx, secret.Secret.Namespace, v1.GetOptions{})
 						if err != nil {
+							metrics.ErrorCount.Inc()
 							s.logger.Error("Failed to get namespace: ", err)
 							continue
 						}
@@ -175,6 +180,7 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 					if err == nil {
 						s.logger.Infof("Orphan secret %s deleted on cluster %s in namespace %s", secret.Secret.Name, secret.Cluster, secret.Secret.Namespace)
 					} else {
+						metrics.ErrorCount.Inc()
 						s.logger.Errorf("Failed to delete orphan secret %s deleted on cluster %s in namespace %s: %s", secret.Secret.Name, secret.Cluster, secret.Secret.Namespace, err)
 					}
 				}
@@ -316,6 +322,7 @@ func (s *SecretSynchronizer) syncRemote(ctx context.Context, pacSecret PacSecret
 		client, ok := s.remoteKubeClients[cluster]
 
 		if !ok {
+			metrics.ErrorCount.Inc()
 			s.logger.Error("[Secret][syncRemote] Remote client not found: ", cluster)
 			continue
 		}
@@ -345,11 +352,13 @@ func (s *SecretSynchronizer) createOrUpdate(ctx context.Context, client IKubeCli
 			if err == nil {
 				s.logger.Infof("Secret %s created on cluster %s in namespace %s", pacSecret.Secret.Name, cluster, namespace)
 			} else {
+				metrics.ErrorCount.Inc()
 				s.logger.Errorf("Failed to create secret %s on cluster %s in namespace %s: %s", pacSecret.Secret.Name, cluster, namespace, err)
 			}
 
 			return err
 		} else {
+			metrics.ErrorCount.Inc()
 			s.logger.Error("Failed to get secret: ", err)
 		}
 
@@ -364,6 +373,7 @@ func (s *SecretSynchronizer) createOrUpdate(ctx context.Context, client IKubeCli
 		if err == nil {
 			s.logger.Infof("Secret %s updated on cluster %s in namespace %s", pacSecret.Secret.Name, cluster, namespace)
 		} else {
+			metrics.ErrorCount.Inc()
 			s.logger.Errorf("Failed to update secret %s on cluster %s in namespace %s: %s", pacSecret.Secret.Name, cluster, namespace, err)
 		}
 
