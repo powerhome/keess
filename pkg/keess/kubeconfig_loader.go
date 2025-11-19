@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"keess/pkg/keess/metrics"
 	"os"
 	"sync"
 	"time"
@@ -157,6 +158,11 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 	var debounceTimer *time.Timer // timer to debounce events and avoid multiple reloads
 	debounceDuration := k.debounceDuration
 	go func() {
+		k.logger.Debug("Kubeconfig loader goroutine started")
+		metrics.GoroutinesUp.WithLabelValues("kubeconfig").Inc()
+		defer metrics.GoroutinesUp.WithLabelValues("kubeconfig").Dec()
+		defer k.logger.Debug("Kubeconfig loader goroutine stopped")
+
 		_, err := os.Stat(k.path)
 		i := 0
 		for i < k.maxRetries && err != nil && os.IsNotExist(err) {
@@ -206,6 +212,11 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 
 					// Attempt to re-add the watcher when the file is recreated
 					go func() {
+						k.logger.Debug("Kubeconfig loader rewatch goroutine started")
+						metrics.GoroutinesUp.WithLabelValues("kubeconfig").Inc()
+						defer metrics.GoroutinesUp.WithLabelValues("kubeconfig").Dec()
+						defer k.logger.Debug("Kubeconfig loader rewatch goroutine stopped")
+
 						k.logger.Infof("Waiting for kubeconfig file to be recreated: %s", k.path)
 						for i := 0; i < k.maxRetries; i++ {
 							if _, err := clientcmd.LoadFromFile(k.path); err == nil {

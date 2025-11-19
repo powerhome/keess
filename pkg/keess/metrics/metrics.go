@@ -64,6 +64,19 @@ var (
 		},
 		[]string{"remote_name"}, // e.g., "cluster1", "cluster2"
 	)
+
+	// GoroutinesUp tracks the number of active goroutines by resource type
+	//
+	// This metric provides insight into the concurrency patterns and resource usage
+	// of the Keess operator. It can help detect goroutine leaks or performance issues.
+	// Resource types: configmap, secret, service, namespace, kubeconfig
+	GoroutinesUp = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "keess_goroutines_up",
+			Help: "Number of active goroutines by resource type.",
+		},
+		[]string{"resource_type"}, // e.g., "configmap", "secret", "service", "namespace", "kubeconfig"
+	)
 )
 
 // RegisterMetrics registers all prometheus metrics
@@ -73,6 +86,7 @@ func RegisterMetrics() {
 	prometheus.MustRegister(OrphansDetected)
 	prometheus.MustRegister(OrphansRemoved)
 	prometheus.MustRegister(RemoteUp)
+	prometheus.MustRegister(GoroutinesUp)
 
 	// For Vector metrics, prometheus requires at least one value to be set to show the metric as available
 	// So we preset them to 0 with the known labels
@@ -81,5 +95,10 @@ func RegisterMetrics() {
 		Resources.WithLabelValues(label).Add(0)
 		OrphansDetected.WithLabelValues(label).Add(0)
 		OrphansRemoved.WithLabelValues(label).Add(0)
+	}
+
+	// Initialize goroutine metrics to 0 for all known resource types
+	for _, resourceType := range []string{"configmap", "secret", "service", "namespace", "kubeconfig"} {
+		GoroutinesUp.WithLabelValues(resourceType).Set(0)
 	}
 }

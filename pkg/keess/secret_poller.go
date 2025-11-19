@@ -2,6 +2,7 @@ package keess
 
 import (
 	"context"
+	"keess/pkg/keess/metrics"
 	"time"
 
 	"go.uber.org/zap"
@@ -33,6 +34,10 @@ func (w *SecretPoller) PollSecrets(ctx context.Context, opts metav1.ListOptions,
 	var interval time.Duration
 
 	go func() {
+		w.logger.Debug("Secret poller goroutine started")
+		metrics.GoroutinesUp.WithLabelValues("secret").Inc()
+		defer metrics.GoroutinesUp.WithLabelValues("secret").Dec()
+		defer w.logger.Debug("Secret poller goroutine stopped")
 		defer close(secretsChan)
 
 		for {

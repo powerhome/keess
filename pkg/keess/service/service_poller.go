@@ -2,12 +2,13 @@ package service
 
 import (
 	"context"
+	"keess/pkg/keess"
+	"keess/pkg/keess/metrics"
 	"time"
 
 	"go.uber.org/zap"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"keess/pkg/keess"
 )
 
 // A ServicePoller polls services from a Kubernetes cluster.
@@ -34,6 +35,10 @@ func (w *ServicePoller) PollServices(ctx context.Context, opts metav1.ListOption
 	var interval time.Duration
 
 	go func() {
+		w.logger.Debug("Service poller goroutine started")
+		metrics.GoroutinesUp.WithLabelValues("service").Inc()
+		defer metrics.GoroutinesUp.WithLabelValues("service").Dec()
+		defer w.logger.Debug("Service poller goroutine stopped")
 		defer close(servicesChan)
 
 		for {

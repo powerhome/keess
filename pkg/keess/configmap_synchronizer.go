@@ -2,6 +2,7 @@ package keess
 
 import (
 	"context"
+	"keess/pkg/keess/metrics"
 	"strings"
 	"time"
 
@@ -64,6 +65,11 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 	}
 
 	go func() {
+		s.logger.Debug("ConfigMap orphan deleter goroutine started")
+		metrics.GoroutinesUp.WithLabelValues("configmap").Inc()
+		defer metrics.GoroutinesUp.WithLabelValues("configmap").Dec()
+		defer s.logger.Debug("ConfigMap orphan deleter goroutine stopped")
+
 		for {
 			select {
 			case configMap, ok := <-configMapsChan:
@@ -195,6 +201,11 @@ func (s *ConfigMapSynchronizer) startSyncyng(ctx context.Context, pollInterval t
 	}
 
 	go func() {
+		s.logger.Debug("ConfigMap synchronizer goroutine started")
+		metrics.GoroutinesUp.WithLabelValues("configmap").Inc()
+		defer metrics.GoroutinesUp.WithLabelValues("configmap").Dec()
+		defer s.logger.Debug("ConfigMap synchronizer goroutine stopped")
+
 		for {
 			select {
 			case configMap, ok := <-configMapsChan:

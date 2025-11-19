@@ -23,6 +23,11 @@ func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval ti
 	}
 
 	go func() {
+		s.logger.Debug("Service orphan deleter goroutine started")
+		metrics.GoroutinesUp.WithLabelValues("service").Inc()
+		defer metrics.GoroutinesUp.WithLabelValues("service").Dec()
+		defer s.logger.Debug("Service orphan deleter goroutine stopped")
+
 		for {
 			select {
 			case service, ok := <-mngSvcChan:

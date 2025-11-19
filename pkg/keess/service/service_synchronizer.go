@@ -2,14 +2,14 @@ package service
 
 import (
 	"context"
+	"keess/pkg/keess"
+	"keess/pkg/keess/metrics"
 	"time"
 
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"keess/pkg/keess"
 )
 
 // A struct that can synchronize services in a Kubernetes cluster.
@@ -68,6 +68,11 @@ func (s *ServiceSynchronizer) startSyncing(ctx context.Context, pollInterval tim
 	}
 
 	go func() {
+		s.logger.Debug("Service synchronizer goroutine started")
+		metrics.GoroutinesUp.WithLabelValues("service").Inc()
+		defer metrics.GoroutinesUp.WithLabelValues("service").Dec()
+		defer s.logger.Debug("Service synchronizer goroutine stopped")
+
 		for {
 			select {
 			case service, ok := <-syncSvcChan:

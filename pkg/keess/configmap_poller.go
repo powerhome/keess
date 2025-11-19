@@ -2,6 +2,7 @@ package keess
 
 import (
 	"context"
+	"keess/pkg/keess/metrics"
 	"time"
 
 	"go.uber.org/zap"
@@ -33,6 +34,10 @@ func (w *ConfigMapPoller) PollConfigMaps(ctx context.Context, opts metav1.ListOp
 	var interval time.Duration
 
 	go func() {
+		w.logger.Debug("ConfigMap poller goroutine started")
+		metrics.GoroutinesUp.WithLabelValues("configmap").Inc()
+		defer metrics.GoroutinesUp.WithLabelValues("configmap").Dec()
+		defer w.logger.Debug("ConfigMap poller goroutine stopped")
 		defer close(configMapsChan)
 
 		for {

@@ -2,6 +2,7 @@ package keess
 
 import (
 	"context"
+	"keess/pkg/keess/metrics"
 	"strings"
 	"time"
 
@@ -64,6 +65,11 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 	}
 
 	go func() {
+		s.logger.Debug("Secret orphan deleter goroutine started")
+		metrics.GoroutinesUp.WithLabelValues("secret").Inc()
+		defer metrics.GoroutinesUp.WithLabelValues("secret").Dec()
+		defer s.logger.Debug("Secret orphan deleter goroutine stopped")
+
 		for {
 			select {
 			case secret, ok := <-secretsChan:
@@ -90,7 +96,6 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 
 					remoteKubeClient = s.remoteKubeClients[sourceCluster]
 				}
-
 
 				// Check if the secret is orphan
 				if secret.IsOrphan(ctx, remoteKubeClient) {
@@ -196,6 +201,11 @@ func (s *SecretSynchronizer) startSyncyng(ctx context.Context, pollInterval time
 	}
 
 	go func() {
+		s.logger.Debug("Secret synchronizer goroutine started")
+		metrics.GoroutinesUp.WithLabelValues("secret").Inc()
+		defer metrics.GoroutinesUp.WithLabelValues("secret").Dec()
+		defer s.logger.Debug("Secret synchronizer goroutine stopped")
+
 		for {
 			select {
 			case secret, ok := <-secretsChan:
