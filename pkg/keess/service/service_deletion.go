@@ -55,8 +55,6 @@ func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval ti
 // processServiceDeleteOrphan processes the service for deletion if it is an orphan.
 func (s *ServiceSynchronizer) processServiceDeleteOrphan(ctx context.Context, svc PacService) error {
 
-	metrics.OrphansDetected.WithLabelValues("service").Inc()
-
 	sourceKubeClient, err := s.getSourceKubeClient(svc)
 	if err != nil {
 		return fmt.Errorf("[Service][processServiceDeleteOrphan] failed to get source kube client: %w", err)
@@ -66,6 +64,7 @@ func (s *ServiceSynchronizer) processServiceDeleteOrphan(ctx context.Context, sv
 		s.logger.Debugf("[Service][processServiceDeleteOrphan] Skipping service %s/%s: NOT an orphan", svc.Service.Namespace, svc.Service.Name)
 		return nil
 	}
+	metrics.OrphansDetected.WithLabelValues("service").Inc()
 	s.logger.Infof("[Service][processServiceDeleteOrphan] Found orphan service %s/%s", svc.Service.Namespace, svc.Service.Name)
 
 	hasLE, err := svc.HasLocalEndpoints(ctx, s.localKubeClient)

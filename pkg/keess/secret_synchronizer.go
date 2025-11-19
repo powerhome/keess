@@ -99,10 +99,12 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 
 				// Check if the secret is orphan
 				if secret.IsOrphan(ctx, remoteKubeClient) {
+					metrics.OrphansDetected.WithLabelValues("secret").Inc()
 					// Delete the orphan secret
 					err := s.localKubeClient.CoreV1().Secrets(secret.Secret.Namespace).Delete(ctx, secret.Secret.Name, v1.DeleteOptions{})
 
 					if err == nil {
+						metrics.OrphansRemoved.WithLabelValues("secret").Inc()
 						s.logger.Infof("Orphan secret %s deleted on cluster %s in namespace %s", secret.Secret.Name, secret.Cluster, secret.Secret.Namespace)
 					} else {
 						s.logger.Errorf("Failed to delete orphan secret %s deleted on cluster %s in namespace %s: %s", secret.Secret.Name, secret.Cluster, secret.Secret.Namespace, err)

@@ -99,10 +99,12 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 
 				// Check if the configMap is orphan
 				if configMap.IsOrphan(ctx, remoteKubeClient) {
+					metrics.OrphansDetected.WithLabelValues("configmap").Inc()
 					// Delete the orphan configMap
 					err := s.localKubeClient.CoreV1().ConfigMaps(configMap.ConfigMap.Namespace).Delete(ctx, configMap.ConfigMap.Name, v1.DeleteOptions{})
 
 					if err == nil {
+						metrics.OrphansRemoved.WithLabelValues("configmap").Inc()
 						s.logger.Infof("Orphan configMap %s deleted on cluster %s in namespace %s", configMap.ConfigMap.Name, configMap.Cluster, configMap.ConfigMap.Namespace)
 					} else {
 						s.logger.Errorf("Failed to delete orphan configMap %s deleted on cluster %s in namespace %s: %s", configMap.ConfigMap.Name, configMap.Cluster, configMap.ConfigMap.Namespace, err)
