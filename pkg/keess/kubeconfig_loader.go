@@ -141,9 +141,11 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 		// This is a simple way to check if the server is reachable and the config is valid
 		if err != nil {
 			metrics.ErrorCount.Inc()
+			metrics.RemoteUp.WithLabelValues(cluster).Set(0)
 			k.logger.Errorf("Error getting server version for cluster '%s': %s", cluster, err)
 			continue
 		}
+		metrics.RemoteUp.WithLabelValues(cluster).Set(1)
 		k.logger.Infof("Connected to remote cluster '%s' with server version: %s", cluster, output.String())
 
 		k.remoteKubeClients.clients[cluster] = remoteClusterClient
