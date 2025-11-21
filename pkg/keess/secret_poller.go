@@ -59,6 +59,14 @@ func (w *SecretPoller) PollSecrets(ctx context.Context, opts metav1.ListOptions,
 					w.logger.Debugf("Found %d secrets.", len(secrets.Items))
 				}
 
+				// Update metrics based on label selector
+				switch opts.LabelSelector {
+				case ManagedLabelSelector:
+					metrics.ManagedResources.WithLabelValues("secret").Set(float64(len(secrets.Items)))
+				case LabelSelector:
+					metrics.SyncResources.WithLabelValues("secret").Set(float64(len(secrets.Items)))
+				}
+
 				for _, sc := range secrets.Items {
 					pacSecret := PacSecret{
 						Cluster: w.cluster,

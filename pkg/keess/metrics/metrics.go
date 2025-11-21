@@ -5,6 +5,8 @@ import (
 )
 
 var (
+	Registry = prometheus.NewRegistry()
+
 	ErrorCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "keess_errors_total",
@@ -12,15 +14,34 @@ var (
 		},
 	)
 
-	// Resources counts the number of resources managed by the operator, labeled by resource type
+	// ManagedResources counts the number of resources managed by the operator, labeled by resource type
+	//
+	// These are resources matching the ManagedLabelSelector label, the destination
+	// resources being synced FROM other namespaces/clusters.
 	//
 	// This is an informational metric (not meant to aid debugging problems, usually), to
 	// understand the scale at which the operator is being used and quickly check which
 	// types of resources are being managed.
-	Resources = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
+	ManagedResources = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
 			Name: "keess_resources_managed_total",
 			Help: "Total number of resources managed by the operator.",
+		},
+		[]string{"resource_type"}, // e.g., "service", "configmap", "secret", "namespace"
+	)
+
+	// SyncResources counts the number of resources being synced by the operator, labeled by resource type
+	//
+	// These are resources matching the LabelSelector label, the origin resources being
+	// synced TO other namespaces/clusters.
+	//
+	// This is an informational metric (not meant to aid debugging problems, usually), to
+	// understand the scale at which the operator is being used and quickly check which
+	// types of resources are being synced.
+	SyncResources = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "keess_resources_sync_total",
+			Help: "Total number of resources being synced by the operator.",
 		},
 		[]string{"resource_type"}, // e.g., "service", "configmap", "secret", "namespace"
 	)
@@ -81,18 +102,21 @@ var (
 
 // RegisterMetrics registers all prometheus metrics
 func RegisterMetrics() {
-	prometheus.MustRegister(ErrorCount)
-	prometheus.MustRegister(Resources)
-	prometheus.MustRegister(OrphansDetected)
-	prometheus.MustRegister(OrphansRemoved)
-	prometheus.MustRegister(RemoteUp)
-	prometheus.MustRegister(GoroutinesUp)
+	Registry.MustRegister(ErrorCount)
+	Registry.MustRegister(ManagedResources)
+	Registry.MustRegister(SyncResources)
+	Registry.MustRegister(OrphansDetected)
+	Registry.MustRegister(OrphansRemoved)
+	Registry.MustRegister(RemoteUp)
+	Registry.MustRegister(GoroutinesUp)
 
 	// For Vector metrics, prometheus requires at least one value to be set to show the metric as available
 	// So we preset them to 0 with the known labels
-	Resources.WithLabelValues("namespace").Add(0) // namespace label makes sense only to Resources metric
+	ManagedResources.WithLabelValues("namespace").Set(0) // namespace label makes sense only to Resources metrics
+	SyncResources.WithLabelValues("namespace").Set(0)
 	for _, label := range []string{"service", "configmap", "secret"} {
-		Resources.WithLabelValues(label).Add(0)
+		ManagedResources.WithLabelValues(label).Set(0)
+		SyncResources.WithLabelValues(label).Set(0)
 		OrphansDetected.WithLabelValues(label).Add(0)
 		OrphansRemoved.WithLabelValues(label).Add(0)
 	}

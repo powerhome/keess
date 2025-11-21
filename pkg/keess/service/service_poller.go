@@ -60,6 +60,14 @@ func (w *ServicePoller) PollServices(ctx context.Context, opts metav1.ListOption
 					w.logger.Debugf("Found %d services.", len(services.Items))
 				}
 
+				// Update metrics based on label selector
+				switch opts.LabelSelector {
+				case keess.ManagedLabelSelector:
+					metrics.ManagedResources.WithLabelValues("service").Set(float64(len(services.Items)))
+				case keess.LabelSelector:
+					metrics.SyncResources.WithLabelValues("service").Set(float64(len(services.Items)))
+				}
+
 				for _, svc := range services.Items {
 					pacService := PacService{
 						Cluster: w.cluster,

@@ -187,7 +187,7 @@ var runCmd = &cobra.Command{
 
 		// Create an HTTP server and add the health check handler as a handler
 		http.HandleFunc("/health", healthHandler)
-		http.Handle("/metrics", promhttp.Handler())
+		http.Handle("/metrics", promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{}))
 
 		logger.Sugar().Info("Starting HTTP server on :8080 ...")
 		if err := http.ListenAndServe(":8080", nil); err != nil {

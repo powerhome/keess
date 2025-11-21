@@ -59,6 +59,14 @@ func (w *ConfigMapPoller) PollConfigMaps(ctx context.Context, opts metav1.ListOp
 					w.logger.Debugf("Found %d configMaps.", len(configMaps.Items))
 				}
 
+				// Update metrics based on label selector
+				switch opts.LabelSelector {
+				case ManagedLabelSelector:
+					metrics.ManagedResources.WithLabelValues("configmap").Set(float64(len(configMaps.Items)))
+				case LabelSelector:
+					metrics.SyncResources.WithLabelValues("configmap").Set(float64(len(configMaps.Items)))
+				}
+
 				for _, sc := range configMaps.Items {
 					pacConfigMap := PacConfigMap{
 						Cluster:   w.cluster,
