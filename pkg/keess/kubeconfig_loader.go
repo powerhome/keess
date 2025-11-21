@@ -141,11 +141,11 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 		// This is a simple way to check if the server is reachable and the config is valid
 		if err != nil {
 			metrics.ErrorCount.Inc()
-			metrics.RemoteUp.WithLabelValues(cluster).Set(0)
+			metrics.RemoteInitSuccess.WithLabelValues(cluster).Set(0)
 			k.logger.Errorf("Error getting server version for cluster '%s': %s", cluster, err)
 			continue
 		}
-		metrics.RemoteUp.WithLabelValues(cluster).Set(1)
+		metrics.RemoteInitSuccess.WithLabelValues(cluster).Set(1)
 		k.logger.Infof("Connected to remote cluster '%s' with server version: %s", cluster, output.String())
 
 		k.remoteKubeClients.clients[cluster] = remoteClusterClient
@@ -167,8 +167,8 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 	debounceDuration := k.debounceDuration
 	go func() {
 		k.logger.Debug("Kubeconfig loader goroutine started")
-		metrics.GoroutinesUp.WithLabelValues("kubeconfig").Inc()
-		defer metrics.GoroutinesUp.WithLabelValues("kubeconfig").Dec()
+		metrics.Goroutines.WithLabelValues("kubeconfig").Inc()
+		defer metrics.Goroutines.WithLabelValues("kubeconfig").Dec()
 		defer k.logger.Debug("Kubeconfig loader goroutine stopped")
 
 		_, err := os.Stat(k.path)
@@ -223,8 +223,8 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 					// Attempt to re-add the watcher when the file is recreated
 					go func() {
 						k.logger.Debug("Kubeconfig loader rewatch goroutine started")
-						metrics.GoroutinesUp.WithLabelValues("kubeconfig").Inc()
-						defer metrics.GoroutinesUp.WithLabelValues("kubeconfig").Dec()
+						metrics.Goroutines.WithLabelValues("kubeconfig").Inc()
+						defer metrics.Goroutines.WithLabelValues("kubeconfig").Dec()
 						defer k.logger.Debug("Kubeconfig loader rewatch goroutine stopped")
 
 						k.logger.Infof("Waiting for kubeconfig file to be recreated: %s", k.path)

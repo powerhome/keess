@@ -69,8 +69,8 @@ func (s *ServiceSynchronizer) startSyncing(ctx context.Context, pollInterval tim
 
 	go func() {
 		s.logger.Debug("Service synchronizer goroutine started")
-		metrics.GoroutinesUp.WithLabelValues("service").Inc()
-		defer metrics.GoroutinesUp.WithLabelValues("service").Dec()
+		metrics.Goroutines.WithLabelValues("service").Inc()
+		defer metrics.Goroutines.WithLabelValues("service").Dec()
 		defer s.logger.Debug("Service synchronizer goroutine stopped")
 
 		for {

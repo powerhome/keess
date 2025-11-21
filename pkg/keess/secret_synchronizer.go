@@ -66,8 +66,8 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 
 	go func() {
 		s.logger.Debug("Secret orphan deleter goroutine started")
-		metrics.GoroutinesUp.WithLabelValues("secret").Inc()
-		defer metrics.GoroutinesUp.WithLabelValues("secret").Dec()
+		metrics.Goroutines.WithLabelValues("secret").Inc()
+		defer metrics.Goroutines.WithLabelValues("secret").Dec()
 		defer s.logger.Debug("Secret orphan deleter goroutine stopped")
 
 		for {
@@ -210,8 +210,8 @@ func (s *SecretSynchronizer) startSyncyng(ctx context.Context, pollInterval time
 
 	go func() {
 		s.logger.Debug("Secret synchronizer goroutine started")
-		metrics.GoroutinesUp.WithLabelValues("secret").Inc()
-		defer metrics.GoroutinesUp.WithLabelValues("secret").Dec()
+		metrics.Goroutines.WithLabelValues("secret").Inc()
+		defer metrics.Goroutines.WithLabelValues("secret").Dec()
 		defer s.logger.Debug("Secret synchronizer goroutine stopped")
 
 		for {

@@ -35,8 +35,8 @@ func (w *SecretPoller) PollSecrets(ctx context.Context, opts metav1.ListOptions,
 
 	go func() {
 		w.logger.Debug("Secret poller goroutine started")
-		metrics.GoroutinesUp.WithLabelValues("secret").Inc()
-		defer metrics.GoroutinesUp.WithLabelValues("secret").Dec()
+		metrics.Goroutines.WithLabelValues("secret").Inc()
+		defer metrics.Goroutines.WithLabelValues("secret").Dec()
 		defer w.logger.Debug("Secret poller goroutine stopped")
 		defer close(secretsChan)
 

@@ -36,8 +36,8 @@ func (w *ServicePoller) PollServices(ctx context.Context, opts metav1.ListOption
 
 	go func() {
 		w.logger.Debug("Service poller goroutine started")
-		metrics.GoroutinesUp.WithLabelValues("service").Inc()
-		defer metrics.GoroutinesUp.WithLabelValues("service").Dec()
+		metrics.Goroutines.WithLabelValues("service").Inc()
+		defer metrics.Goroutines.WithLabelValues("service").Dec()
 		defer w.logger.Debug("Service poller goroutine stopped")
 		defer close(servicesChan)
 

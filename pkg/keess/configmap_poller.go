@@ -35,8 +35,8 @@ func (w *ConfigMapPoller) PollConfigMaps(ctx context.Context, opts metav1.ListOp
 
 	go func() {
 		w.logger.Debug("ConfigMap poller goroutine started")
-		metrics.GoroutinesUp.WithLabelValues("configmap").Inc()
-		defer metrics.GoroutinesUp.WithLabelValues("configmap").Dec()
+		metrics.Goroutines.WithLabelValues("configmap").Inc()
+		defer metrics.Goroutines.WithLabelValues("configmap").Dec()
 		defer w.logger.Debug("ConfigMap poller goroutine stopped")
 		defer close(configMapsChan)
 

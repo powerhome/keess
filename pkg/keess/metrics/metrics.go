@@ -74,26 +74,26 @@ var (
 		[]string{"resource_type"},
 	)
 
-	// RemoteUp indicates if Keess can reach and access the remote cluster (1 for up, 0 for down).
+	// RemoteInitSuccess indicates if Keess can reach and access the remote cluster (1 for up, 0 for down).
 	//
 	// This metric is labeled by remote cluster name, so we can track the status of
 	// multiple remote clusters independently.
-	RemoteUp = prometheus.NewGaugeVec(
+	RemoteInitSuccess = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "keess_remote_up",
-			Help: "Indicates if the remote cluster is reachable (1 for up, 0 for down).",
+			Name: "keess_remote_initialized_success",
+			Help: "Indicates if the remote cluster was initialized successfully",
 		},
 		[]string{"remote_name"}, // e.g., "cluster1", "cluster2"
 	)
 
-	// GoroutinesUp tracks the number of active goroutines by resource type
+	// Goroutines tracks the number of active Keess goroutines by resource type
 	//
-	// This metric provides insight into the concurrency patterns and resource usage
-	// of the Keess operator. It can help detect goroutine leaks or performance issues.
+	// This metric tracks the number of active goroutines, but only for the main goroutines
+	// created by Keess to poll, sync, and delete resources, and watch the kubeconfig file.
 	// Resource types: configmap, secret, service, namespace, kubeconfig
-	GoroutinesUp = prometheus.NewGaugeVec(
+	Goroutines = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "keess_goroutines_up",
+			Name: "keess_goroutines",
 			Help: "Number of active goroutines by resource type.",
 		},
 		[]string{"resource_type"}, // e.g., "configmap", "secret", "service", "namespace", "kubeconfig"
@@ -107,8 +107,8 @@ func RegisterMetrics() {
 	Registry.MustRegister(SyncResources)
 	Registry.MustRegister(OrphansDetected)
 	Registry.MustRegister(OrphansRemoved)
-	Registry.MustRegister(RemoteUp)
-	Registry.MustRegister(GoroutinesUp)
+	Registry.MustRegister(RemoteInitSuccess)
+	Registry.MustRegister(Goroutines)
 
 	// For Vector metrics, prometheus requires at least one value to be set to show the metric as available
 	// So we preset them to 0 with the known labels
@@ -123,6 +123,6 @@ func RegisterMetrics() {
 
 	// Initialize goroutine metrics to 0 for all known resource types
 	for _, resourceType := range []string{"configmap", "secret", "service", "namespace", "kubeconfig"} {
-		GoroutinesUp.WithLabelValues(resourceType).Set(0)
+		Goroutines.WithLabelValues(resourceType).Set(0)
 	}
 }
