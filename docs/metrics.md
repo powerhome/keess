@@ -137,7 +137,7 @@ keess_remote_initialized_success{remote_name="cluster2"} 0
 
 This metric tracks the number of active goroutines created by Keess for polling, syncing, and deleting resources, as well as watching the kubeconfig file. Those Go routines are created on process startup and should be always up. This metric can help identify problems with those Go routines being finished when they shouldn't.
 
-This is not a complete count of Go routines under the Keess proccess, which will be a more dynamic number.
+This is not a complete count of Go routines under the Keess process, which will be a more dynamic number.
 
 **Example:**
 
