@@ -86,6 +86,17 @@ service:
     # prometheus.io/port: "8080"
     # prometheus.io/path: "/metrics"
 
+# Metrics configuration
+metrics:
+  # ServiceMonitor for Prometheus Operator
+  serviceMonitor:
+    # Enable ServiceMonitor creation
+    enabled: true
+    # Scrape interval
+    interval: 30s
+    # Scrape timeout
+    scrapeTimeout: 10s
+
 # If you need to synchronize across different clusters you need to specify this configuration.
 # This will assume a static kubeconfig file.
 config:

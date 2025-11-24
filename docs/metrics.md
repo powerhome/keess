@@ -148,3 +148,68 @@ keess_goroutines{resource_type="service"} 2
 keess_goroutines{resource_type="namespace"} 1
 keess_goroutines{resource_type="kubeconfig"} 1
 ```
+
+---
+
+## Using the Metrics
+
+### Prometheus Discovery
+
+Keess supports two methods for Prometheus to discover and scrape metrics:
+
+#### Method 1: ServiceMonitor (Recommended for Prometheus Operator)
+
+If you're using the Prometheus Operator, enable the ServiceMonitor in your Helm values:
+
+```yaml
+metrics:
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+```
+
+The ServiceMonitor resource will be automatically created and Prometheus will discover the keess metrics endpoint.
+
+#### Method 2: Annotation-based Discovery
+
+The keess Service includes Prometheus scrape annotations by default:
+
+```yaml
+prometheus.io/scrape: "true"
+prometheus.io/port: "8080"
+prometheus.io/path: "/metrics"
+```
+
+If your Prometheus is configured to discover services based on annotations, it will automatically find and scrape keess. Ensure your Prometheus configuration includes a job that discovers services with these annotations:
+
+```yaml
+scrape_configs:
+  - job_name: 'kubernetes-service-endpoints'
+    kubernetes_sd_configs:
+      - role: endpoints
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+```
+
+#### Method 3: Static Configuration
+
+If using a custom configuration (not ServiceMonitor), you can add Keess manually:
+
+```yaml
+scrape_configs:
+  - job_name: 'keess'
+    static_configs:
+      - targets: ['keess-service:8080']
+```
