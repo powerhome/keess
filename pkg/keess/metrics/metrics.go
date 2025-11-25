@@ -74,14 +74,14 @@ var (
 		[]string{"resource_type"},
 	)
 
-	// RemoteInitSuccess indicates if Keess can reach and access the remote cluster (1 for up, 0 for down).
+	// RemoteInitFailed indicates if the remote cluster initialization has failed (1 for failed, 0 for successful)
 	//
 	// This metric is labeled by remote cluster name, so we can track the status of
 	// multiple remote clusters independently.
-	RemoteInitSuccess = prometheus.NewGaugeVec(
+	RemoteInitFailed = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "keess_remote_initialized_success",
-			Help: "Indicates if the remote cluster was initialized successfully",
+			Name: "keess_remote_initialization_failed",
+			Help: "Indicates if the remote cluster initialization has failed (1 for failed, 0 for successful).",
 		},
 		[]string{"remote_name"}, // e.g., "cluster1", "cluster2"
 	)
@@ -107,7 +107,7 @@ func RegisterMetrics() {
 	Registry.MustRegister(SyncResources)
 	Registry.MustRegister(OrphansDetected)
 	Registry.MustRegister(OrphansRemoved)
-	Registry.MustRegister(RemoteInitSuccess)
+	Registry.MustRegister(RemoteInitFailed)
 	Registry.MustRegister(Goroutines)
 
 	// For Vector metrics, prometheus requires at least one value to be set to show the metric as available

@@ -101,26 +101,29 @@ A divergence between these two metrics indicates orphans that couldn't be remove
 
 ### Remote Cluster Connectivity
 
-#### `keess_remote_initialized_success`
+#### `keess_remote_initialization_failed`
 
 **Type:** Gauge
 
 **Labels:** `remote_name` (cluster name)
 
-**Description:** Indicates if the remote cluster was initialized successfully.
+**Description:** Indicates if the remote cluster initialization has failed.
 
-- `1` = Remote cluster is accessible and initialized successfully
-- `0` = Remote cluster is inaccessible or initialization failed
+- `0` = Remote cluster is accessible and initialized successfully
+- `1` = Remote cluster is inaccessible or initialization failed
 
-The remote cluster initialization happens at startup time, and whenever the remote cluster secrets are updated and reloaded. Those events will update this metric. Note however that there is no periodic health check process that will update the metric.
+The remote cluster initialization happens at startup time, and whenever the remote
+cluster secrets are updated and reloaded. Those events will update this metric. Note
+however that there is no periodic health check process that will update the metric.
 
-This metric is labeled by remote cluster name, allowing you to track the status of multiple remote clusters independently.
+This metric is labeled by remote cluster name, allowing you to track the status of
+multiple remote clusters independently.
 
 **Example:**
 
 ```prometheus
-keess_remote_initialized_success{remote_name="cluster1"} 1
-keess_remote_initialized_success{remote_name="cluster2"} 0
+keess_remote_initialization_failed{remote_name="cluster1"} 1
+keess_remote_initialization_failed{remote_name="cluster2"} 0
 ```
 
 ---
