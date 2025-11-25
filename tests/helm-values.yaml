@@ -20,3 +20,7 @@ extraVolumes:
 
 kubeconfigReloader:
   enabled: false
+
+metrics:
+  serviceMonitor:
+    enabled: false
