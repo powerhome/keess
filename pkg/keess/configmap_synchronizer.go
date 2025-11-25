@@ -66,8 +66,8 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 
 	go func() {
 		s.logger.Debug("ConfigMap orphan deleter goroutine started")
-		metrics.Goroutines.WithLabelValues("configmap").Inc()
-		defer metrics.Goroutines.WithLabelValues("configmap").Dec()
+		metrics.GoroutinesInactive.WithLabelValues("configmap").Dec()
+		defer metrics.GoroutinesInactive.WithLabelValues("configmap").Inc()
 		defer s.logger.Debug("ConfigMap orphan deleter goroutine stopped")
 
 		for {
@@ -210,8 +210,8 @@ func (s *ConfigMapSynchronizer) startSyncyng(ctx context.Context, pollInterval t
 
 	go func() {
 		s.logger.Debug("ConfigMap synchronizer goroutine started")
-		metrics.Goroutines.WithLabelValues("configmap").Inc()
-		defer metrics.Goroutines.WithLabelValues("configmap").Dec()
+		metrics.GoroutinesInactive.WithLabelValues("configmap").Dec()
+		defer metrics.GoroutinesInactive.WithLabelValues("configmap").Inc()
 		defer s.logger.Debug("ConfigMap synchronizer goroutine stopped")
 
 		for {

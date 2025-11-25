@@ -37,8 +37,8 @@ func (w *NamespacePoller) PollNamespaces(ctx context.Context, opts metav1.ListOp
 	var interval time.Duration
 	go func() {
 		w.logger.Debug("Namespace poller goroutine started")
-		metrics.Goroutines.WithLabelValues("namespace").Inc()
-		defer metrics.Goroutines.WithLabelValues("namespace").Dec()
+		metrics.GoroutinesInactive.WithLabelValues("namespace").Dec()
+		defer metrics.GoroutinesInactive.WithLabelValues("namespace").Inc()
 		defer w.logger.Debug("Namespace poller goroutine stopped")
 
 		for {

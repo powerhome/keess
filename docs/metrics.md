@@ -130,26 +130,29 @@ keess_remote_initialization_failed{remote_name="cluster2"} 0
 
 ### Goroutine Tracking
 
-#### `keess_goroutines`
+#### `keess_goroutines_inactive`
 
 **Type:** Gauge
 
 **Labels:** `resource_type` (configmap, secret, service, namespace, kubeconfig)
 
-**Description:** Number of active Keess goroutines by resource type.
+**Description:** Number of inactive Keess goroutines by resource type.
 
-This metric tracks the number of active goroutines created by Keess for polling, syncing, and deleting resources, as well as watching the kubeconfig file. Those Go routines are created on process startup and should be always up. This metric can help identify problems with those Go routines being finished when they shouldn't.
+This metric tracks the number of inactive goroutines, but only for the main goroutines
+created by Keess to poll, sync, and delete resources, and watch the kubeconfig file.
 
-This is not a complete count of Go routines under the Keess process, which will be a more dynamic number.
+This metric can help identify problems with those Go routines being finished when they
+shouldn't. The expected count of those goroutines is static and known to Keess, so any
+number > 0 here indicates a problem, if sync is enabled for that resource type.
 
 **Example:**
 
 ```prometheus
-keess_goroutines{resource_type="configmap"} 2
-keess_goroutines{resource_type="secret"} 2
-keess_goroutines{resource_type="service"} 2
-keess_goroutines{resource_type="namespace"} 1
-keess_goroutines{resource_type="kubeconfig"} 1
+keess_goroutines_inactive{resource_type="configmap"} 0
+keess_goroutines_inactive{resource_type="secret"} 0
+keess_goroutines_inactive{resource_type="service"} 0
+keess_goroutines_inactive{resource_type="namespace"} 0
+keess_goroutines_inactive{resource_type="kubeconfig"} 0
 ```
 
 ---

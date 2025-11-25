@@ -92,7 +92,7 @@ var runCmd = &cobra.Command{
 		logger.Sugar().Debugf("Enable pprof: %t", enablePprof)
 
 		// Register Prometheus metrics
-		metrics.RegisterMetrics()
+		metrics.RegisterMetrics(enableServiceSync)
 
 		config, err := rest.InClusterConfig()
 		if err != nil {

@@ -24,8 +24,8 @@ func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval ti
 
 	go func() {
 		s.logger.Debug("Service orphan deleter goroutine started")
-		metrics.Goroutines.WithLabelValues("service").Inc()
-		defer metrics.Goroutines.WithLabelValues("service").Dec()
+		metrics.GoroutinesInactive.WithLabelValues("service").Dec()
+		defer metrics.GoroutinesInactive.WithLabelValues("service").Inc()
 		defer s.logger.Debug("Service orphan deleter goroutine stopped")
 
 		for {

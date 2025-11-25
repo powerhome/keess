@@ -167,8 +167,8 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 	debounceDuration := k.debounceDuration
 	go func() {
 		k.logger.Debug("Kubeconfig loader goroutine started")
-		metrics.Goroutines.WithLabelValues("kubeconfig").Inc()
-		defer metrics.Goroutines.WithLabelValues("kubeconfig").Dec()
+		metrics.GoroutinesInactive.WithLabelValues("kubeconfig").Dec()
+		defer metrics.GoroutinesInactive.WithLabelValues("kubeconfig").Inc()
 		defer k.logger.Debug("Kubeconfig loader goroutine stopped")
 
 		_, err := os.Stat(k.path)
@@ -223,8 +223,6 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 					// Attempt to re-add the watcher when the file is recreated
 					go func() {
 						k.logger.Debug("Kubeconfig loader rewatch goroutine started")
-						metrics.Goroutines.WithLabelValues("kubeconfig").Inc()
-						defer metrics.Goroutines.WithLabelValues("kubeconfig").Dec()
 						defer k.logger.Debug("Kubeconfig loader rewatch goroutine stopped")
 
 						k.logger.Infof("Waiting for kubeconfig file to be recreated: %s", k.path)

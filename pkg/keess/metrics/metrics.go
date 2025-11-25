@@ -86,29 +86,31 @@ var (
 		[]string{"remote_name"}, // e.g., "cluster1", "cluster2"
 	)
 
-	// Goroutines tracks the number of active Keess goroutines by resource type
+	// GoroutinesInactive tracks the number of inactive Keess goroutines by resource type
 	//
-	// This metric tracks the number of active goroutines, but only for the main goroutines
+	// This metric tracks the number of inactive goroutines, but only for the main goroutines
 	// created by Keess to poll, sync, and delete resources, and watch the kubeconfig file.
+	// The expected count of those goroutines is static and known to Keess, so any number
+	// > 0 here indicates a problem, if sync is enabled for that resource type.
 	// Resource types: configmap, secret, service, namespace, kubeconfig
-	Goroutines = prometheus.NewGaugeVec(
+	GoroutinesInactive = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "keess_goroutines",
-			Help: "Number of active goroutines by resource type.",
+			Name: "keess_goroutines_inactive",
+			Help: "Number of inactive goroutines by resource type.",
 		},
 		[]string{"resource_type"}, // e.g., "configmap", "secret", "service", "namespace", "kubeconfig"
 	)
 )
 
 // RegisterMetrics registers all prometheus metrics
-func RegisterMetrics() {
+func RegisterMetrics(enableServiceSync bool) {
 	Registry.MustRegister(ErrorCount)
 	Registry.MustRegister(ManagedResources)
 	Registry.MustRegister(SyncResources)
 	Registry.MustRegister(OrphansDetected)
 	Registry.MustRegister(OrphansRemoved)
 	Registry.MustRegister(RemoteInitFailed)
-	Registry.MustRegister(Goroutines)
+	Registry.MustRegister(GoroutinesInactive)
 
 	// For Vector metrics, prometheus requires at least one value to be set to show the metric as available
 	// So we preset them to 0 with the known labels
@@ -121,8 +123,15 @@ func RegisterMetrics() {
 		OrphansRemoved.WithLabelValues(label).Add(0)
 	}
 
-	// Initialize goroutine metrics to 0 for all known resource types
-	for _, resourceType := range []string{"configmap", "secret", "service", "namespace", "kubeconfig"} {
-		Goroutines.WithLabelValues(resourceType).Set(0)
+	// These are the expected numbers of goroutines for each resource type. They start as
+	// inactive, because this function is called at startup before any of them start.
+	GoroutinesInactive.WithLabelValues("kubeconfig").Set(1)
+	GoroutinesInactive.WithLabelValues("namespace").Set(1)
+	GoroutinesInactive.WithLabelValues("configmap").Set(4)
+	GoroutinesInactive.WithLabelValues("secret").Set(4)
+	if enableServiceSync {
+		GoroutinesInactive.WithLabelValues("service").Set(4)
+	} else {
+		GoroutinesInactive.WithLabelValues("service").Set(0)
 	}
 }
