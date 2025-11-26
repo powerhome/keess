@@ -50,7 +50,7 @@ keess_resources_managed_total{resource_type="secret"} 12
 
 **Description:** Total number of resources being synced by the operator.
 
-These are origin resources being synced TO other namespaces/clusters. They are usually created by an user, which sets the `keess.powerhrg.com/sync` label to some supported value. They are the source of synchronization operations.
+These are origin resources being synced TO other namespaces/clusters. They are usually created by a user, which sets the `keess.powerhrg.com/sync` label to some supported value. They are the source of synchronization operations.
 
 This is an informational metric to help you understand the scale at which the operator is being used and quickly identify which types of resources are being synced.
 
