@@ -30,7 +30,7 @@ This metric increments whenever Keess encounters an error during its operation. 
 
 These are destination resources being synced FROM other namespaces/clusters. They are created by Keess and have the label `keess.powerhrg.com/managed=true`.
 
- Resources are counted as "managed" when they match the managed label selector and are being synchronized by Keess.
+Resources are counted as "managed" when they match the managed label selector and are being synchronized by Keess.
 
 This is an informational metric to help you understand the scale at which the operator is being used and quickly identify which types of resources are being managed.
 
