@@ -96,6 +96,14 @@ metrics:
     interval: 30s
     # Scrape timeout
     scrapeTimeout: 10s
+  # Prometheus alerts configuration
+  alerts:
+    # Enable PrometheusRule creation
+    enabled: true
+    # Error rate threshold for keess_errors_total alert (errors per interval)
+    errorRateThreshold: 10
+    # Time interval for calculating error rate (e.g., 10m, 5m, 15m)
+    errorRateInterval: 10m
 
 # If you need to synchronize across different clusters you need to specify this configuration.
 # This will assume a static kubeconfig file.

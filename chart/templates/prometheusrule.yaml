@@ -1,0 +1,40 @@
+{{- if .Values.metrics.alerts.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "keess.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keess.labels" . | nindent 4 }}
+spec:
+  groups:
+  - name: keess
+    interval: 30s
+    rules:
+    - alert: KeessRemoteInitializationFailed
+      expr: keess_remote_initialization_failed > 0
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Keess remote cluster initialization failed"
+        description: "Keess failed to initialize connection to remote cluster {{ $labels.cluster }} in namespace {{ $labels.namespace }}. Pod: {{ $labels.pod }}"
+
+    - alert: KeessGoroutinesInactive
+      expr: keess_goroutines_inactive > 0
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Keess goroutines are inactive"
+        description: "Keess has {{ $value }} inactive goroutines in namespace {{ $labels.namespace }}. Pod: {{ $labels.pod }}. This may indicate a problem with resource synchronization."
+
+    - alert: KeessHighErrorRate
+      expr: rate(keess_errors_total[{{ .Values.metrics.alerts.errorRateInterval }}]) > {{ .Values.metrics.alerts.errorRateThreshold }}
+      for: {{ .Values.metrics.alerts.errorRateInterval }}
+      labels:
+        severity: warning
+      annotations:
+        summary: "Keess is experiencing a high error rate"
+        description: "Keess error rate is {{ $value | humanize }} errors/sec (threshold: {{ .Values.metrics.alerts.errorRateThreshold }}) in namespace {{ $labels.namespace }}. Pod: {{ $labels.pod }}"
+{{- end }}
