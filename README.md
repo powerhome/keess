@@ -122,7 +122,7 @@ Keess will automatically create service references in the target clusters with:
 
 You can turn on debug level log message by setting `--logLevel debug`.
 
-Also, Keess includes optional runtime profiling support via Go's pprof package for performance analysis and debugging.  To enable the pprof server, use the `--enablePprof` flag.
+Also, Keess includes optional runtime profiling support via Go's pprof package for performance analysis and debugging. To enable the pprof server, use the `--enablePprof` flag.
 
 When using the Helm chart, enable those by setting:
 
