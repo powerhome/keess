@@ -104,6 +104,14 @@ metrics:
     errorRateThreshold: 10
     # Time interval for calculating error rate (e.g., 10m, 5m, 15m)
     errorRateInterval: 10m
+    # Runbook URLs for alerts (optional)
+    runbookUrls:
+      # Runbook URL for KeessRemoteInitializationFailed alert
+      remoteInitializationFailed: ""
+      # Runbook URL for KeessGoroutinesInactive alert
+      goroutinesInactive: ""
+      # Runbook URL for KeessHighErrorRate alert
+      highErrorRate: ""
 
 # If you need to synchronize across different clusters you need to specify this configuration.
 # This will assume a static kubeconfig file.

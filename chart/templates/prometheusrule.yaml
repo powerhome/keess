@@ -19,6 +19,9 @@ spec:
       annotations:
         summary: "Keess remote cluster initialization failed"
         description: "Keess failed to initialize connection to remote cluster {{ `{{ $labels.remote_name }}` }}. Pod: {{ `{{ $labels.pod }}` }}"
+        {{- if .Values.metrics.alerts.runbookUrls.remoteInitializationFailed }}
+        runbook_url: {{ .Values.metrics.alerts.runbookUrls.remoteInitializationFailed | quote }}
+        {{- end }}
 
     - alert: KeessGoroutinesInactive
       expr: keess_goroutines_inactive > 0
@@ -28,6 +31,9 @@ spec:
       annotations:
         summary: "Keess goroutines are inactive"
         description: "Keess has {{ `{{ $value }}` }} inactive goroutines for resource type {{ `{{ $labels.resource_type }}` }}. Pod: {{ `{{ $labels.pod }}` }}."
+        {{- if .Values.metrics.alerts.runbookUrls.goroutinesInactive }}
+        runbook_url: {{ .Values.metrics.alerts.runbookUrls.goroutinesInactive | quote }}
+        {{- end }}
 
     - alert: KeessHighErrorRate
       expr: rate(keess_errors_total[{{ .Values.metrics.alerts.errorRateInterval }}]) > {{ .Values.metrics.alerts.errorRateThreshold }}
@@ -37,4 +43,7 @@ spec:
       annotations:
         summary: "Keess is experiencing a high error rate"
         description: "Keess error rate is {{ `{{ $value | humanize }}` }} errors/{{ .Values.metrics.alerts.errorRateInterval }} (threshold: {{ .Values.metrics.alerts.errorRateThreshold }}). Pod: {{ `{{ $labels.pod }}` }}"
+        {{- if .Values.metrics.alerts.runbookUrls.highErrorRate }}
+        runbook_url: {{ .Values.metrics.alerts.runbookUrls.highErrorRate | quote }}
+        {{- end }}
 {{- end }}
