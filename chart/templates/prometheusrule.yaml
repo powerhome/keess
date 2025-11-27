@@ -36,5 +36,5 @@ spec:
         severity: warning
       annotations:
         summary: "Keess is experiencing a high error rate"
-        description: "Keess error rate is {{ $value | humanize }} errors/sec (threshold: {{ .Values.metrics.alerts.errorRateThreshold }}) in namespace {{ $labels.namespace }}. Pod: {{ $labels.pod }}"
+        description: "Keess error rate is {{ $value | humanize }} errors/{{ .Values.metrics.alerts.errorRateInterval }} (threshold: {{ .Values.metrics.alerts.errorRateThreshold }}) in namespace {{ $labels.namespace }}. Pod: {{ $labels.pod }}"
 {{- end }}
