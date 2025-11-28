@@ -81,10 +81,6 @@ service:
   type: ClusterIP
   port: 8080
   annotations: {}
-    # Add custom annotations for the service
-    # prometheus.io/scrape: "true"
-    # prometheus.io/port: "8080"
-    # prometheus.io/path: "/metrics"
 
 # Metrics configuration
 metrics:
