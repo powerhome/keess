@@ -2,6 +2,7 @@ package keess
 
 import (
 	"context"
+	"keess/pkg/keess/metrics"
 	"time"
 
 	"go.uber.org/zap"
@@ -33,6 +34,10 @@ func (w *ConfigMapPoller) PollConfigMaps(ctx context.Context, opts metav1.ListOp
 	var interval time.Duration
 
 	go func() {
+		w.logger.Debug("ConfigMap poller goroutine started")
+		metrics.GoroutinesInactive.WithLabelValues("configmap").Dec()
+		defer metrics.GoroutinesInactive.WithLabelValues("configmap").Inc()
+		defer w.logger.Debug("ConfigMap poller goroutine stopped")
 		defer close(configMapsChan)
 
 		for {
@@ -47,10 +52,19 @@ func (w *ConfigMapPoller) PollConfigMaps(ctx context.Context, opts metav1.ListOp
 			case <-time.After(interval):
 				configMaps, err := w.kubeClient.CoreV1().ConfigMaps(metav1.NamespaceAll).List(ctx, opts)
 				if err != nil {
+					metrics.ErrorCount.Inc()
 					w.logger.Error("Failed to list configMaps: ", err)
 					return
 				} else {
 					w.logger.Debugf("Found %d configMaps.", len(configMaps.Items))
+				}
+
+				// Update metrics based on label selector
+				switch opts.LabelSelector {
+				case ManagedLabelSelector:
+					metrics.ManagedResources.WithLabelValues("configmap").Set(float64(len(configMaps.Items)))
+				case LabelSelector:
+					metrics.SyncResources.WithLabelValues("configmap").Set(float64(len(configMaps.Items)))
 				}
 
 				for _, sc := range configMaps.Items {

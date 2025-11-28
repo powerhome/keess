@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"keess/pkg/keess"
+	"keess/pkg/keess/metrics"
 	"time"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +23,11 @@ func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval ti
 	}
 
 	go func() {
+		s.logger.Debug("Service orphan deleter goroutine started")
+		metrics.GoroutinesInactive.WithLabelValues("service").Dec()
+		defer metrics.GoroutinesInactive.WithLabelValues("service").Inc()
+		defer s.logger.Debug("Service orphan deleter goroutine stopped")
+
 		for {
 			select {
 			case service, ok := <-mngSvcChan:
@@ -32,6 +38,7 @@ func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval ti
 
 				err := s.processServiceDeleteOrphan(ctx, service)
 				if err != nil {
+					metrics.ErrorCount.Inc()
 					s.logger.Error(err) // err message already contains context
 				}
 
@@ -45,7 +52,6 @@ func (s *ServiceSynchronizer) deleteOrphans(ctx context.Context, pollInterval ti
 	return nil
 }
 
-// proccessServiceDeleteOrphan processes the service for deletion if it is an orphan.
 // processServiceDeleteOrphan processes the service for deletion if it is an orphan.
 func (s *ServiceSynchronizer) processServiceDeleteOrphan(ctx context.Context, svc PacService) error {
 
@@ -58,6 +64,7 @@ func (s *ServiceSynchronizer) processServiceDeleteOrphan(ctx context.Context, sv
 		s.logger.Debugf("[Service][processServiceDeleteOrphan] Skipping service %s/%s: NOT an orphan", svc.Service.Namespace, svc.Service.Name)
 		return nil
 	}
+	metrics.OrphansDetected.WithLabelValues("service").Inc()
 	s.logger.Infof("[Service][processServiceDeleteOrphan] Found orphan service %s/%s", svc.Service.Namespace, svc.Service.Name)
 
 	hasLE, err := svc.HasLocalEndpoints(ctx, s.localKubeClient)
@@ -75,6 +82,7 @@ func (s *ServiceSynchronizer) processServiceDeleteOrphan(ctx context.Context, sv
 	if err != nil {
 		return fmt.Errorf("[Service][processServiceDeleteOrphan] failed to delete orphan service: %w", err)
 	}
+	metrics.OrphansRemoved.WithLabelValues("service").Inc()
 	s.logger.Infof("[Service][processServiceDeleteOrphan] Deleted orphan service %s/%s", svc.Service.Namespace, svc.Service.Name)
 
 	// NOTE: we decided not to implement managed namespace deletion for now

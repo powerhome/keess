@@ -2,12 +2,13 @@ package service
 
 import (
 	"context"
+	"keess/pkg/keess"
+	"keess/pkg/keess/metrics"
 	"time"
 
 	"go.uber.org/zap"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"keess/pkg/keess"
 )
 
 // A ServicePoller polls services from a Kubernetes cluster.
@@ -34,6 +35,10 @@ func (w *ServicePoller) PollServices(ctx context.Context, opts metav1.ListOption
 	var interval time.Duration
 
 	go func() {
+		w.logger.Debug("Service poller goroutine started")
+		metrics.GoroutinesInactive.WithLabelValues("service").Dec()
+		defer metrics.GoroutinesInactive.WithLabelValues("service").Inc()
+		defer w.logger.Debug("Service poller goroutine stopped")
 		defer close(servicesChan)
 
 		for {
@@ -48,10 +53,19 @@ func (w *ServicePoller) PollServices(ctx context.Context, opts metav1.ListOption
 			case <-time.After(interval):
 				services, err := w.kubeClient.CoreV1().Services(metav1.NamespaceAll).List(ctx, opts)
 				if err != nil {
+					metrics.ErrorCount.Inc()
 					w.logger.Error("Failed to list services: ", err)
 					return
 				} else {
 					w.logger.Debugf("Found %d services.", len(services.Items))
+				}
+
+				// Update metrics based on label selector
+				switch opts.LabelSelector {
+				case keess.ManagedLabelSelector:
+					metrics.ManagedResources.WithLabelValues("service").Set(float64(len(services.Items)))
+				case keess.LabelSelector:
+					metrics.SyncResources.WithLabelValues("service").Set(float64(len(services.Items)))
 				}
 
 				for _, svc := range services.Items {

@@ -7,7 +7,7 @@ import (
 )
 
 // Version of the application, set this variable during build
-var version = "1.3.0"
+var Version = "1.4.0"
 
 // versionCmd represents the version command
 var versionCmd = &cobra.Command{
@@ -16,7 +16,7 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version number of the application",
 	Long:  `Print the version number of the application`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Keess v" + version)
+		fmt.Println("Keess v" + Version)
 	},
 }
 

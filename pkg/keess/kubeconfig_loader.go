@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"keess/pkg/keess/metrics"
 	"os"
 	"sync"
 	"time"
@@ -35,6 +36,7 @@ type KubeconfigLoader struct {
 func NewKubeconfigLoader(kubeConfigPath string, logger *zap.SugaredLogger, remoteKubeClients map[string]IKubeClient, configReloaderMaxRetries, configReloaderDebounceTimer int) *KubeconfigLoader {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
+		metrics.ErrorCount.Inc()
 		logger.Error("Error creating fsnotify watcher: ", err)
 		return nil
 	}
@@ -74,6 +76,7 @@ func (k *KubeconfigLoader) hasKubeconfigChanged() (bool, string, error) {
 func (k *KubeconfigLoader) LoadKubeconfig() {
 	changed, currentHash, err := k.hasKubeconfigChanged()
 	if err != nil {
+		metrics.ErrorCount.Inc()
 		k.logger.Errorf("Failed to check kubeconfig changes: %s", err)
 		return
 	}
@@ -96,6 +99,7 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 
 	kubeConfig, err := clientcmd.LoadFromFile(k.path)
 	if err != nil { // kubeConfig is nil only if the file is empty or invalid
+		metrics.ErrorCount.Inc()
 		k.logger.Errorf("Error loading kube config from path %s: %s", k.path, err)
 		return
 	}
@@ -116,6 +120,7 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 	for _, cluster := range remoteClustersName {
 		remoteClusterConfig, err := BuildConfigWithContextFromFlags(cluster, k.path)
 		if err != nil {
+			metrics.ErrorCount.Inc()
 			k.logger.Errorf("Error building kubeconfig for cluster '%s': %s", cluster, err)
 			continue
 		}
@@ -128,15 +133,19 @@ func (k *KubeconfigLoader) LoadKubeconfig() {
 			remoteClusterClient, err = NewKubeClientAdapter(remoteClusterConfig)
 		}
 		if err != nil {
+			metrics.ErrorCount.Inc()
 			k.logger.Errorf("Error creating remote clientset for cluster '%s': %s", cluster, err)
 			continue
 		}
 		output, err := remoteClusterClient.ServerVersion()
 		// This is a simple way to check if the server is reachable and the config is valid
 		if err != nil {
+			metrics.ErrorCount.Inc()
+			metrics.RemoteInitFailed.WithLabelValues(cluster).Set(1)
 			k.logger.Errorf("Error getting server version for cluster '%s': %s", cluster, err)
 			continue
 		}
+		metrics.RemoteInitFailed.WithLabelValues(cluster).Set(0)
 		k.logger.Infof("Connected to remote cluster '%s' with server version: %s", cluster, output.String())
 
 		k.remoteKubeClients.clients[cluster] = remoteClusterClient
@@ -157,6 +166,11 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 	var debounceTimer *time.Timer // timer to debounce events and avoid multiple reloads
 	debounceDuration := k.debounceDuration
 	go func() {
+		k.logger.Debug("Kubeconfig loader goroutine started")
+		metrics.GoroutinesInactive.WithLabelValues("kubeconfig").Dec()
+		defer metrics.GoroutinesInactive.WithLabelValues("kubeconfig").Inc()
+		defer k.logger.Debug("Kubeconfig loader goroutine stopped")
+
 		_, err := os.Stat(k.path)
 		i := 0
 		for i < k.maxRetries && err != nil && os.IsNotExist(err) {
@@ -169,11 +183,13 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 			i++
 		}
 		if err != nil {
+			metrics.ErrorCount.Inc()
 			k.logger.Errorf("Error checking kubeconfig file existence: %s", err)
 			return
 		}
 		k.logger.Infof("Kubeconfig file found, starting watcher: %s", k.path)
 		if err := k.watcher.Add(k.path); err != nil {
+			metrics.ErrorCount.Inc()
 			k.logger.Errorf("Error adding watcher for kubeconfig: %s", err)
 			return
 		}
@@ -206,6 +222,9 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 
 					// Attempt to re-add the watcher when the file is recreated
 					go func() {
+						k.logger.Debug("Kubeconfig loader rewatch goroutine started")
+						defer k.logger.Debug("Kubeconfig loader rewatch goroutine stopped")
+
 						k.logger.Infof("Waiting for kubeconfig file to be recreated: %s", k.path)
 						for i := 0; i < k.maxRetries; i++ {
 							if _, err := clientcmd.LoadFromFile(k.path); err == nil {

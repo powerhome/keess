@@ -2,6 +2,7 @@ package keess
 
 import (
 	"context"
+	"keess/pkg/keess/metrics"
 	"time"
 
 	"go.uber.org/zap"
@@ -33,6 +34,10 @@ func (w *SecretPoller) PollSecrets(ctx context.Context, opts metav1.ListOptions,
 	var interval time.Duration
 
 	go func() {
+		w.logger.Debug("Secret poller goroutine started")
+		metrics.GoroutinesInactive.WithLabelValues("secret").Dec()
+		defer metrics.GoroutinesInactive.WithLabelValues("secret").Inc()
+		defer w.logger.Debug("Secret poller goroutine stopped")
 		defer close(secretsChan)
 
 		for {
@@ -47,10 +52,19 @@ func (w *SecretPoller) PollSecrets(ctx context.Context, opts metav1.ListOptions,
 			case <-time.After(interval):
 				secrets, err := w.kubeClient.CoreV1().Secrets(metav1.NamespaceAll).List(ctx, opts)
 				if err != nil {
+					metrics.ErrorCount.Inc()
 					w.logger.Error("Failed to list secrets: ", err)
 					return
 				} else {
 					w.logger.Debugf("Found %d secrets.", len(secrets.Items))
+				}
+
+				// Update metrics based on label selector
+				switch opts.LabelSelector {
+				case ManagedLabelSelector:
+					metrics.ManagedResources.WithLabelValues("secret").Set(float64(len(secrets.Items)))
+				case LabelSelector:
+					metrics.SyncResources.WithLabelValues("secret").Set(float64(len(secrets.Items)))
 				}
 
 				for _, sc := range secrets.Items {

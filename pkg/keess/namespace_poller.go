@@ -2,6 +2,7 @@ package keess
 
 import (
 	"context"
+	"keess/pkg/keess/metrics"
 	"sync"
 	"time"
 
@@ -35,6 +36,11 @@ func (w *NamespacePoller) PollNamespaces(ctx context.Context, opts metav1.ListOp
 
 	var interval time.Duration
 	go func() {
+		w.logger.Debug("Namespace poller goroutine started")
+		metrics.GoroutinesInactive.WithLabelValues("namespace").Dec()
+		defer metrics.GoroutinesInactive.WithLabelValues("namespace").Inc()
+		defer w.logger.Debug("Namespace poller goroutine stopped")
+
 		for {
 			if w.startup {
 				interval = 0
@@ -46,6 +52,7 @@ func (w *NamespacePoller) PollNamespaces(ctx context.Context, opts metav1.ListOp
 			case <-time.After(interval):
 				namespaces, err := w.kubeClient.CoreV1().Namespaces().List(ctx, opts)
 				if err != nil {
+					metrics.ErrorCount.Inc()
 					w.logger.Error("Failed to list namespaces: ", err)
 					return
 				} else {

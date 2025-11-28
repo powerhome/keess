@@ -2,14 +2,14 @@ package service
 
 import (
 	"context"
+	"keess/pkg/keess"
+	"keess/pkg/keess/metrics"
 	"time"
 
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"keess/pkg/keess"
 )
 
 // A struct that can synchronize services in a Kubernetes cluster.
@@ -68,6 +68,11 @@ func (s *ServiceSynchronizer) startSyncing(ctx context.Context, pollInterval tim
 	}
 
 	go func() {
+		s.logger.Debug("Service synchronizer goroutine started")
+		metrics.GoroutinesInactive.WithLabelValues("service").Dec()
+		defer metrics.GoroutinesInactive.WithLabelValues("service").Inc()
+		defer s.logger.Debug("Service synchronizer goroutine stopped")
+
 		for {
 			select {
 			case service, ok := <-syncSvcChan:
@@ -81,6 +86,7 @@ func (s *ServiceSynchronizer) startSyncing(ctx context.Context, pollInterval tim
 				// Process the service
 				err := s.sync(ctx, service)
 				if err != nil {
+					metrics.ErrorCount.Inc()
 					s.logger.Error("[Service][startSyncing] Failed to sync service: ", err)
 				}
 
@@ -100,6 +106,7 @@ func (s *ServiceSynchronizer) sync(ctx context.Context, pacService PacService) e
 	// Check sync label is set to "cluster"
 	syncMode, exists := pacService.Service.Labels[keess.LabelSelector]
 	if !exists || syncMode != "cluster" {
+		metrics.ErrorCount.Inc()
 		s.logger.Error("[Service][sync] Service sync requires cluster sync mode (", keess.LabelSelector, ": cluster), skipping sync for service: ", pacService.Service.Name)
 		return nil
 	}
@@ -112,6 +119,7 @@ func (s *ServiceSynchronizer) sync(ctx context.Context, pacService PacService) e
 	}
 
 	if pacService.Service.Spec.Type != corev1.ServiceTypeClusterIP {
+		metrics.ErrorCount.Inc()
 		s.logger.Errorf("[Service][sync] Only ClusterIP services are supported for sync, found %s, skipping sync for service: %s", pacService.Service.Spec.Type, pacService.Service.Name)
 		return nil
 	}
@@ -127,6 +135,7 @@ func (s *ServiceSynchronizer) sync(ctx context.Context, pacService PacService) e
 			// Sync remotely
 			err := s.syncRemote(ctx, pacService, cluster)
 			if err != nil {
+				metrics.ErrorCount.Inc()
 				s.logger.Error("[Service][sync] Failed to sync service remotely: ", err)
 			}
 		}
@@ -142,6 +151,7 @@ func (s *ServiceSynchronizer) syncRemote(ctx context.Context, pacService PacServ
 
 	k, exists := s.remoteKubeClients[cluster]
 	if !exists {
+		metrics.ErrorCount.Inc()
 		s.logger.Error("[Service][syncRemote] Remote client not found: ", cluster)
 		return nil
 	}
@@ -152,6 +162,7 @@ func (s *ServiceSynchronizer) syncRemote(ctx context.Context, pacService PacServ
 		if errors.IsNotFound(err) {
 			s.CreateNamespaceForService(ctx, k, cluster, pacService)
 		} else {
+			metrics.ErrorCount.Inc()
 			s.logger.Error("[Service][syncRemote] Failed to get namespace in remote cluster: ", err)
 			return err
 		}
@@ -159,6 +170,7 @@ func (s *ServiceSynchronizer) syncRemote(ctx context.Context, pacService PacServ
 
 	err = s.createOrUpdate(ctx, k, pacService, cluster, pacService.Service.Namespace)
 	if err != nil {
+		metrics.ErrorCount.Inc()
 		s.logger.Error("[Service][syncRemote] Failed to create or update service: ", err)
 	}
 
@@ -182,6 +194,7 @@ func (s *ServiceSynchronizer) CreateNamespaceForService(ctx context.Context, k k
 
 	_, err := k.CoreV1().Namespaces().Create(ctx, ns, v1.CreateOptions{})
 	if err != nil {
+		metrics.ErrorCount.Inc()
 		s.logger.Error("[Service][syncRemote] Failed to create namespace in remote cluster: ", err)
 		return err
 	}
@@ -204,10 +217,12 @@ func (s *ServiceSynchronizer) createOrUpdate(ctx context.Context, k keess.IKubeC
 		if err == nil {
 			s.logger.Infof("[Service][createOrUpdate] Created service %s/%s in cluster %s", ns, svc.Name, cluster)
 		} else {
+			metrics.ErrorCount.Inc()
 			s.logger.Error("[Service][createOrUpdate] Failed to create service: ", err)
 		}
 		return err
 	} else if err != nil {
+		metrics.ErrorCount.Inc()
 		s.logger.Error("[Service][createOrUpdate] Failed to get existing services: ", err)
 		return err
 	}
@@ -231,6 +246,7 @@ func (s *ServiceSynchronizer) createOrUpdate(ctx context.Context, k keess.IKubeC
 		if err == nil {
 			s.logger.Infof("[Service][createOrUpdate] Updated service %s/%s in cluster %s", ns, svc.Name, cluster)
 		} else {
+			metrics.ErrorCount.Inc()
 			s.logger.Error("[Service][createOrUpdate] Failed to update service: ", err)
 		}
 		return err

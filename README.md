@@ -118,6 +118,46 @@ Keess will automatically create service references in the target clusters with:
 
 **Note:** Service synchronization only supports cluster-level sync. Namespace-level sync for services is not supported.
 
+## Debugging and Profiling
+
+You can turn on debug level log message by setting `--logLevel debug`.
+
+Also, Keess includes optional runtime profiling support via Go's pprof package for performance analysis and debugging. To enable the pprof server, use the `--enablePprof` flag.
+
+When using the Helm chart, enable those by setting:
+
+```yaml
+logLevel: debug
+enablePprof: true
+```
+
+**Security Note:** Only enable pprof in development or controlled environments, as it exposes runtime information that could be sensitive.
+
+### Using Profiling
+
+When enabled, the pprof server starts on port 6060 and provides the following endpoints:
+
+- `http://localhost:6060/debug/pprof/` - Main pprof index
+- `http://localhost:6060/debug/pprof/goroutine` - Goroutine analysis
+- `http://localhost:6060/debug/pprof/profile` - CPU profiling
+- `http://localhost:6060/debug/pprof/heap` - Memory profiling
+
+Example commands:
+
+```shell
+# Analyze current goroutines
+go tool pprof http://localhost:6060/debug/pprof/goroutine
+
+# Capture 30-second CPU profile
+go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
+
+# View memory allocation
+go tool pprof http://localhost:6060/debug/pprof/heap
+
+# Quick goroutine dump
+curl http://localhost:6060/debug/pprof/goroutine?debug=1
+```
+
 ## Contributing
 
 Contributions are welcome! Please refer to our [Contributing Guidelines](CONTRIBUTING.md) for more information.
