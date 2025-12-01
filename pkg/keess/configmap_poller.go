@@ -54,10 +54,10 @@ func (w *ConfigMapPoller) PollConfigMaps(ctx context.Context, opts metav1.ListOp
 				if err != nil {
 					metrics.ErrorCount.Inc()
 					w.logger.Error("Failed to list configMaps: ", err)
-					return
-				} else {
-					w.logger.Debugf("Found %d configMaps.", len(configMaps.Items))
+					continue
 				}
+
+				w.logger.Debugf("Found %d configMaps.", len(configMaps.Items))
 
 				// Update metrics based on label selector
 				switch opts.LabelSelector {

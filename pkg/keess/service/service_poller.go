@@ -55,10 +55,10 @@ func (w *ServicePoller) PollServices(ctx context.Context, opts metav1.ListOption
 				if err != nil {
 					metrics.ErrorCount.Inc()
 					w.logger.Error("Failed to list services: ", err)
-					return
-				} else {
-					w.logger.Debugf("Found %d services.", len(services.Items))
+					continue
 				}
+
+				w.logger.Debugf("Found %d services.", len(services.Items))
 
 				// Update metrics based on label selector
 				switch opts.LabelSelector {
