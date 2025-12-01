@@ -88,6 +88,77 @@ func TestConfigMapPoller_PollConfigMaps(t *testing.T) {
 	ctx.Done()
 }
 
+func TestConfigMapPoller_PollConfigMaps_ErrorRecovery(t *testing.T) {
+	cluster := "test-cluster"
+
+	// Create a client that will fail the first 2 List operations, then succeed
+	fakeClient := fake.NewSimpleClientset()
+	mockKubeClient := NewErrorInjectingMockKubeClient(fakeClient, 2)
+
+	logger := zap.NewNop().Sugar()
+
+	configMapPoller := &ConfigMapPoller{
+		cluster:    cluster,
+		kubeClient: mockKubeClient,
+		logger:     logger,
+		startup:    true,
+	}
+
+	opts := metav1.ListOptions{}
+	pollInterval := 500 * time.Millisecond
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Create test configMap
+	testConfigMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-configmap",
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"key": "value",
+		},
+	}
+
+	_, err := fakeClient.CoreV1().ConfigMaps(testConfigMap.Namespace).Create(ctx, testConfigMap, metav1.CreateOptions{})
+	assert.NoError(t, err, "Failed to create test configMap")
+
+	configMapsChan, err := configMapPoller.PollConfigMaps(ctx, opts, pollInterval)
+	assert.NoError(t, err, "PollConfigMaps should not return an error")
+
+	receivedConfigMaps := make(map[string]bool)
+	done := make(chan bool)
+
+	// Collect configMaps from the channel
+	go func() {
+		for configMap := range configMapsChan {
+			receivedConfigMaps[configMap.ConfigMap.Name] = true
+		}
+		done <- true
+	}()
+
+	// Wait for multiple poll cycles (enough to go through errors and success)
+	// First poll: startup (immediate) - will fail (error 1)
+	// Second poll: after 500ms - will fail (error 2)
+	// Third poll: after 500ms - will succeed
+	time.Sleep(2 * time.Second)
+
+	// Cancel context to stop polling
+	cancel()
+
+	// Wait for channel to close
+	select {
+	case <-done:
+		// Channel closed successfully
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timeout waiting for channel to close")
+	}
+
+	// Verify that the goroutine survived the errors and successfully polled
+	assert.True(t, receivedConfigMaps[testConfigMap.Name], "ConfigMap should be received after error recovery")
+}
+
 // GroupVersionKind is a mock method for testing purposes
 func (ps *PacConfigMap) GroupVersionKind() schema.GroupVersionKind {
 	return schema.GroupVersionKind{}
