@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"keess/pkg/keess"
+
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"keess/pkg/keess"
 )
 
 func TestServicePoller_PollServices(t *testing.T) {
@@ -123,5 +124,85 @@ done:
 		if service.Cluster != "test-cluster" {
 			t.Errorf("Expected cluster to be 'test-cluster', got %s", service.Cluster)
 		}
+	}
+}
+
+func TestServicePoller_PollServices_ErrorRecovery(t *testing.T) {
+	// Create a client that will fail the first 2 List operations, then succeed
+	fakeClient := fake.NewSimpleClientset()
+	mockClient := keess.NewErrorInjectingMockKubeClient(fakeClient, 2)
+
+	logger := zap.NewNop().Sugar()
+
+	poller := NewServicePoller("test-cluster", mockClient, logger)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Create test service
+	testService := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-service",
+			Namespace: "default",
+			Labels: map[string]string{
+				keess.LabelSelector: "true",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{
+					Name:     "http",
+					Port:     80,
+					Protocol: corev1.ProtocolTCP,
+				},
+			},
+		},
+	}
+
+	_, err := fakeClient.CoreV1().Services(testService.Namespace).Create(ctx, testService, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Failed to create test service: %v", err)
+	}
+
+	// Start polling with short interval
+	servicesChan, err := poller.PollServices(ctx, metav1.ListOptions{
+		LabelSelector: keess.LabelSelector,
+	}, 500*time.Millisecond)
+
+	if err != nil {
+		t.Fatalf("Failed to start polling: %v", err)
+	}
+
+	receivedServices := make(map[string]bool)
+	done := make(chan bool)
+
+	// Collect services from the channel
+	go func() {
+		for service := range servicesChan {
+			receivedServices[service.Service.Name] = true
+		}
+		done <- true
+	}()
+
+	// Wait for multiple poll cycles (enough to go through errors and success)
+	// First poll: startup (immediate) - will fail (error 1)
+	// Second poll: after 500ms - will fail (error 2)
+	// Third poll: after 500ms - will succeed
+	time.Sleep(2 * time.Second)
+
+	// Cancel context to stop polling
+	cancel()
+
+	// Wait for channel to close
+	select {
+	case <-done:
+		// Channel closed successfully
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timeout waiting for channel to close")
+	}
+
+	// Verify that the goroutine survived the errors and successfully polled
+	if !receivedServices[testService.Name] {
+		t.Error("Service should be received after error recovery")
 	}
 }

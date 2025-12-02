@@ -54,11 +54,10 @@ func (w *NamespacePoller) PollNamespaces(ctx context.Context, opts metav1.ListOp
 				if err != nil {
 					metrics.ErrorCount.Inc()
 					w.logger.Error("Failed to list namespaces: ", err)
-					return
-				} else {
-					w.logger.Debugf("Found %d namespaces.", len(namespaces.Items))
+					continue
 				}
 
+				w.logger.Debugf("Found %d namespaces.", len(namespaces.Items))
 				w.updateNamespacesMap(namespaces.Items, cluster)
 
 			case <-ctx.Done():
