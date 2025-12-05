@@ -36,13 +36,13 @@ spec:
         {{- end }}
 
     - alert: KeessHighErrorRate
-      expr: rate(keess_errors_total[{{ .Values.metrics.alerts.errorRateInterval }}]) > {{ .Values.metrics.alerts.errorRateThreshold }}
-      for: {{ .Values.metrics.alerts.errorRateInterval }}
+      expr: sum(rate(keess_errors_total[5m])) > {{ .Values.metrics.alerts.errorsPerSecondThreshold }}
+      for: 5m
       labels:
         severity: warning
       annotations:
         summary: "Keess is experiencing a high error rate"
-        description: "Keess error rate is {{ `{{ $value | humanize }}` }} errors/{{ .Values.metrics.alerts.errorRateInterval }} (threshold: {{ .Values.metrics.alerts.errorRateThreshold }}). Pod: {{ `{{ $labels.pod }}` }}"
+        description: "Keess error rate is {{ `{{ $value | humanize }}` }} errors/sec (threshold: {{ .Values.metrics.alerts.errorsPerSecondThreshold }}). Pod: {{ `{{ $labels.pod }}` }}"
         {{- if .Values.metrics.alerts.runbookUrls.highErrorRate }}
         runbook_url: {{ .Values.metrics.alerts.runbookUrls.highErrorRate | quote }}
         {{- end }}
