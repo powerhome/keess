@@ -54,10 +54,10 @@ func (w *SecretPoller) PollSecrets(ctx context.Context, opts metav1.ListOptions,
 				if err != nil {
 					metrics.ErrorCount.Inc()
 					w.logger.Error("Failed to list secrets: ", err)
-					return
-				} else {
-					w.logger.Debugf("Found %d secrets.", len(secrets.Items))
+					continue
 				}
+
+				w.logger.Debugf("Found %d secrets.", len(secrets.Items))
 
 				// Update metrics based on label selector
 				switch opts.LabelSelector {
