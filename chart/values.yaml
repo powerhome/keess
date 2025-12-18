@@ -96,10 +96,8 @@ metrics:
   alerts:
     # Enable PrometheusRule creation
     enabled: true
-    # Error rate threshold for keess_errors_total alert (errors per interval)
-    errorRateThreshold: 10
-    # Time interval for calculating error rate (e.g., 10m, 5m, 15m)
-    errorRateInterval: 10m
+    # Error rate threshold for keess_errors_total, per **second**. So 0.2 means 12 errors per minute.
+    errorsPerSecondThreshold: 0.2
     # Runbook URLs for alerts (optional)
     runbookUrls:
       # Runbook URL for KeessRemoteInitializationFailed alert
