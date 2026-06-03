@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test $(go list ./... | grep -v keess/tests/e2e)
+
+      - name: Detect changed files
+        id: changes
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          CHANGED=$(git diff --name-only "$BASE" "$HEAD")
+          DOCKER_CHANGES=$(echo "$CHANGED" | grep '^Dockerfile' | grep -v '\.dockerignore$' || true)
+          CHART_CHANGES=$(echo "$CHANGED" | grep '^chart/' || true)
+          if [ -n "$DOCKER_CHANGES" ]; then
+            echo "has_dockerfiles=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_dockerfiles=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -n "$CHART_CHANGES" ]; then
+            echo "has_chart=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_chart=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Docker build
+        if: steps.changes.outputs.has_dockerfiles == 'true'
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          git diff --name-only "$BASE" "$HEAD" | grep '^Dockerfile' | grep -v '\.dockerignore$' | xargs -I{} sh -c 'echo "Building {}" && docker build -f {} .'
+
+      - name: Install Helm
+        if: steps.changes.outputs.has_chart == 'true'
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
+
+      - name: Helm lint
+        if: steps.changes.outputs.has_chart == 'true'
+        run: helm lint chart/
