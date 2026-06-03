@@ -62,7 +62,7 @@ Extract: module path, old version, new version. The line has no `// indirect` su
 **Tier 2 — standard analysis:**
 - These direct Go runtime deps at minor or patch bump: `go.uber.org/zap`, `github.com/prometheus/client_golang`, `github.com/spf13/cobra`, `github.com/spf13/viper`, `github.com/fsnotify/fsnotify`
 - ci-kubed Jenkinsfile library at any semver jump
-- GitHub Actions changes (this repo pins actions by SHA so every bump is a real code change)
+- GitHub Actions changes — this repo uses a mix of SHA-pinned and tag-based action refs; every bump to a `uses:` line represents a real code change regardless
 - Docker base image changes that are not digest-only
 
 **Tier 3 — confirmation only:**
@@ -166,7 +166,7 @@ CURRENT_BRANCH=$(git branch --show-current)
 if [ -z "$CURRENT_BRANCH" ]; then CURRENT_BRANCH=$(git rev-parse HEAD); fi
 gh pr checkout <number>
 go build ./...
-go test ./... -timeout 120s
+go test $(go list ./... | grep -v keess/tests/e2e) -timeout 120s
 ```
 
 If any of `Dockerfile`, `Dockerfile.kubeconfig-reloader`, or `Dockerfile.localTest` changed in the PR diff, build the changed ones:
