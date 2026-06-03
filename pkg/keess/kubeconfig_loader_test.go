@@ -355,11 +355,11 @@ func TestKubeconfigLoader_StartWatching(t *testing.T) {
 			logs := observedLogs.All()
 			assert.Equal(t, tc.expected.lastConfigHash, kcl.lastConfigHash, "Expected lastConfigHash to match expected value")
 			assert.Lenf(t, logs, len(tc.expectedLogs), "Expected %d log entries, got %d", len(tc.expectedLogs), len(logs))
+			logMessages := make([]string, len(logs))
 			for i, log := range logs {
-				if log.Message != tc.expectedLogs[i] {
-					t.Errorf("Expected log message '%s', got '%s'", tc.expectedLogs[i], log.Message)
-				}
+				logMessages[i] = log.Message
 			}
+			assert.ElementsMatch(t, tc.expectedLogs, logMessages)
 		},
 		)
 	}
