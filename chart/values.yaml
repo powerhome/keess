@@ -6,7 +6,7 @@ image:
   repository: powerhome/keess
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: "@sha256:e9c74d6ed4c935a5e0e2159ab7464baaacc3e438f045a6d047b7a34888732026"
 
 # Default Keess config
 logLevel: "info"
@@ -183,7 +183,7 @@ kubeconfigReloader:
   image:
     repository: powerhome/keess-kubeconfig-reloader
     pullPolicy: IfNotPresent
-    tag: ""
+    tag: "@sha256:4c7d00afcc9eb8f03d3629d0adb108f2fd433e0058d24aff3b2cc05ec817dd09"
   config:
     s3:
       endpoint: https://s3.us-east-1.amazonaws.com
