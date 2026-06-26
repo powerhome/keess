@@ -24,7 +24,7 @@ RUN --mount=type=cache,id=keess-go-cache,target=/root/.cache/go-build \
     go build -o keess .
 
 # Stage 2: Build a small image
-FROM alpine@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
+FROM alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 
 # Copy the binary from the builder stage
 COPY --from=builder /build/keess /app/keess
