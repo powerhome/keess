@@ -45,7 +45,7 @@ spec:
       containers:
       {{- if and .Values.kubeconfigReloader.enabled (not .Values.config.kubeconfigContent) }}
         - name: {{ .Chart.Name }}-config-reloader
-          image: "{{ .Values.kubeconfigReloader.image.repository }}:{{ .Values.kubeconfigReloader.image.tag | default .Chart.AppVersion }}"
+          image: "{{ include "keess.image" (dict "repository" .Values.kubeconfigReloader.image.repository "tag" .Values.kubeconfigReloader.image.tag "defaultTag" .Chart.AppVersion) }}"
           imagePullPolicy: {{ .Values.kubeconfigReloader.image.pullPolicy }}
           env:
             - name: S3_ENDPOINT
@@ -75,7 +75,7 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: "{{ include "keess.image" (dict "repository" .Values.image.repository "tag" .Values.image.tag "defaultTag" .Chart.AppVersion) }}"
           args:
             - --logLevel={{ .Values.logLevel }}
             - --localCluster={{ .Values.localCluster }}
