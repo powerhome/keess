@@ -1,0 +1,91 @@
+version: 2
+
+project_name: keess
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: keess
+    main: .
+    binary: keess
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+
+archives:
+  - name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+
+dockers:
+  - id: keess
+    use: buildx
+    dockerfile: Dockerfile
+    image_templates:
+      - "image-registry.powerapp.cloud/keess/keess:{{ .Version }}"
+      - "image-registry.powerapp.cloud/keess/keess:latest"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--push"
+      - "--label=org.opencontainers.image.title=keess"
+      - "--label=org.opencontainers.image.source=https://github.com/powerhome/keess"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+    extra_files:
+      - go.mod
+      - go.sum
+      - main.go
+      - cmd
+      - pkg
+
+  - id: kubeconfig-reloader
+    use: buildx
+    dockerfile: Dockerfile.kubeconfig-reloader
+    image_templates:
+      - "image-registry.powerapp.cloud/keess/keess-kubeconfig-reloader:{{ .Version }}"
+      - "image-registry.powerapp.cloud/keess/keess-kubeconfig-reloader:latest"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--push"
+      - "--label=org.opencontainers.image.title=keess-kubeconfig-reloader"
+      - "--label=org.opencontainers.image.source=https://github.com/powerhome/keess"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+    extra_files:
+      - extra
+
+release:
+  github:
+    owner: powerhome
+    name: keess
+  prerelease: auto
+  draft: false
+  name_template: "{{ .Tag }}"
