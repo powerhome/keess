@@ -3,5 +3,13 @@
   "extends": [
     "local>powerhome/renovate-config",
     "group:allNonMajor"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["powerhome/ci-kubed"],
+      "enabled": false,
+      "description": "ci-kubed is private and the Renovate GitHub App lacks read access to it, so release lookups always fail with no-result."
+    }
   ]
 }
