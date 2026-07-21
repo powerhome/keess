@@ -3,5 +3,12 @@
   "extends": [
     "local>powerhome/renovate-config",
     "group:allNonMajor"
+  ],
+  "hostRules": [
+    {
+      "matchHost": "https://api.github.com/repos/powerhome/ci-kubed",
+      "hostType": "github-releases",
+      "token": "{{ secrets.CI_KUBED_READ_TOKEN }}"
+    }
   ]
 }
