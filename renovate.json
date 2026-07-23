@@ -2,13 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "local>powerhome/renovate-config",
+    "local>powerhome/renovate-config:ci-kubed-read-token",
     "group:allNonMajor"
-  ],
-  "hostRules": [
-    {
-      "matchHost": "https://api.github.com/repos/powerhome/ci-kubed",
-      "hostType": "github-releases",
-      "token": "{{ secrets.CI_KUBED_READ_TOKEN }}"
-    }
   ]
 }
