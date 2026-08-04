@@ -13,9 +13,6 @@
 this is here to help you REMEMBER to:
 -->
 - [ ] Update the Helm chart version and/or appVersion if those are changed
-- [ ] Update cmd/version.go if code was changed
-- [ ] Publish the new keess image
-- [ ] Publish the new kubeconfig-reloader image
 - [ ] Updated docs/ or /README.md if needed
 
 ## 🧪 How this was tested? And test results
