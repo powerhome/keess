@@ -92,26 +92,26 @@ func cleanupTestResources(ctx context.Context) {
 
 	// Clean up ConfigMaps
 	if sourceClusterClient != nil {
-		sourceClusterClient.CoreV1().ConfigMaps("default").Delete(ctx, "app-config", metav1.DeleteOptions{})
+		_ = sourceClusterClient.CoreV1().ConfigMaps("default").Delete(ctx, "app-config", metav1.DeleteOptions{})
 	}
 	if destinationClusterClient != nil {
-		destinationClusterClient.CoreV1().ConfigMaps("default").Delete(ctx, "app-config", metav1.DeleteOptions{})
+		_ = destinationClusterClient.CoreV1().ConfigMaps("default").Delete(ctx, "app-config", metav1.DeleteOptions{})
 	}
 
 	// Clean up Secrets
 	if sourceClusterClient != nil {
-		sourceClusterClient.CoreV1().Secrets("default").Delete(ctx, "app-secret", metav1.DeleteOptions{})
+		_ = sourceClusterClient.CoreV1().Secrets("default").Delete(ctx, "app-secret", metav1.DeleteOptions{})
 	}
 	if destinationClusterClient != nil {
-		destinationClusterClient.CoreV1().Secrets("default").Delete(ctx, "app-secret", metav1.DeleteOptions{})
+		_ = destinationClusterClient.CoreV1().Secrets("default").Delete(ctx, "app-secret", metav1.DeleteOptions{})
 	}
 
 	// Clean up Services
 	if sourceClusterClient != nil {
-		sourceClusterClient.CoreV1().Services("my-namespace").Delete(ctx, "mysql-svc", metav1.DeleteOptions{})
+		_ = sourceClusterClient.CoreV1().Services("my-namespace").Delete(ctx, "mysql-svc", metav1.DeleteOptions{})
 	}
 	if destinationClusterClient != nil {
-		destinationClusterClient.CoreV1().Services("my-namespace").Delete(ctx, "mysql-svc", metav1.DeleteOptions{})
+		_ = destinationClusterClient.CoreV1().Services("my-namespace").Delete(ctx, "mysql-svc", metav1.DeleteOptions{})
 	}
 }
 

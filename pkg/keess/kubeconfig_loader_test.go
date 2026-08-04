@@ -48,7 +48,7 @@ func TestKubeconfigLoader_Cleanup(t *testing.T) {
 	}
 
 	kcl.Cleanup()
-	kcl.logger.Sync()
+	_ = kcl.logger.Sync()
 	logs := observedLogs.All()
 	if len(logs) != 1 {
 		t.Errorf("Expected 1 log entry, got %d", len(logs))
@@ -170,7 +170,7 @@ func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 				assert.Empty(t, kcl.remoteKubeClients.clients, "Expected remoteKubeClients.clients to be empty")
 			}
 
-			kcl.logger.Sync()
+			_ = kcl.logger.Sync()
 			logs := observedLogs.All()
 			assert.Lenf(t, logs, len(tc.expectedLogs), "Expected %d log entries, got %d", len(tc.expectedLogs), len(logs))
 			for i, log := range logs {
@@ -312,7 +312,7 @@ func TestKubeconfigLoader_StartWatching(t *testing.T) {
 					t.Fatalf("Failed to write destination kubeconfig file: %v", err)
 				}
 				t.Cleanup(func() {
-					os.Remove(dstFile)
+					_ = os.Remove(dstFile)
 				})
 			} else {
 				dstFile = tc.kubeConfigPath
@@ -325,15 +325,15 @@ func TestKubeconfigLoader_StartWatching(t *testing.T) {
 			if tc.createKubeconfig {
 				time.Sleep(time.Duration(2) * time.Second)
 				emptyKubeConfig := []byte("apiVersion: v1\nclusters: []\ncontexts: []\n")
-				os.WriteFile(tc.kubeConfigPath, emptyKubeConfig, 0644)
+				_ = os.WriteFile(tc.kubeConfigPath, emptyKubeConfig, 0644)
 				t.Cleanup(func() {
-					os.Remove(tc.kubeConfigPath)
+					_ = os.Remove(tc.kubeConfigPath)
 				})
 			}
 
 			if tc.deleteKubeConfigPath {
 				time.Sleep(time.Duration(3) * time.Second)
-				os.Remove(dstFile)
+				_ = os.Remove(dstFile)
 			}
 
 			if tc.recreateKubeConfigPath {
@@ -351,7 +351,7 @@ func TestKubeconfigLoader_StartWatching(t *testing.T) {
 			time.Sleep(time.Duration(tc.timeToWait) * time.Second)
 			cancel()
 
-			kcl.logger.Sync()
+			_ = kcl.logger.Sync()
 			logs := observedLogs.All()
 			assert.Equal(t, tc.expected.lastConfigHash, kcl.lastConfigHash, "Expected lastConfigHash to match expected value")
 			assert.Lenf(t, logs, len(tc.expectedLogs), "Expected %d log entries, got %d", len(tc.expectedLogs), len(logs))
