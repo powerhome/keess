@@ -82,7 +82,7 @@ func (s *ConfigMapSynchronizer) deleteOrphans(ctx context.Context, pollInterval 
 				sourceCluster := configMap.ConfigMap.Annotations[SourceClusterAnnotation]
 				sourceNamespace := configMap.ConfigMap.Annotations[SourceNamespaceAnnotation]
 
-				var isLocal bool = false
+				isLocal := false
 				var remoteKubeClient IKubeClient
 				if sourceCluster == configMap.Cluster {
 					remoteKubeClient = s.localKubeClient
@@ -222,7 +222,7 @@ func (s *ConfigMapSynchronizer) startSyncyng(ctx context.Context, pollInterval t
 					return
 				}
 
-				s.sync(ctx, configMap)
+				_ = s.sync(ctx, configMap)
 
 			case <-ctx.Done():
 				s.logger.Warn("ConfigMap synchronization stopped by context cancellation.")
@@ -266,7 +266,7 @@ func (s *ConfigMapSynchronizer) syncLocal(ctx context.Context, pacConfigMap PacC
 
 			// Synchronize the configMap if the namespace has the label
 			if labelValue, ok := namespace.Namespace.Labels[key]; ok && labelValue == value {
-				s.createOrUpdate(ctx, s.localKubeClient, pacConfigMap, pacConfigMap.Cluster, namespace.Namespace.Name)
+				_ = s.createOrUpdate(ctx, s.localKubeClient, pacConfigMap, pacConfigMap.Cluster, namespace.Namespace.Name)
 			}
 		}
 
@@ -289,7 +289,7 @@ func (s *ConfigMapSynchronizer) syncLocal(ctx context.Context, pacConfigMap PacC
 				continue
 			}
 
-			s.createOrUpdate(ctx, s.localKubeClient, pacConfigMap, pacConfigMap.Cluster, namespace)
+			_ = s.createOrUpdate(ctx, s.localKubeClient, pacConfigMap, pacConfigMap.Cluster, namespace)
 		}
 		return nil
 	}
@@ -306,7 +306,7 @@ func (s *ConfigMapSynchronizer) syncLocal(ctx context.Context, pacConfigMap PacC
 				continue
 			}
 
-			s.createOrUpdate(ctx, s.localKubeClient, pacConfigMap, pacConfigMap.Cluster, namespace.Namespace.Name)
+			_ = s.createOrUpdate(ctx, s.localKubeClient, pacConfigMap, pacConfigMap.Cluster, namespace.Namespace.Name)
 		}
 		return nil
 	}
@@ -333,7 +333,7 @@ func (s *ConfigMapSynchronizer) syncRemote(ctx context.Context, pacConfigMap Pac
 			continue
 		}
 
-		s.createOrUpdate(ctx, client, pacConfigMap, cluster, pacConfigMap.ConfigMap.Namespace)
+		_ = s.createOrUpdate(ctx, client, pacConfigMap, cluster, pacConfigMap.ConfigMap.Namespace)
 	}
 
 	return nil

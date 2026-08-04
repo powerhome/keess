@@ -82,7 +82,7 @@ func (s *SecretSynchronizer) deleteOrphans(ctx context.Context, pollInterval tim
 				sourceCluster := secret.Secret.Annotations[SourceClusterAnnotation]
 				sourceNamespace := secret.Secret.Annotations[SourceNamespaceAnnotation]
 
-				var isLocal bool = false
+				isLocal := false
 				var remoteKubeClient IKubeClient
 				if sourceCluster == secret.Cluster {
 					remoteKubeClient = s.localKubeClient
@@ -222,7 +222,7 @@ func (s *SecretSynchronizer) startSyncyng(ctx context.Context, pollInterval time
 					return
 				}
 
-				s.sync(ctx, secret)
+				_ = s.sync(ctx, secret)
 
 			case <-ctx.Done():
 				s.logger.Warn("Secret synchronization stopped by context cancellation.")
@@ -266,7 +266,7 @@ func (s *SecretSynchronizer) syncLocal(ctx context.Context, pacSecret PacSecret)
 
 			// Synchronize the secret if the namespace has the label
 			if labelValue, ok := namespace.Namespace.Labels[key]; ok && labelValue == value {
-				s.createOrUpdate(ctx, s.localKubeClient, pacSecret, pacSecret.Cluster, namespace.Namespace.Name)
+				_ = s.createOrUpdate(ctx, s.localKubeClient, pacSecret, pacSecret.Cluster, namespace.Namespace.Name)
 			}
 		}
 
@@ -289,7 +289,7 @@ func (s *SecretSynchronizer) syncLocal(ctx context.Context, pacSecret PacSecret)
 				continue
 			}
 
-			s.createOrUpdate(ctx, s.localKubeClient, pacSecret, pacSecret.Cluster, namespace)
+			_ = s.createOrUpdate(ctx, s.localKubeClient, pacSecret, pacSecret.Cluster, namespace)
 		}
 		return nil
 	}
@@ -306,7 +306,7 @@ func (s *SecretSynchronizer) syncLocal(ctx context.Context, pacSecret PacSecret)
 				continue
 			}
 
-			s.createOrUpdate(ctx, s.localKubeClient, pacSecret, pacSecret.Cluster, namespace.Namespace.Name)
+			_ = s.createOrUpdate(ctx, s.localKubeClient, pacSecret, pacSecret.Cluster, namespace.Namespace.Name)
 		}
 		return nil
 	}
@@ -333,7 +333,7 @@ func (s *SecretSynchronizer) syncRemote(ctx context.Context, pacSecret PacSecret
 			continue
 		}
 
-		s.createOrUpdate(ctx, client, pacSecret, cluster, pacSecret.Secret.Namespace)
+		_ = s.createOrUpdate(ctx, client, pacSecret, cluster, pacSecret.Secret.Namespace)
 	}
 
 	return nil

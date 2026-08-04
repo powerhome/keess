@@ -160,7 +160,7 @@ func (s *ServiceSynchronizer) syncRemote(ctx context.Context, pacService PacServ
 	_, err := k.CoreV1().Namespaces().Get(ctx, pacService.Service.Namespace, v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			s.CreateNamespaceForService(ctx, k, cluster, pacService)
+			_ = s.CreateNamespaceForService(ctx, k, cluster, pacService)
 		} else {
 			metrics.ErrorCount.Inc()
 			s.logger.Error("[Service][syncRemote] Failed to get namespace in remote cluster: ", err)

@@ -73,10 +73,7 @@ func TestSecretPoller_PollSecrets(t *testing.T) {
 	}()
 
 	// Wait for the secrets to be received
-	for {
-		if len(receivedSecrets) == len(testSecrets) {
-			break
-		}
+	for len(receivedSecrets) != len(testSecrets) {
 		time.Sleep(1 * time.Second)
 	}
 

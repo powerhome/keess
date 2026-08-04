@@ -73,10 +73,7 @@ func TestConfigMapPoller_PollConfigMaps(t *testing.T) {
 	}()
 
 	// Wait for the configMaps to be received
-	for {
-		if len(receivedConfigMaps) == len(testConfigMaps) {
-			break
-		}
+	for len(receivedConfigMaps) != len(testConfigMaps) {
 		time.Sleep(1 * time.Second)
 	}
 
