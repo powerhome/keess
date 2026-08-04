@@ -18,7 +18,7 @@ ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/arm64/arm64/;s/aarch64/arm64/'
 GOBASE := $(shell pwd)
 GOBIN := $(GOBASE)/bin
 
-.PHONY: build docker-build coverage run docker-run create-local-clusters create-local-clusters-pac-v1 delete-local-clusters install-cilium-cli install-cilium-to-clusters install-keess setup-local-clusters setup-local-clusters-with-keess local-docker-run tests tests-e2e tests-python-e2e help
+.PHONY: build docker-build coverage run docker-run create-local-clusters create-local-clusters-pac-v1 delete-local-clusters install-cilium-cli install-cilium-to-clusters install-keess setup-local-clusters setup-local-clusters-with-keess local-docker-run tests tests-e2e tests-python-e2e tag-release help
 
 # Build the project
 build:
@@ -31,14 +31,31 @@ docker-build:
 	@echo "Building Docker image..."
 	@docker build -t $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .
 
-## Build and publish Docker image to Docker Hub Powerhome repo (requires appropriate Docker Hub credentials)
+## Tag and push a release tag, triggering the GoReleaser release workflow which
+## builds and publishes both the keess and kubeconfig-reloader images to Docker Hub.
+## chart/Chart.yaml (version and appVersion) must already be bumped to VERSION and merged to main.
 ## Run it with:
-##   make powerhome-build-and-publish DOCKER_TAG=x.y.z
-powerhome-build-and-publish:
-	docker build  --platform=linux/amd64 -t powerhome/keess:$(DOCKER_TAG) .
-	docker build  --platform=linux/amd64 -f Dockerfile.kubeconfig-reloader -t powerhome/keess-kubeconfig-reloader:$(DOCKER_TAG) .
-	docker push powerhome/keess:$(DOCKER_TAG)
-	docker push powerhome/keess-kubeconfig-reloader:$(DOCKER_TAG)
+##   make tag-release VERSION=1.4.2 [IGNORE_BRANCH_CHECK=true]
+tag-release:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "VERSION must be set (e.g. make tag-release VERSION=1.4.2)"; exit 1; \
+	fi
+	@if ! echo "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+		echo "VERSION must be a bare semver, e.g. 1.4.2 (this repo's tags have no 'v' prefix)"; exit 1; \
+	fi
+	@if [ "$(IGNORE_BRANCH_CHECK)" != "true" ]; then \
+		CURRENT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
+		if [ "$$CURRENT_BRANCH" != "main" ]; then \
+			echo "Error: You must be on the 'main' branch to create releases. Current branch: $$CURRENT_BRANCH"; \
+			echo "Use IGNORE_BRANCH_CHECK=true to skip this check."; \
+			exit 1; \
+		fi; \
+	fi
+	@if ! grep -q "^appVersion: \"$(VERSION)\"" chart/Chart.yaml; then \
+		echo "Warning: chart/Chart.yaml appVersion is not $(VERSION); the release workflow will refuse this tag. Bump and merge the chart first."; \
+	fi
+	git tag $(VERSION) -m "Release $(VERSION)"
+	git push origin $(VERSION)
 
 # New target for code coverage
 coverage:
@@ -185,6 +202,7 @@ help:
 	@echo "tests-python-e2e                - Run python e2e tests using docker (namespace sync focused)"
 	@echo "tests-all                       - Run all tests (unit + e2e)"
 	@echo "delete-local-clusters           - Delete the 2 local clusters created with Kind"
+	@echo "tag-release                     - Tag and push a release (VERSION=x.y.z), triggering the GoReleaser image release"
 	@echo "--------------------------------"
 	@echo "## Other Makefile commands:"
 	@echo "--------------------------------"

@@ -1,0 +1,56 @@
+version: 2
+
+project_name: keess
+
+builds:
+  - id: keess
+    main: .
+    binary: keess
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X keess/cmd.Version={{ .Version }}
+    goos:
+      - linux
+    goarch:
+      - amd64
+
+dockers_v2:
+  - id: keess
+    dockerfile: goreleaser.Dockerfile
+    images:
+      - powerhome/keess
+    tags:
+      - "{{ .Version }}"
+      - latest
+    platforms:
+      - linux/amd64
+    sbom: false
+    flags:
+      - "--provenance=false"
+    labels:
+      org.opencontainers.image.source: "https://github.com/powerhome/keess"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+
+  - id: kubeconfig-reloader
+    dockerfile: Dockerfile.kubeconfig-reloader
+    images:
+      - powerhome/keess-kubeconfig-reloader
+    tags:
+      - "{{ .Version }}"
+      - latest
+    platforms:
+      - linux/amd64
+    sbom: false
+    flags:
+      - "--provenance=false"
+    extra_files:
+      - extra/kubeconfig-reloader.sh
+    labels:
+      org.opencontainers.image.source: "https://github.com/powerhome/keess"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+
+release:
+  prerelease: auto
