@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
@@ -54,11 +54,11 @@ func GetPodCIDRs(ctx context.Context, coreV1 v1.CoreV1Interface) ([]string, erro
 	return cidrs, nil
 }
 
-// IsEndpointFromLocalPodNet checks if the given endpoints contain addresses that belong
+// IsEndpointFromLocalPodNet checks if the given endpoint slices contain addresses that belong
 // to any of the provided pod CIDR ranges. It returns true if at least one endpoint
-// address (including not-ready addresses) is found within any of the pod networks.
-func IsEndpointFromLocalPodNet(endpoints *corev1.Endpoints, podCIDRs []string) (bool, error) {
-	if endpoints == nil || len(podCIDRs) == 0 {
+// address (regardless of readiness) is found within any of the pod networks.
+func IsEndpointFromLocalPodNet(endpointSlices []discoveryv1.EndpointSlice, podCIDRs []string) (bool, error) {
+	if len(endpointSlices) == 0 || len(podCIDRs) == 0 {
 		return false, nil
 	}
 
@@ -72,18 +72,15 @@ func IsEndpointFromLocalPodNet(endpoints *corev1.Endpoints, podCIDRs []string) (
 		podNetworks = append(podNetworks, podNet)
 	}
 
-	// Check if any endpoint addresses are in any of the local pod CIDRs
-	for _, subset := range endpoints.Subsets {
-		// Check ready addresses
-		for _, addr := range subset.Addresses {
-			if isIPInNetworks(addr.IP, podNetworks) {
-				return true, nil
-			}
-		}
-		// Also check NotReadyAddresses in case pods are starting up
-		for _, addr := range subset.NotReadyAddresses {
-			if isIPInNetworks(addr.IP, podNetworks) {
-				return true, nil
+	// Check if any endpoint addresses are in any of the local pod CIDRs.
+	// Readiness conditions are deliberately ignored so that addresses of
+	// pods that are still starting up are counted as well.
+	for _, slice := range endpointSlices {
+		for _, endpoint := range slice.Endpoints {
+			for _, addr := range endpoint.Addresses {
+				if isIPInNetworks(addr, podNetworks) {
+					return true, nil
+				}
 			}
 		}
 	}

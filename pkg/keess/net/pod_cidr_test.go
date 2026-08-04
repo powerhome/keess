@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -156,22 +157,25 @@ func TestGetPodCIDRs(t *testing.T) {
 	}
 }
 
+func boolPtr(b bool) *bool {
+	return &b
+}
+
 func TestIsEndpointFromLocalPodNet(t *testing.T) {
 	tests := []struct {
-		name      string
-		endpoints *corev1.Endpoints
-		podCIDRs  []string
-		expected  bool
-		wantError bool
+		name           string
+		endpointSlices []discoveryv1.EndpointSlice
+		podCIDRs       []string
+		expected       bool
+		wantError      bool
 	}{
 		{
 			name: "endpoint IP in pod CIDR",
-			endpoints: &corev1.Endpoints{
-				Subsets: []corev1.EndpointSubset{
-					{
-						Addresses: []corev1.EndpointAddress{
-							{IP: "10.244.1.5"},
-						},
+			endpointSlices: []discoveryv1.EndpointSlice{
+				{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
+						{Addresses: []string{"10.244.1.5"}},
 					},
 				},
 			},
@@ -180,12 +184,11 @@ func TestIsEndpointFromLocalPodNet(t *testing.T) {
 		},
 		{
 			name: "endpoint IP not in pod CIDR",
-			endpoints: &corev1.Endpoints{
-				Subsets: []corev1.EndpointSubset{
-					{
-						Addresses: []corev1.EndpointAddress{
-							{IP: "192.168.1.5"},
-						},
+			endpointSlices: []discoveryv1.EndpointSlice{
+				{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
+						{Addresses: []string{"192.168.1.5"}},
 					},
 				},
 			},
@@ -193,12 +196,16 @@ func TestIsEndpointFromLocalPodNet(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "endpoint IP in not-ready addresses",
-			endpoints: &corev1.Endpoints{
-				Subsets: []corev1.EndpointSubset{
-					{
-						NotReadyAddresses: []corev1.EndpointAddress{
-							{IP: "10.244.1.5"},
+			name: "endpoint IP in not-ready endpoint",
+			endpointSlices: []discoveryv1.EndpointSlice{
+				{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
+						{
+							Addresses: []string{"10.244.1.5"},
+							Conditions: discoveryv1.EndpointConditions{
+								Ready: boolPtr(false),
+							},
 						},
 					},
 				},
@@ -208,12 +215,11 @@ func TestIsEndpointFromLocalPodNet(t *testing.T) {
 		},
 		{
 			name: "multiple CIDRs, matches second one",
-			endpoints: &corev1.Endpoints{
-				Subsets: []corev1.EndpointSubset{
-					{
-						Addresses: []corev1.EndpointAddress{
-							{IP: "10.245.1.5"},
-						},
+			endpointSlices: []discoveryv1.EndpointSlice{
+				{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
+						{Addresses: []string{"10.245.1.5"}},
 					},
 				},
 			},
@@ -222,12 +228,11 @@ func TestIsEndpointFromLocalPodNet(t *testing.T) {
 		},
 		{
 			name: "dual-stack CIDRs with IPv6",
-			endpoints: &corev1.Endpoints{
-				Subsets: []corev1.EndpointSubset{
-					{
-						Addresses: []corev1.EndpointAddress{
-							{IP: "2001:db8::1"},
-						},
+			endpointSlices: []discoveryv1.EndpointSlice{
+				{
+					AddressType: discoveryv1.AddressTypeIPv6,
+					Endpoints: []discoveryv1.Endpoint{
+						{Addresses: []string{"2001:db8::1"}},
 					},
 				},
 			},
@@ -235,19 +240,18 @@ func TestIsEndpointFromLocalPodNet(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:      "nil endpoints",
-			endpoints: nil,
-			podCIDRs:  []string{"10.244.0.0/16"},
-			expected:  false,
+			name:           "nil endpoint slices",
+			endpointSlices: nil,
+			podCIDRs:       []string{"10.244.0.0/16"},
+			expected:       false,
 		},
 		{
 			name: "empty podCIDRs",
-			endpoints: &corev1.Endpoints{
-				Subsets: []corev1.EndpointSubset{
-					{
-						Addresses: []corev1.EndpointAddress{
-							{IP: "10.244.1.5"},
-						},
+			endpointSlices: []discoveryv1.EndpointSlice{
+				{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
+						{Addresses: []string{"10.244.1.5"}},
 					},
 				},
 			},
@@ -256,12 +260,11 @@ func TestIsEndpointFromLocalPodNet(t *testing.T) {
 		},
 		{
 			name: "invalid CIDR",
-			endpoints: &corev1.Endpoints{
-				Subsets: []corev1.EndpointSubset{
-					{
-						Addresses: []corev1.EndpointAddress{
-							{IP: "10.244.1.5"},
-						},
+			endpointSlices: []discoveryv1.EndpointSlice{
+				{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
+						{Addresses: []string{"10.244.1.5"}},
 					},
 				},
 			},
@@ -271,23 +274,54 @@ func TestIsEndpointFromLocalPodNet(t *testing.T) {
 		},
 		{
 			name: "invalid IP address",
-			endpoints: &corev1.Endpoints{
-				Subsets: []corev1.EndpointSubset{
-					{
-						Addresses: []corev1.EndpointAddress{
-							{IP: "invalid-ip"},
-						},
+			endpointSlices: []discoveryv1.EndpointSlice{
+				{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
+						{Addresses: []string{"invalid-ip"}},
 					},
 				},
 			},
 			podCIDRs: []string{"10.244.0.0/16"},
 			expected: false,
 		},
+		{
+			name: "match only in second endpoint slice",
+			endpointSlices: []discoveryv1.EndpointSlice{
+				{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
+						{Addresses: []string{"192.168.1.5"}},
+					},
+				},
+				{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
+						{Addresses: []string{"10.244.1.5"}},
+					},
+				},
+			},
+			podCIDRs: []string{"10.244.0.0/16"},
+			expected: true,
+		},
+		{
+			name: "match only in last address of endpoint",
+			endpointSlices: []discoveryv1.EndpointSlice{
+				{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
+						{Addresses: []string{"192.168.1.5", "172.16.0.1", "10.244.1.5"}},
+					},
+				},
+			},
+			podCIDRs: []string{"10.244.0.0/16"},
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := IsEndpointFromLocalPodNet(tt.endpoints, tt.podCIDRs)
+			result, err := IsEndpointFromLocalPodNet(tt.endpointSlices, tt.podCIDRs)
 
 			if tt.wantError {
 				if err == nil {

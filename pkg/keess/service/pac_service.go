@@ -7,7 +7,7 @@ import (
 	keessnet "keess/pkg/keess/net"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -97,17 +97,16 @@ func (s *PacService) HasLocalEndpoints(ctx context.Context, localKubeClient kees
 		return false, fmt.Errorf("failed to get pod CIDRs: %w", err)
 	}
 
-	// Get endpoints for the service
-	endpoints, err := localKubeClient.CoreV1().Endpoints(s.Service.Namespace).Get(ctx, s.Service.Name, metav1.GetOptions{})
+	// Get the EndpointSlices for the service
+	sliceList, err := localKubeClient.DiscoveryV1().EndpointSlices(s.Service.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: discoveryv1.LabelServiceName + "=" + s.Service.Name,
+	})
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return false, nil // No endpoints means no local endpoints
-		}
-		return false, fmt.Errorf("failed to get endpoints for service %s/%s: %w", s.Service.Namespace, s.Service.Name, err)
+		return false, fmt.Errorf("failed to list endpoint slices for service %s/%s: %w", s.Service.Namespace, s.Service.Name, err)
 	}
 
 	// Check if any endpoint addresses are in the local pod CIDRs
-	hasLocal, err := keessnet.IsEndpointFromLocalPodNet(endpoints, podCIDRs)
+	hasLocal, err := keessnet.IsEndpointFromLocalPodNet(sliceList.Items, podCIDRs)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if endpoints are from local pod network: %w", err)
 	}

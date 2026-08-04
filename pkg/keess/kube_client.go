@@ -6,12 +6,14 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	discoveryv1client "k8s.io/client-go/kubernetes/typed/discovery/v1"
 	"k8s.io/client-go/rest"
 )
 
 type IKubeClient interface {
 	CoreV1() v1.CoreV1Interface
 	Discovery() discovery.DiscoveryInterface
+	DiscoveryV1() discoveryv1client.DiscoveryV1Interface
 	Dynamic() dynamic.Interface
 	ServerVersion() (*version.Info, error)
 }
@@ -27,6 +29,10 @@ func (k *kubeClientAdapter) CoreV1() v1.CoreV1Interface {
 
 func (k *kubeClientAdapter) Discovery() discovery.DiscoveryInterface {
 	return k.clientset.Discovery()
+}
+
+func (k *kubeClientAdapter) DiscoveryV1() discoveryv1client.DiscoveryV1Interface {
+	return k.clientset.DiscoveryV1()
 }
 
 func (k *kubeClientAdapter) Dynamic() dynamic.Interface {
