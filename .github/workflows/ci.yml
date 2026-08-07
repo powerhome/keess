@@ -40,12 +40,30 @@ jobs:
             echo "has_chart=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Build keess binary for Docker build validation
+        if: steps.changes.outputs.has_dockerfiles == 'true'
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: build --single-target --snapshot --clean --id keess -o bin/keess-linux-amd64
+        env:
+          GOOS: linux
+          GOARCH: amd64
+
       - name: Docker build
         if: steps.changes.outputs.has_dockerfiles == 'true'
         run: |
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
-          git diff --name-only "$BASE" "$HEAD" | grep '^Dockerfile' | grep -v '\.dockerignore$' | xargs -I{} sh -c 'echo "Building {}" && docker build -f {} .'
+          git diff --name-only "$BASE" "$HEAD" | grep '^Dockerfile' | grep -v '\.dockerignore$' | while read -r f; do
+            echo "Building $f"
+            if [ "$f" = "Dockerfile" ]; then
+              docker build -f "$f" --build-arg KEESS_BIN=bin/keess-linux-amd64 .
+            else
+              docker build -f "$f" .
+            fi
+          done
 
       - name: Install Helm
         if: steps.changes.outputs.has_chart == 'true'
