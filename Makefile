@@ -30,9 +30,9 @@ build:
 # it's the source of truth for how the keess binary is built (see .goreleaser.yaml).
 docker-build:
 	@echo "Building keess binary via goreleaser..."
-	GOOS=linux GOARCH=amd64 goreleaser build --single-target --snapshot --clean --id keess -o bin/keess-linux-amd64
+	GOOS=linux GOARCH=$(ARCH) goreleaser build --single-target --snapshot --clean --id keess -o bin/keess-linux-$(ARCH)
 	@echo "Building Docker image..."
-	@docker build --build-arg KEESS_BIN=bin/keess-linux-amd64 -t $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .
+	@docker build --build-arg KEESS_BIN=bin/keess-linux-$(ARCH) -t $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .
 
 ## Tag and push a release tag, triggering the GoReleaser release workflow which
 ## builds and publishes both the keess and kubeconfig-reloader images to Docker Hub.
