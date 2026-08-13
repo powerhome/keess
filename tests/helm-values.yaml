@@ -24,3 +24,5 @@ kubeconfigReloader:
 metrics:
   serviceMonitor:
     enabled: false
+  alerts:
+    enabled: false
