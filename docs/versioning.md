@@ -2,19 +2,19 @@
 
 There are two versions to note here in this repo. The binary/image version, and the Helm Chart version.
 
-These are set at:
+The binary/image version comes from the release git tag (bare semver, e.g. `1.4.2`).
+Pushing a tag (use `make tag-release VERSION=x.y.z`) triggers the GoReleaser release
+workflow, which builds the binary with that version injected and publishes the
+`powerhome/keess` and `powerhome/keess-kubeconfig-reloader` images to Docker Hub,
+tagged `x.y.z` and `latest`.
 
-- cmd/version.go
-- chart/Chart.yaml
+The Chart version and `appVersion` are set at chart/Chart.yaml. You MUST remember to
+update them when making changes to Go code, the Chart, or both: the release workflow
+refuses a tag that does not match the chart's `appVersion`. The next section explains
+the conventions for the relation between app and chart version.
 
-You MUST remember to update those files when making changes to Go code, the Chart, or
-both. The next section explain the conventions we are following for the relation between
-app and chart version.
-
-Container images MUST always follow the version defined in cmd/version.go. If needed (a
-new docker build), a suffix may be added to the image tag.
-
-We might adopt other schemes or automations at some point, but for now this is what we have.
+`cmd/version.go` holds a `"dev"` placeholder used only by non-GoReleaser builds
+(`make build`, `docker build .`); GoReleaser overrides it at build time.
 
 ## Chart version caveat, or "What to do if we make a change only to the chart?"
 

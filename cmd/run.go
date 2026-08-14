@@ -72,7 +72,7 @@ var runCmd = &cobra.Command{
 			zapcore.Lock(os.Stdout),
 			atom,
 		))
-		defer logger.Sync()
+		defer func() { _ = logger.Sync() }()
 
 		namespacePollingInterval, _ := cmd.Flags().GetInt32("namespacePollingInterval")
 		pollingInterval, _ := cmd.Flags().GetInt32("pollingInterval")
@@ -122,7 +122,7 @@ var runCmd = &cobra.Command{
 
 		// Create a NamespacePoller
 		namespacePoller := keess.NewNamespacePoller(localKubeClient, logger.Sugar())
-		namespacePoller.PollNamespaces(ctx, metav1.ListOptions{}, time.Duration(namespacePollingInterval)*time.Second, localCluster)
+		_ = namespacePoller.PollNamespaces(ctx, metav1.ListOptions{}, time.Duration(namespacePollingInterval)*time.Second, localCluster)
 
 		// Create a SecretPoller
 		secretPoller := keess.NewSecretPoller(localCluster, localKubeClient, logger.Sugar())
@@ -137,7 +137,7 @@ var runCmd = &cobra.Command{
 		)
 
 		// Start the secret synchronizer
-		secretSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
+		_ = secretSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
 
 		// Create a ConfigMapPoller
 		configMapPoller := keess.NewConfigMapPoller(localCluster, localKubeClient, logger.Sugar())
@@ -152,7 +152,7 @@ var runCmd = &cobra.Command{
 		)
 
 		// Start the configMap synchronizer
-		configMapSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
+		_ = configMapSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
 
 		if enableServiceSync {
 			// Create a ServicePoller
@@ -168,7 +168,7 @@ var runCmd = &cobra.Command{
 			)
 
 			// Start the service synchronizer
-			serviceSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
+			_ = serviceSynchronizer.Start(ctx, time.Duration(pollingInterval)*time.Second, time.Duration(housekeepingInterval)*time.Second)
 		} else {
 			logger.Sugar().Info("Service synchronization is disabled. Set --enableServiceSync=true to enable it (depends on Cilium Clustermesh features).")
 		}
@@ -200,10 +200,10 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	// Check the health of the server and return a status code accordingly
 	if serverIsHealthy() {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "Server is healthy")
+		_, _ = fmt.Fprint(w, "Server is healthy")
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "Server is not healthy")
+		_, _ = fmt.Fprint(w, "Server is not healthy")
 	}
 }
 
@@ -232,8 +232,8 @@ func init() {
 	runCmd.Flags().Bool("enableServiceSync", false, "Enable service synchronization. Depends on Cilium Clustermesh features. (default: false)")
 	runCmd.Flags().Bool("enablePprof", false, "Enable pprof server for runtime profiling and debugging. (default: false)")
 
-	runCmd.MarkFlagRequired("localCluster")
-	runCmd.MarkFlagRequired("kubeConfigPath")
+	_ = runCmd.MarkFlagRequired("localCluster")
+	_ = runCmd.MarkFlagRequired("kubeConfigPath")
 
 }
 

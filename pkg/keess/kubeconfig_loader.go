@@ -217,7 +217,7 @@ func (k *KubeconfigLoader) StartWatching(ctx context.Context) {
 
 				if event.Op&(fsnotify.Remove) != 0 { // TBH, I don't know if this is necessary, but it doesn't hurt
 					k.logger.Warnf("Kubeconfig file was removed: %s", k.path)
-					k.watcher.Remove(k.path)
+					_ = k.watcher.Remove(k.path)
 					k.logger.Debug("Removed watcher for kubeconfig file due to deletion: ", k.path)
 
 					// Attempt to re-add the watcher when the file is recreated
@@ -265,11 +265,4 @@ func BuildConfigWithContextFromFlags(context string, kubeconfigPath string) (*re
 		&clientcmd.ConfigOverrides{
 			CurrentContext: context,
 		}).ClientConfig()
-}
-
-func getEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
 }

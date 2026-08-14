@@ -1,0 +1,10 @@
+version: "2"
+
+linters:
+  exclusions:
+    rules:
+      # corev1.Endpoints is kept until the EndpointSlice migration happens.
+      - path: pkg/keess/net/
+        linters:
+          - staticcheck
+        text: "corev1\\.(Endpoints|EndpointSubset) is deprecated"

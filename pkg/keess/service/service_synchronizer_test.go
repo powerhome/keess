@@ -69,8 +69,8 @@ func createTestSynchronizerWithNamespaces(namespace string) (*ServiceSynchronize
 			Name: namespace,
 		},
 	}
-	remoteClient1.CoreV1().Namespaces().Create(context.Background(), testNamespace, metav1.CreateOptions{})
-	remoteClient2.CoreV1().Namespaces().Create(context.Background(), testNamespace, metav1.CreateOptions{})
+	_, _ = remoteClient1.CoreV1().Namespaces().Create(context.Background(), testNamespace, metav1.CreateOptions{})
+	_, _ = remoteClient2.CoreV1().Namespaces().Create(context.Background(), testNamespace, metav1.CreateOptions{})
 
 	remoteClients := map[string]keess.IKubeClient{
 		"cluster1": &keess.MockKubeClient{Clientset: remoteClient1},

@@ -40,12 +40,17 @@ jobs:
             echo "has_chart=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Install goreleaser
+        if: steps.changes.outputs.has_dockerfiles == 'true'
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          install-only: true
+
       - name: Docker build
         if: steps.changes.outputs.has_dockerfiles == 'true'
-        run: |
-          BASE="${{ github.event.pull_request.base.sha }}"
-          HEAD="${{ github.event.pull_request.head.sha }}"
-          git diff --name-only "$BASE" "$HEAD" | grep '^Dockerfile' | grep -v '\.dockerignore$' | xargs -I{} sh -c 'echo "Building {}" && docker build -f {} .'
+        run: make docker-build
 
       - name: Install Helm
         if: steps.changes.outputs.has_chart == 'true'
@@ -54,3 +59,17 @@ jobs:
       - name: Helm lint
         if: steps.changes.outputs.has_chart == 'true'
         run: helm lint chart/
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.12.2
