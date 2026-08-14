@@ -19,7 +19,7 @@ ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/arm64/arm64/;s/aarch64/arm64/'
 GOBASE := $(shell pwd)
 GOBIN := $(GOBASE)/bin
 
-.PHONY: build docker-build coverage run docker-run create-local-clusters create-local-clusters-pac-v1 delete-local-clusters install-cilium-cli install-cilium-to-clusters install-keess setup-local-clusters setup-local-clusters-with-keess local-docker-run tests tests-e2e tests-python-e2e tag-release help
+.PHONY: build docker-build coverage run docker-run create-local-clusters create-local-clusters-pac-v1 delete-local-clusters install-cilium-cli install-cilium-to-clusters install-keess setup-local-clusters setup-local-clusters-with-keess local-docker-run tests tests-e2e tests-python-e2e tag-release bump-chart-version help
 
 # Build the project
 build:
@@ -40,29 +40,70 @@ docker-build:
 
 ## Tag and push a release tag, triggering the GoReleaser release workflow which
 ## builds and publishes both the keess and kubeconfig-reloader images to Docker Hub.
-## chart/Chart.yaml (version and appVersion) must already be bumped to VERSION and merged to main.
+## VERSION sets both app and chart version; use APP_VERSION/CHART_VERSION to set them
+## independently (e.g. a chart-only bump ahead of the next app version, see docs/versioning.md).
+## If chart/Chart.yaml on main isn't already at those versions, this opens a bump PR
+## (via bump-chart-version) and stops -- merge it, then re-run the same command to tag.
 ## Run it with:
 ##   make tag-release VERSION=1.4.2 [IGNORE_BRANCH_CHECK=true]
+##   make tag-release APP_VERSION=1.4.2 CHART_VERSION=1.4.3
 tag-release:
-	@if [ -z "$(VERSION)" ]; then \
-		echo "VERSION must be set (e.g. make tag-release VERSION=1.4.2)"; exit 1; \
-	fi
-	@if ! echo "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
-		echo "VERSION must be a bare semver, e.g. 1.4.2 (this repo's tags have no 'v' prefix)"; exit 1; \
-	fi
-	@if [ "$(IGNORE_BRANCH_CHECK)" != "true" ]; then \
+	@_APP_VERSION="$(if $(APP_VERSION),$(APP_VERSION),$(VERSION))"; \
+	_CHART_VERSION="$(if $(CHART_VERSION),$(CHART_VERSION),$(VERSION))"; \
+	if [ -z "$$_APP_VERSION" ] || [ -z "$$_CHART_VERSION" ]; then \
+		echo "Set VERSION (both), or APP_VERSION/CHART_VERSION individually (e.g. make tag-release VERSION=1.4.2)"; exit 1; \
+	fi; \
+	for v in "$$_APP_VERSION" "$$_CHART_VERSION"; do \
+		if ! echo "$$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+			echo "Versions must be bare semver, e.g. 1.4.2 (this repo's tags have no 'v' prefix): $$v"; exit 1; \
+		fi; \
+	done; \
+	if [ "$(IGNORE_BRANCH_CHECK)" != "true" ]; then \
 		CURRENT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
 		if [ "$$CURRENT_BRANCH" != "main" ]; then \
 			echo "Error: You must be on the 'main' branch to create releases. Current branch: $$CURRENT_BRANCH"; \
 			echo "Use IGNORE_BRANCH_CHECK=true to skip this check."; \
 			exit 1; \
 		fi; \
+	fi; \
+	CURRENT_APP_VERSION=$$(awk -F'"' '/^appVersion:/ {print $$2}' chart/Chart.yaml); \
+	CURRENT_CHART_VERSION=$$(awk -F'[: ]+' '/^version:/ {print $$2}' chart/Chart.yaml); \
+	if [ "$$CURRENT_APP_VERSION" != "$$_APP_VERSION" ] || [ "$$CURRENT_CHART_VERSION" != "$$_CHART_VERSION" ]; then \
+		echo "chart/Chart.yaml on main is at appVersion=$$CURRENT_APP_VERSION version=$$CURRENT_CHART_VERSION, not $$_APP_VERSION/$$_CHART_VERSION."; \
+		echo "Opening a PR to bump it..."; \
+		$(MAKE) bump-chart-version APP_VERSION=$$_APP_VERSION CHART_VERSION=$$_CHART_VERSION; \
+		echo "Merge that PR, then re-run: make tag-release APP_VERSION=$$_APP_VERSION CHART_VERSION=$$_CHART_VERSION"; \
+		exit 1; \
+	fi; \
+	git tag $$_APP_VERSION -m "Release $$_APP_VERSION"; \
+	git push origin $$_APP_VERSION
+
+## Open a PR bumping chart/Chart.yaml's version and appVersion. Called automatically by
+## tag-release when they're out of date, or run directly for a chart-only bump ahead of
+## the next app version (see docs/versioning.md). Requires the `gh` CLI.
+## Run it with:
+##   make bump-chart-version APP_VERSION=1.4.2 CHART_VERSION=1.4.2
+bump-chart-version:
+	@if [ -z "$(APP_VERSION)" ] || [ -z "$(CHART_VERSION)" ]; then \
+		echo "APP_VERSION and CHART_VERSION must both be set (e.g. make bump-chart-version APP_VERSION=1.4.2 CHART_VERSION=1.4.2)"; exit 1; \
 	fi
-	@if ! grep -q "^appVersion: \"$(VERSION)\"" chart/Chart.yaml; then \
-		echo "Warning: chart/Chart.yaml appVersion is not $(VERSION); the release workflow will refuse this tag. Bump and merge the chart first."; \
-	fi
-	git tag $(VERSION) -m "Release $(VERSION)"
-	git push origin $(VERSION)
+	@for v in "$(APP_VERSION)" "$(CHART_VERSION)"; do \
+		if ! echo "$$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+			echo "Versions must be bare semver, e.g. 1.4.2: $$v"; exit 1; \
+		fi; \
+	done
+	@BRANCH="chore/$(APP_VERSION)"; \
+	git fetch origin main && \
+	git checkout -B "$$BRANCH" origin/main && \
+	sed -i.bak -E 's/^version: .*/version: $(CHART_VERSION)/' chart/Chart.yaml && \
+	sed -i.bak -E 's/^appVersion: .*/appVersion: "$(APP_VERSION)"/' chart/Chart.yaml && \
+	rm -f chart/Chart.yaml.bak && \
+	git add chart/Chart.yaml && \
+	git commit -m "chore(chart): bump to app $(APP_VERSION), chart $(CHART_VERSION)" && \
+	git push origin "$$BRANCH" && \
+	gh pr create --base main --head "$$BRANCH" \
+		--title "chore(chart): bump to app $(APP_VERSION), chart $(CHART_VERSION)" \
+		--body "Bumps chart/Chart.yaml ahead of tagging release $(APP_VERSION)."
 
 # New target for code coverage
 coverage:
@@ -209,7 +250,8 @@ help:
 	@echo "tests-python-e2e                - Run python e2e tests using docker (namespace sync focused)"
 	@echo "tests-all                       - Run all tests (unit + e2e)"
 	@echo "delete-local-clusters           - Delete the 2 local clusters created with Kind"
-	@echo "tag-release                     - Tag and push a release (VERSION=x.y.z), triggering the GoReleaser image release"
+	@echo "tag-release                     - Tag and push a release (VERSION=x.y.z, or APP_VERSION=/CHART_VERSION=), triggering the GoReleaser image release"
+	@echo "bump-chart-version              - Open a PR bumping chart/Chart.yaml (APP_VERSION=/CHART_VERSION=)"
 	@echo "--------------------------------"
 	@echo "## Other Makefile commands:"
 	@echo "--------------------------------"

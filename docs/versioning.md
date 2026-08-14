@@ -8,10 +8,15 @@ workflow, which builds the binary with that version injected and publishes the
 `powerhome/keess` and `powerhome/keess-kubeconfig-reloader` images to Docker Hub,
 tagged `x.y.z` and `latest`.
 
-The Chart version and `appVersion` are set at chart/Chart.yaml. You MUST remember to
-update them when making changes to Go code, the Chart, or both: the release workflow
-refuses a tag that does not match the chart's `appVersion`. The next section explains
-the conventions for the relation between app and chart version.
+The Chart version and `appVersion` are set at chart/Chart.yaml: the release workflow
+refuses a tag that does not match the chart's `appVersion`. `make tag-release` checks
+this for you -- if `chart/Chart.yaml` on `main` isn't already at the version(s) you
+asked for, it opens a bump PR (via `make bump-chart-version`) and stops without
+tagging. Merge that PR, then re-run the same `tag-release` command to actually tag.
+Use `VERSION=x.y.z` when app and chart move together (the common case), or
+`APP_VERSION=`/`CHART_VERSION=` to set them independently for a chart-only bump (see
+below). The next section explains the conventions for the relation between app and
+chart version.
 
 `cmd/version.go` holds a `"dev"` placeholder used only by non-GoReleaser builds
 (`make build`, `docker build .`); GoReleaser overrides it at build time.
