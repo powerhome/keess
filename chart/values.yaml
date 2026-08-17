@@ -183,7 +183,7 @@ kubeconfigReloader:
   image:
     repository: powerhome/keess-kubeconfig-reloader
     pullPolicy: IfNotPresent
-    tag: "@sha256:4c7d00afcc9eb8f03d3629d0adb108f2fd433e0058d24aff3b2cc05ec817dd09"
+    tag: "@sha256:c2f815f307225faca5682b014547adb9c3dacd13662bb3aeacfb01d5f13fa8fd"
   config:
     s3:
       endpoint: https://s3.us-east-1.amazonaws.com
