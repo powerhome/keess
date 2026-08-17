@@ -6,7 +6,7 @@ image:
   repository: powerhome/keess
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "@sha256:e9c74d6ed4c935a5e0e2159ab7464baaacc3e438f045a6d047b7a34888732026"
+  tag: "@sha256:89a3d06c80acc5270768a4956e482e092adf074343b3292e234d6342f1fef2ff"
 
 # Default Keess config
 logLevel: "info"
