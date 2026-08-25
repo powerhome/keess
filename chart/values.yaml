@@ -41,6 +41,13 @@ serviceAccount:
 
 podAnnotations: {}
 
+# Extra labels applied to the Pod template only, not to the Deployment. Useful
+# for telemetry agents that select or tag workloads by Pod label
+#
+# The chart's selector labels take precedence, so nothing set here can desync
+# the Pod from the Deployment's immutable selector.
+podLabels: {}
+
 podSecurityContext: {}
   # fsGroup: 2000
 

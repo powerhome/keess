@@ -51,6 +51,20 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Pod template labels: the selector labels plus anything in .Values.podLabels.
+
+Merged into one map rather than emitted as two blocks, so the rendered manifest
+can never contain a duplicate key. `merge` gives the destination precedence, so
+the selector labels win on collision -- a podLabels entry overriding
+`app.kubernetes.io/name` or `app.kubernetes.io/instance` would otherwise stop the
+Pod from matching the Deployment's immutable selector.
+*/}}
+{{- define "keess.podLabels" -}}
+{{- $selectorLabels := include "keess.selectorLabels" . | fromYaml -}}
+{{- toYaml (merge $selectorLabels (deepCopy (.Values.podLabels | default dict))) }}
+{{- end }}
+
+{{/*
 Build an image reference. A tag starting with "@" is treated as a digest pin
 and joined without a colon (repository@sha256:...); otherwise it is a normal tag.
 */}}
