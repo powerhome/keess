@@ -8,15 +8,6 @@ image:
   # Overrides the image tag whose default is the chart appVersion. Leave empty:
   # appVersion is the single source of truth for which build ships, it is bumped
   # by `make tag-release`, and GoReleaser publishes a Docker tag matching it.
-  #
-  # Do not put a digest here. Renovate's pinDigest did exactly that in #83 --
-  # it resolved the then-empty tag to `latest` (a 1.3.3 build) and wrote it as
-  # `@sha256:e9c74d6e...`. Because this key outranks appVersion, the 1.4.0,
-  # 1.4.1 and 1.4.2 releases never actually shipped: every cluster kept running
-  # 1.3.3, which predates the `keess_goroutines_inactive` and
-  # `keess_remote_initialization_failed` rename, so the dashboards and the
-  # chart's own PrometheusRule had nothing to evaluate. renovate.json now
-  # excludes these two images for that reason.
   tag: ""
 
 # Default Keess config
@@ -201,7 +192,6 @@ kubeconfigReloader:
   image:
     repository: powerhome/keess-kubeconfig-reloader
     pullPolicy: IfNotPresent
-    # Empty for the same reason as `image.tag` above -- defaults to appVersion.
     tag: ""
   config:
     s3:

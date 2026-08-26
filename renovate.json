@@ -7,7 +7,7 @@
   ],
   "packageRules": [
     {
-      "description": "Keess's own images are versioned by chart/Chart.yaml appVersion, which `make tag-release` bumps and GoReleaser publishes a matching Docker tag for, so chart/values.yaml deliberately leaves image.tag empty. Renovate has no version to track here, and pinDigest actively breaks the chart: in #83 it resolved the empty tag to `latest` and wrote a digest override that outranks appVersion, pinning every cluster to 1.3.3 across three releases.",
+      "description": "Keess's own images are versioned by chart/Chart.yaml appVersion, which `make tag-release` bumps and GoReleaser publishes a matching Docker tag for, so chart/values.yaml deliberately leaves image.tag empty.",
       "matchPackageNames": [
         "powerhome/keess",
         "powerhome/keess-kubeconfig-reloader"
