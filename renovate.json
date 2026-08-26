@@ -7,7 +7,7 @@
   ],
   "packageRules": [
     {
-      "description": "Keess's own images are versioned by chart/Chart.yaml appVersion, which `make tag-release` bumps and GoReleaser publishes a matching Docker tag for, so chart/values.yaml deliberately leaves image.tag empty.",
+      "description": "Avoid touching image references inside the chart. We should leave the chart logic alone to decide its default versions.",
       "matchPackageNames": [
         "powerhome/keess",
         "powerhome/keess-kubeconfig-reloader"
