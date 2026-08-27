@@ -134,16 +134,29 @@ create-local-clusters:
 delete-local-clusters:
 	@kind delete clusters source-cluster destination-cluster
 
-$(GOBIN)/cilium:
-	mkdir -p $(GOBIN)
-	curl -sL https://github.com/cilium/cilium-cli/releases/download/$(CILIUM_CLI_VERSION)/cilium-$(OS)-$(ARCH).tar.gz | tar -xzf - -C $(GOBIN);
-	chmod +x $(GOBIN)/cilium
-
-install-cilium-cli: $(GOBIN)/cilium
+# A plain file-existence check can't detect a stale binary left over from a version bump
+# (see git history), so re-download whenever the installed CLI doesn't match CILIUM_CLI_VERSION.
+install-cilium-cli:
+	@if [ -x "$(GOBIN)/cilium" ]; then \
+		INSTALLED_VERSION=$$($(GOBIN)/cilium version --client | awk -F': ' '/^cilium-cli:/ {print $$2}' | awk '{print $$1}'); \
+		if [ "$$INSTALLED_VERSION" != "$(CILIUM_CLI_VERSION)" ]; then \
+			echo "cilium-cli at $(GOBIN)/cilium is $$INSTALLED_VERSION, expected $(CILIUM_CLI_VERSION); reinstalling..."; \
+			rm -f "$(GOBIN)/cilium"; \
+		fi; \
+	fi
+	@if [ ! -x "$(GOBIN)/cilium" ]; then \
+		echo "Installing cilium cli at $(GOBIN)/cilium, version $(CILIUM_CLI_VERSION)"; \
+		mkdir -p $(GOBIN); \
+		curl -sL https://github.com/cilium/cilium-cli/releases/download/$(CILIUM_CLI_VERSION)/cilium-$(OS)-$(ARCH).tar.gz | tar -xzf - -C $(GOBIN); \
+		chmod +x $(GOBIN)/cilium; \
+	fi
 
 # Install Cilium on local clusters
 install-cilium-to-clusters: install-cilium-cli
 	$(GOBIN)/cilium install --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-source-cluster --version $(CILIUM_VERSION) --set cluster.id=1 --set cluster.name=source-cluster || true
+	@echo "Copying Cilium CA from source-cluster to destination-cluster so both clusters trust each other for ClusterMesh..."
+	kubectl --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-source-cluster -n kube-system get secret cilium-ca -o yaml \
+		| kubectl --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-destination-cluster create -f -
 	$(GOBIN)/cilium install --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-destination-cluster --version $(CILIUM_VERSION) --set cluster.id=2 --set cluster.name=destination-cluster || true
 	$(GOBIN)/cilium status --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-source-cluster --wait
 	$(GOBIN)/cilium status --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-destination-cluster --wait
