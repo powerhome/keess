@@ -28,8 +28,8 @@ func (m *MockKubeClient) Dynamic() dynamic.Interface {
 func (m *MockKubeClient) ServerVersion() (*version.Info, error) {
 	return &version.Info{
 		Major:      "1",
-		Minor:      "32.2",
-		GitVersion: "v1.32.2",
+		Minor:      "34.11",
+		GitVersion: "v1.34.11",
 	}, nil
 }
 

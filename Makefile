@@ -8,10 +8,9 @@ LOCAL_TEST_KUBECONFIG_FILE := "localTestKubeconfig"
 # this file will host the same kubeconfig, but to be used within the clusters themselves
 LOCAL_INTERNAL_TEST_KUBECONFIG_FILE := "localInternalTestKubeconfig"
 LOCAL_CLUSTER := "kind-source-cluster"
-K8S_VERSION_PAC_V1 := v1.22.17
-K8S_VERSION := v1.32.2
-CILIUM_CLI_VERSION := v0.18.5
-CILIUM_VERSION := v1.17.1
+KIND_K8S_VERSION := v1.34.11
+CILIUM_CLI_VERSION := v0.19.7
+CILIUM_VERSION := v1.19.1
 OS := $(shell uname | tr '[:upper:]' '[:lower:]')
 ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/arm64/arm64/;s/aarch64/arm64/')
 
@@ -19,7 +18,7 @@ ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/arm64/arm64/;s/aarch64/arm64/'
 GOBASE := $(shell pwd)
 GOBIN := $(GOBASE)/bin
 
-.PHONY: build docker-build coverage run docker-run create-local-clusters create-local-clusters-pac-v1 delete-local-clusters install-cilium-cli install-cilium-to-clusters install-keess setup-local-clusters setup-local-clusters-with-keess local-docker-run tests tests-e2e tests-python-e2e tag-release bump-chart-version help
+.PHONY: build docker-build coverage run docker-run create-local-clusters delete-local-clusters install-cilium-cli install-cilium-to-clusters install-keess setup-local-clusters setup-local-clusters-with-keess local-docker-run tests tests-e2e tests-python-e2e tag-release bump-chart-version help
 
 # Build the project
 build:
@@ -124,14 +123,9 @@ docker-run:
 	@docker run --rm -it -v ${HOME}/.kube:/root/.kube $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) run --localCluster=$(LOCAL_CLUSTER) --logLevel=debug
 
 # Target to start local kube clusters for testing purposes
-create-local-clusters-pac-v1:
-	@kind create cluster --image=kindest/node:$(K8S_VERSION_PAC_V1) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE)
-	@kind create cluster --image=kindest/node:$(K8S_VERSION_PAC_V1) -n destination-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE)
-
-# Target to start local kube clusters for testing purposes
 create-local-clusters:
-	kind create cluster --image=kindest/node:$(K8S_VERSION) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-1.yaml
-	kind create cluster --image=kindest/node:$(K8S_VERSION) -n destination-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-2.yaml
+	kind create cluster --image=kindest/node:$(KIND_K8S_VERSION) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-1.yaml
+	kind create cluster --image=kindest/node:$(KIND_K8S_VERSION) -n destination-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-2.yaml
 	KUBECONFIG=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) kind export kubeconfig -n source-cluster --internal
 	KUBECONFIG=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) kind export kubeconfig -n destination-cluster --internal
 
@@ -256,7 +250,6 @@ help:
 	@echo "## Other Makefile commands:"
 	@echo "--------------------------------"
 	@echo "create-local-clusters           - Create 2 clusters locally using Kind"
-	@echo "create-local-clusters-pac-v1    - Create 2 clusters locally using Kind with PAC-V1 Kubernetes version (no Cilium)"
 	@echo "install-cilium-cli              - Install Cilium CLI on the local machine"
 	@echo "install-cilium-to-clusters      - Install Cilium on the local clusters"
 	@echo "install-keess                   - Install Keess on local clusters using Helm"

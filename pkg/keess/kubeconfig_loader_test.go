@@ -132,7 +132,7 @@ func TestKubeconfigLoader_LoadKubeconfig(t *testing.T) {
 				"Unlocked remote clients mutex after cleanup",
 				"Remote clusters found in kubeconfig: [test-cluster]",
 				"Locked remote clients mutex for assignment",
-				"Connected to remote cluster 'test-cluster' with server version: v1.32.2",
+				"Connected to remote cluster 'test-cluster' with server version: v1.34.11",
 				"Initialized remote cluster client for 'test-cluster'",
 				"Remote clusters successfully initialized: [test-cluster]",
 				"Unlocked remote clients mutex after assignment",
