@@ -4,5 +4,15 @@
     "local>powerhome/renovate-config",
     "local>powerhome/renovate-config:ci-kubed-read-token",
     "group:allNonMajor"
+  ],
+  "packageRules": [
+    {
+      "description": "Avoid touching image references inside the chart. We should leave the chart logic alone to decide its default versions.",
+      "matchPackageNames": [
+        "powerhome/keess",
+        "powerhome/keess-kubeconfig-reloader"
+      ],
+      "enabled": false
+    }
   ]
 }

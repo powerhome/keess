@@ -5,8 +5,10 @@
 image:
   repository: powerhome/keess
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: "@sha256:89a3d06c80acc5270768a4956e482e092adf074343b3292e234d6342f1fef2ff"
+  # Overrides the image tag whose default is the chart appVersion. Leave empty:
+  # appVersion is the single source of truth for which build ships, it is bumped
+  # by `make tag-release`, and GoReleaser publishes a Docker tag matching it.
+  tag: ""
 
 # Default Keess config
 logLevel: "info"
@@ -190,7 +192,7 @@ kubeconfigReloader:
   image:
     repository: powerhome/keess-kubeconfig-reloader
     pullPolicy: IfNotPresent
-    tag: "@sha256:c2f815f307225faca5682b014547adb9c3dacd13662bb3aeacfb01d5f13fa8fd"
+    tag: ""
   config:
     s3:
       endpoint: https://s3.us-east-1.amazonaws.com
