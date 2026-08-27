@@ -29,8 +29,6 @@ make setup-local-clusters-with-keess
 > For running the full e2e test suite you will need that because you need Keess running on both the source and destination clusters.
 >
 > You can also just create the clusters with `make setup-local-clusters` and run Keess locally on your machine with `make run` or `make local-docker-run`.
->
-> To create clusters for testing Keess on PAC-V1 (no Cilium, old Kubernetes version), use `create-local-clusters-pac-v1`.
 
 Run all tests with:
 

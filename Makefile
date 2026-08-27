@@ -8,10 +8,9 @@ LOCAL_TEST_KUBECONFIG_FILE := "localTestKubeconfig"
 # this file will host the same kubeconfig, but to be used within the clusters themselves
 LOCAL_INTERNAL_TEST_KUBECONFIG_FILE := "localInternalTestKubeconfig"
 LOCAL_CLUSTER := "kind-source-cluster"
-K8S_VERSION_PAC_V1 := v1.22.17
-K8S_VERSION := v1.32.2
-CILIUM_CLI_VERSION := v0.18.5
-CILIUM_VERSION := v1.17.1
+KIND_K8S_VERSION := v1.34.11
+CILIUM_CLI_VERSION := v0.19.7
+CILIUM_VERSION := v1.19.1
 OS := $(shell uname | tr '[:upper:]' '[:lower:]')
 ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/arm64/arm64/;s/aarch64/arm64/')
 
@@ -19,7 +18,7 @@ ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/arm64/arm64/;s/aarch64/arm64/'
 GOBASE := $(shell pwd)
 GOBIN := $(GOBASE)/bin
 
-.PHONY: build docker-build coverage run docker-run create-local-clusters create-local-clusters-pac-v1 delete-local-clusters install-cilium-cli install-cilium-to-clusters install-keess setup-local-clusters setup-local-clusters-with-keess local-docker-run tests tests-e2e tests-python-e2e tag-release bump-chart-version help
+.PHONY: build docker-build coverage run docker-run create-local-clusters delete-local-clusters install-cilium-cli install-cilium-to-clusters install-keess setup-local-clusters setup-local-clusters-with-keess local-docker-run tests tests-e2e tests-python-e2e tag-release bump-chart-version help
 
 # Build the project
 build:
@@ -124,14 +123,9 @@ docker-run:
 	@docker run --rm -it -v ${HOME}/.kube:/root/.kube $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) run --localCluster=$(LOCAL_CLUSTER) --logLevel=debug
 
 # Target to start local kube clusters for testing purposes
-create-local-clusters-pac-v1:
-	@kind create cluster --image=kindest/node:$(K8S_VERSION_PAC_V1) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE)
-	@kind create cluster --image=kindest/node:$(K8S_VERSION_PAC_V1) -n destination-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE)
-
-# Target to start local kube clusters for testing purposes
 create-local-clusters:
-	kind create cluster --image=kindest/node:$(K8S_VERSION) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-1.yaml
-	kind create cluster --image=kindest/node:$(K8S_VERSION) -n destination-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-2.yaml
+	kind create cluster --image=kindest/node:$(KIND_K8S_VERSION) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-1.yaml
+	kind create cluster --image=kindest/node:$(KIND_K8S_VERSION) -n destination-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-2.yaml
 	KUBECONFIG=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) kind export kubeconfig -n source-cluster --internal
 	KUBECONFIG=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) kind export kubeconfig -n destination-cluster --internal
 
@@ -140,16 +134,29 @@ create-local-clusters:
 delete-local-clusters:
 	@kind delete clusters source-cluster destination-cluster
 
-$(GOBIN)/cilium:
-	mkdir -p $(GOBIN)
-	curl -sL https://github.com/cilium/cilium-cli/releases/download/$(CILIUM_CLI_VERSION)/cilium-$(OS)-$(ARCH).tar.gz | tar -xzf - -C $(GOBIN);
-	chmod +x $(GOBIN)/cilium
-
-install-cilium-cli: $(GOBIN)/cilium
+# A plain file-existence check can't detect a stale binary left over from a version bump
+# (see git history), so re-download whenever the installed CLI doesn't match CILIUM_CLI_VERSION.
+install-cilium-cli:
+	@if [ -x "$(GOBIN)/cilium" ]; then \
+		INSTALLED_VERSION=$$($(GOBIN)/cilium version --client | awk -F': ' '/^cilium-cli:/ {print $$2}' | awk '{print $$1}'); \
+		if [ "$$INSTALLED_VERSION" != "$(CILIUM_CLI_VERSION)" ]; then \
+			echo "cilium-cli at $(GOBIN)/cilium is $$INSTALLED_VERSION, expected $(CILIUM_CLI_VERSION); reinstalling..."; \
+			rm -f "$(GOBIN)/cilium"; \
+		fi; \
+	fi
+	@if [ ! -x "$(GOBIN)/cilium" ]; then \
+		echo "Installing cilium cli at $(GOBIN)/cilium, version $(CILIUM_CLI_VERSION)"; \
+		mkdir -p $(GOBIN); \
+		curl -sL https://github.com/cilium/cilium-cli/releases/download/$(CILIUM_CLI_VERSION)/cilium-$(OS)-$(ARCH).tar.gz | tar -xzf - -C $(GOBIN); \
+		chmod +x $(GOBIN)/cilium; \
+	fi
 
 # Install Cilium on local clusters
 install-cilium-to-clusters: install-cilium-cli
 	$(GOBIN)/cilium install --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-source-cluster --version $(CILIUM_VERSION) --set cluster.id=1 --set cluster.name=source-cluster || true
+	@echo "Copying Cilium CA from source-cluster to destination-cluster so both clusters trust each other for ClusterMesh..."
+	kubectl --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-source-cluster -n kube-system get secret cilium-ca -o yaml \
+		| kubectl --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-destination-cluster create -f -
 	$(GOBIN)/cilium install --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-destination-cluster --version $(CILIUM_VERSION) --set cluster.id=2 --set cluster.name=destination-cluster || true
 	$(GOBIN)/cilium status --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-source-cluster --wait
 	$(GOBIN)/cilium status --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-destination-cluster --wait
@@ -256,7 +263,6 @@ help:
 	@echo "## Other Makefile commands:"
 	@echo "--------------------------------"
 	@echo "create-local-clusters           - Create 2 clusters locally using Kind"
-	@echo "create-local-clusters-pac-v1    - Create 2 clusters locally using Kind with PAC-V1 Kubernetes version (no Cilium)"
 	@echo "install-cilium-cli              - Install Cilium CLI on the local machine"
 	@echo "install-cilium-to-clusters      - Install Cilium on the local clusters"
 	@echo "install-keess                   - Install Keess on local clusters using Helm"
