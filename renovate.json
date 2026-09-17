@@ -7,7 +7,10 @@
   ],
   "packageRules": [
     {
-      "description": "Avoid touching image references inside the chart. We should leave the chart logic alone to decide its default versions.",
+      "description": "Never pin our own images in the chart: chart/values.yaml leaves image.tag empty so appVersion selects the build, and a pin here silently overrides that (it shipped a 1.3.3 image under a 1.4.2 appVersion for months). Scoped to the chart so Renovate still manages these images anywhere else.",
+      "matchFileNames": [
+        "chart/values.yaml"
+      ],
       "matchPackageNames": [
         "powerhome/keess",
         "powerhome/keess-kubeconfig-reloader"
