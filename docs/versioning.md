@@ -18,6 +18,15 @@ Use `VERSION=x.y.z` when app and chart move together (the common case), or
 below). The next section explains the conventions for the relation between app and
 chart version.
 
+`appVersion` is load-bearing at runtime, not just metadata: `chart/values.yaml`
+leaves `image.tag` empty, so the Deployment renders
+`powerhome/keess:<appVersion>`. Bumping `appVersion` is what changes the image
+that actually ships. Do not pin a tag or digest in `chart/values.yaml` to work
+around that -- a Renovate digest pin there went unnoticed for months while the
+whole PAC fleet ran a 1.3.3 binary under a 1.4.2 `appVersion`. CI now asserts the
+rendered images match `appVersion` on every PR touching `chart/`, and
+`renovate.json` blocks Renovate from re-pinning them in that file.
+
 `cmd/version.go` holds a `"dev"` placeholder used only by non-GoReleaser builds
 (`make build`, `docker build .`); GoReleaser overrides it at build time.
 
