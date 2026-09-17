@@ -5,15 +5,12 @@
 image:
   repository: powerhome/keess
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion. Leave empty:
-  # appVersion is the single source of truth for which build ships, it is bumped
-  # by `make tag-release`, and GoReleaser publishes a Docker tag matching it.
-  #
-  # Keeping this empty is enforced in two other places -- change them together:
-  #   - renovate.json disables updates for this image in this file, so Renovate
-  #     cannot re-pin a digest here (it did, and the fleet ran the wrong build).
-  #   - .github/workflows/ci.yml asserts the rendered image is
-  #     powerhome/keess:<appVersion> on every PR that touches chart/.
+  # Leave empty and it will default to the chart appVersion, which is the saner
+  # default for the chart. appVersion is the single source of truth for which
+  # build ships, it is bumped by `make tag-release`, and GoReleaser publishes a
+  # Docker tag matching it.
+
+  # Do NOT pin this to a digest or vX.Y.Z tag. That would break chart consumers.
   tag: ""
 
 # Default Keess config
@@ -198,8 +195,6 @@ kubeconfigReloader:
   image:
     repository: powerhome/keess-kubeconfig-reloader
     pullPolicy: IfNotPresent
-    # Same rule as image.tag above: leave empty so appVersion selects the build.
-    # GoReleaser publishes this image and powerhome/keess under the same tag.
     tag: ""
   config:
     s3:
