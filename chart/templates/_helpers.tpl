@@ -65,19 +65,6 @@ Pod from matching the Deployment's immutable selector.
 {{- end }}
 
 {{/*
-Build an image reference. A tag starting with "@" is treated as a digest pin
-and joined without a colon (repository@sha256:...); otherwise it is a normal tag.
-*/}}
-{{- define "keess.image" -}}
-{{- $tag := .tag | default .defaultTag -}}
-{{- if hasPrefix "@" $tag -}}
-{{- printf "%s%s" .repository $tag -}}
-{{- else -}}
-{{- printf "%s:%s" .repository $tag -}}
-{{- end -}}
-{{- end }}
-
-{{/*
 Create the name of the service account to use
 */}}
 {{- define "keess.serviceAccountName" -}}
