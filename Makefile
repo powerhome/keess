@@ -156,7 +156,7 @@ install-cilium-to-clusters: install-cilium-cli
 	$(GOBIN)/cilium install --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-source-cluster --version $(CILIUM_VERSION) --set cluster.id=1 --set cluster.name=source-cluster || true
 	@echo "Copying Cilium CA from source-cluster to destination-cluster so both clusters trust each other for ClusterMesh..."
 	kubectl --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-source-cluster -n kube-system get secret cilium-ca -o yaml \
-		| kubectl --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-destination-cluster create -f -
+		| kubectl --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-destination-cluster create -f - || true
 	$(GOBIN)/cilium install --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-destination-cluster --version $(CILIUM_VERSION) --set cluster.id=2 --set cluster.name=destination-cluster || true
 	$(GOBIN)/cilium status --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-source-cluster --wait
 	$(GOBIN)/cilium status --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --context kind-destination-cluster --wait
@@ -228,8 +228,8 @@ tests-python-e2e:
 	@echo "Building keess-test image"
 	docker build -f Dockerfile.localTest -t keess-test:1.0 .
 	@echo "Run container ..."
+# No -it: it needs a terminal, so it breaks CI and any scripted run.
 	docker run \
-		-it \
 		--rm \
 		--mount type=bind,source="./$(LOCAL_TEST_KUBECONFIG_FILE)",target=/root/.kube/config,readonly \
 		--network host \

@@ -693,6 +693,9 @@ def test_scenario_5(source_core_api, target_core_api, source_namespace, secret_n
 
 def test_scenario_6(core_api):
     # Scenario 6: Synchronize to all namespaces
+    # NOTE: never implemented, and main() does not call it -- this suite really
+    # runs scenarios 1-5. Implement it or drop it; don't read the numbering as
+    # coverage.
     pass
 
 def main():
