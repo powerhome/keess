@@ -1,4 +1,4 @@
-FROM alpine@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+FROM alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 
 # Pre-built binary, not compiled here. GoReleaser is the single source of
 # truth for how `keess` is built (see .goreleaser.yaml):
