@@ -16,6 +16,18 @@
         "powerhome/keess-kubeconfig-reloader"
       ],
       "enabled": false
+    },
+    {
+      "description": "Upgrade Go in one PR: go.mod, setup-go and the golang image move together.",
+      "matchDepNames": ["go", "golang"],
+      "groupName": "go version",
+      "commitMessageTopic": "Go"
+    },
+    {
+      "description": "Bump the go.mod go directive too; by default Renovate leaves it behind.",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["golang"],
+      "rangeStrategy": "bump"
     }
   ]
 }
