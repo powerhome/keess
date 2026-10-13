@@ -1,9 +1,9 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
+    "group:allNonMajor",
     "github>powerhome/renovate-config:pac",
-    "github>powerhome/renovate-config:ci-kubed-read-token",
-    "group:allNonMajor"
+    "github>powerhome/renovate-config:ci-kubed-read-token"
   ],
   "packageRules": [
     {
