@@ -1,2 +1,2 @@
 kubernetes==37.0.2
-deepdiff==9.1.0
+deepdiff==9.2.1

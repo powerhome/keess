@@ -2,12 +2,15 @@ from kubernetes import client, config
 from deepdiff import DeepDiff
 import time
 import json
+import sys
 
 # ANSI color codes for colored logging
 GREEN = '\033[92m'
 RED = '\033[91m'
 RESET = '\033[0m'
 WAIT_TIME = 30
+# Count of log_error calls; main() exits non-zero if any, so CI fails on them.
+error_count = 0
 
 def log_info(message):
     print(f"[INFO] {message}")
@@ -16,6 +19,8 @@ def log_success(message):
     print(f"{GREEN}[SUCCESS] {message}{RESET}")
 
 def log_error(message):
+    global error_count
+    error_count += 1
     print(f"{RED}[ERROR] {message}{RESET}")
 
 def delete_resource_type(core_api, namespace, resource_name, resource_type='secret'):
@@ -743,6 +748,11 @@ def main():
 
     # Final cleanup
     cleanup_resources(source_core_api, target_core_api, source_namespace, destination_namespaces)
+
+    if error_count:
+        print(f"{RED}[FAILED] {error_count} error(s) logged, see [ERROR] lines above.{RESET}")
+        sys.exit(1)
+    log_success("All scenarios passed.")
 
 if __name__ == "__main__":
     main()

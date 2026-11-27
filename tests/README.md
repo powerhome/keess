@@ -87,6 +87,9 @@ They will need the local clusters and keess to be up, just as the Go e2e tests.
 make tests-python-e2e
 ```
 
+The run exits non-zero if any `[ERROR]` was logged. CI runs them on every PR (see
+`.github/workflows/e2e.yml`), on kind clusters set up with `make setup-local-clusters-with-keess`.
+
 ## Source code organization and style
 
 ### Ginkgo and BDD
