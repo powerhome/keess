@@ -2,9 +2,34 @@ name: CI
 
 on:
   pull_request:
+    # Skip PRs that only touch docs or agent config. Nothing here is a required
+    # check today; if one becomes required, move this to job-level `if:` (a
+    # workflow skipped by paths-ignore leaves a required check pending forever).
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - "LICENSE"
+      - ".agents/**"
+      - ".claude/**"
+      - ".cursor/**"
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.14.0
+
   build-and-test:
+    needs: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -86,8 +111,12 @@ jobs:
           done
           exit $status
 
-  lint:
+  python-e2e:
+    needs: build-and-test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      KUBECONFIG_FILE: localTestKubeconfig
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -95,7 +124,27 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+      - name: Install kind and kubectl
+        uses: helm/kind-action@ea822c7bf1874f08e5a491df991c228edffc3376 # v1.15.2
         with:
-          version: v2.14.0
+          install_only: true
+
+      - name: Create kind cluster
+        run: make create-python-e2e-cluster
+
+      # Keess runs on the runner, like `make run` locally.
+      - name: Start Keess
+        run: make run-background
+
+      - name: Run Python e2e tests
+        run: make tests-python-e2e
+
+      - name: Dump cluster state and Keess logs
+        if: failure()
+        run: |
+          echo "::group::pods"
+          kubectl --kubeconfig "$KUBECONFIG_FILE" --context kind-source-cluster get pods -A -o wide || true
+          echo "::endgroup::"
+          echo "::group::keess.log"
+          cat keess.log || true
+          echo "::endgroup::"

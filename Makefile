@@ -18,7 +18,7 @@ ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/arm64/arm64/;s/aarch64/arm64/'
 GOBASE := $(shell pwd)
 GOBIN := $(GOBASE)/bin
 
-.PHONY: build docker-build coverage run docker-run create-local-clusters delete-local-clusters install-cilium-cli install-cilium-to-clusters install-keess setup-local-clusters setup-local-clusters-with-keess local-docker-run tests tests-e2e tests-python-e2e tag-release bump-chart-version help
+.PHONY: build docker-build coverage run run-background docker-run create-local-clusters create-python-e2e-cluster delete-local-clusters install-cilium-cli install-cilium-to-clusters install-keess setup-local-clusters setup-local-clusters-with-keess local-docker-run tests tests-e2e tests-python-e2e tag-release bump-chart-version help
 
 # Build the project
 build:
@@ -113,9 +113,27 @@ coverage:
 	@open coverage.html
 
 # Target to execute the application
+LOCAL_RUN_ARGS := run --localCluster=$(LOCAL_CLUSTER) --logLevel=debug --kubeConfigPath=$(LOCAL_TEST_KUBECONFIG_FILE) --pollingInterval=10 --housekeepingInterval=10 --namespacePollingInterval=10
+KEESS_LOG_FILE := keess.log
+
 run: build
 	@echo "Running the application..."
-	@$(GOBIN)/$(PROJECT_NAME) run --localCluster=$(LOCAL_CLUSTER) --logLevel=debug --kubeConfigPath=$(LOCAL_TEST_KUBECONFIG_FILE) --pollingInterval=10 --housekeepingInterval=10 --namespacePollingInterval=10
+	@$(GOBIN)/$(PROJECT_NAME) $(LOCAL_RUN_ARGS)
+
+# Same as run, but in the background (logging to $(KEESS_LOG_FILE)), returning once Keess
+# has connected to $(LOCAL_CLUSTER). Used by CI; stop it with `pkill -f 'keess run'`.
+run-background: build
+	@nohup $(GOBIN)/$(PROJECT_NAME) $(LOCAL_RUN_ARGS) > $(KEESS_LOG_FILE) 2>&1 &
+	@for _ in $$(seq 1 24); do \
+		if grep -q "Remote clusters successfully initialized: .*$(LOCAL_CLUSTER)" $(KEESS_LOG_FILE); then \
+			grep 'Remote clusters successfully initialized' $(KEESS_LOG_FILE); \
+			exit 0; \
+		fi; \
+		sleep 5; \
+	done; \
+	echo "Keess did not connect to $(LOCAL_CLUSTER), see $(KEESS_LOG_FILE):"; \
+	cat $(KEESS_LOG_FILE); \
+	exit 1
 
 # Target to run the Docker image with the .kube directory mounted
 docker-run:
@@ -124,11 +142,16 @@ docker-run:
 
 # Target to start local kube clusters for testing purposes
 create-local-clusters:
-	kind create cluster --image=kindest/node:$(KIND_K8S_VERSION) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-1.yaml
-	kind create cluster --image=kindest/node:$(KIND_K8S_VERSION) -n destination-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-2.yaml
+	kind create cluster --image=kindest/node:$(KIND_K8S_VERSION) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-1-cilium.yaml
+	kind create cluster --image=kindest/node:$(KIND_K8S_VERSION) -n destination-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-2-cilium.yaml
 	KUBECONFIG=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) kind export kubeconfig -n source-cluster --internal
 	KUBECONFIG=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) kind export kubeconfig -n destination-cluster --internal
 
+
+# Single-node cluster (default CNI, no Cilium) for the Python e2e tests, which only
+# cover namespace sync. Run Keess against it with `make run`.
+create-python-e2e-cluster:
+	kind create cluster --image=kindest/node:$(KIND_K8S_VERSION) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-python-e2e.yaml
 
 # Target to delete local kube clusters
 delete-local-clusters:
@@ -250,11 +273,12 @@ help:
 	@echo "docker-build                    - Build Docker image"
 	@echo "coverage                        - Generate and view code coverage report"
 	@echo "run                             - Run the application from local machine build"
+	@echo "run-background                  - Like run, in the background; waits until Keess connects"
 	@echo "setup-local-clusters            - Create 2 clusters locally using Kind ready for testing for PAC-V2 (includes Cilium)"
 	@echo "setup-local-clusters-with-keess - Create 2 clusters locally with Keess running inside the clusters"
 	@echo "tests                           - Run Unit tests only"
 	@echo "tests-e2e                       - Run e2e tests (cluster sync focused, requires local clusters)"
-	@echo "tests-python-e2e                - Run python e2e tests using docker (namespace sync focused)"
+	@echo "tests-python-e2e                - Run python e2e tests using docker (namespace sync only, requires Keess running)"
 	@echo "tests-all                       - Run all tests (unit + e2e)"
 	@echo "delete-local-clusters           - Delete the 2 local clusters created with Kind"
 	@echo "tag-release                     - Tag and push a release (VERSION=x.y.z, or APP_VERSION=/CHART_VERSION=), triggering the GoReleaser image release"
@@ -263,6 +287,7 @@ help:
 	@echo "## Other Makefile commands:"
 	@echo "--------------------------------"
 	@echo "create-local-clusters           - Create 2 clusters locally using Kind"
+	@echo "create-python-e2e-cluster       - Create the single Kind cluster for the python e2e tests (no Cilium)"
 	@echo "install-cilium-cli              - Install Cilium CLI on the local machine"
 	@echo "install-cilium-to-clusters      - Install Cilium on the local clusters"
 	@echo "install-keess                   - Install Keess on local clusters using Helm"

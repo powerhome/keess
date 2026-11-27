@@ -2,12 +2,15 @@ from kubernetes import client, config
 from deepdiff import DeepDiff
 import time
 import json
+import sys
 
 # ANSI color codes for colored logging
 GREEN = '\033[92m'
 RED = '\033[91m'
 RESET = '\033[0m'
 WAIT_TIME = 30
+# Count of log_error calls; main() exits non-zero if any, so CI fails on them.
+error_count = 0
 
 def log_info(message):
     print(f"[INFO] {message}")
@@ -16,6 +19,8 @@ def log_success(message):
     print(f"{GREEN}[SUCCESS] {message}{RESET}")
 
 def log_error(message):
+    global error_count
+    error_count += 1
     print(f"{RED}[ERROR] {message}{RESET}")
 
 def delete_resource_type(core_api, namespace, resource_name, resource_type='secret'):
@@ -77,11 +82,10 @@ def get_k8s_client_for_cluster(context_name):
     # Create and return the CoreV1Api client instance
     return client.CoreV1Api()
 
-def cleanup_resources(source_core_api, target_core_api, source_namespace, destination_namespaces):
+def cleanup_resources(source_core_api, source_namespace, destination_namespaces):
     """
     Clean up the source namespace, destination namespaces, and specific resources before and after tests.
     :param source_core_api: CoreV1Api instance for source cluster Kubernetes API interaction.
-    :param target_core_api: CoreV1Api instance for target cluster Kubernetes API interaction.
     :param source_namespace: The source namespace from which to delete the secret and configmap.
     :param secret_name: The name of the secret to delete.
     :param configmap_name: The name of the configmap to delete.
@@ -90,27 +94,22 @@ def cleanup_resources(source_core_api, target_core_api, source_namespace, destin
     # Attempt to delete the source namespace in source cluster
     delete_namespace(source_core_api,source_namespace,'source')
 
-    # Attempt to delete the source namespace in target cluster
-    delete_namespace(target_core_api,source_namespace,'target')
-
     # Clean up destination namespaces in source cluster
     for ns in destination_namespaces:
         delete_namespace(source_core_api,ns,'source')
     time.sleep(2)
 
-def setup_resources_for_test(source_core_api, target_core_api, source_namespace, secret_name, configmap_name, destination_namespaces, label_selector=None):
+def setup_resources_for_test(source_core_api, source_namespace, secret_name, configmap_name, destination_namespaces, label_selector=None):
     """
     Create a namespace (if it doesn't exist), a secret, and a configmap for testing, along with destination namespaces.
     :param source_core_api: CoreV1Api instance for source cluster Kubernetes API interaction.
-    :param target_core_api: CoreV1Api instance for target cluster Kubernetes API interaction.
     :param source_namespace: The namespace in which to create the source secret and configmap.
     :param secret_name: The name of the secret to create.
     :param configmap_name: The name of the configmap to create.
     :param destination_namespaces: A list of destination namespaces to create for testing synchronization.
     """
-    # Create source namespace if it doesn't exist in both clusters
+    # Create source namespace if it doesn't exist
     create_empty_namespace(source_core_api,source_namespace,'source')
-    create_empty_namespace(target_core_api,source_namespace,'target')
 
     # Create destination namespaces
     labels = {}
@@ -190,6 +189,15 @@ def get_all_resources_type(core_api, resource_type='secret'):
         return result
     except client.exceptions.ApiException as e:
         log_error(f"Failed to get all resources of kind '{resource_type}': {e}")
+
+def diff_resources(before, after):
+    """
+    Diff two get_all_resources_type snapshots, as JSON.
+    threshold_to_diff_deeper=0 keeps per-key results (dictionary_item_removed etc.). By
+    default DeepDiff reports the whole root as changed when the snapshots share under a
+    third of their keys, which happens on a near-empty cluster.
+    """
+    return DeepDiff(before, after, threshold_to_diff_deeper=0).to_json()
 
 def compare_json(json1, json2):
     return DeepDiff(json.loads(json1),json.loads(json2))
@@ -287,8 +295,8 @@ def test_scenario_1(core_api, source_cluster_name, namespace, secret_name, confi
     # Compare all secrets and configmaps after test
     all_secrets = get_all_resources_type(core_api, "secret")
     all_configmaps = get_all_resources_type(core_api, "configmap")
-    ddiff_secrets = DeepDiff(initial_all_secrets, all_secrets).to_json()
-    ddiff_configmaps = DeepDiff(initial_all_configmaps, all_configmaps).to_json()
+    ddiff_secrets = diff_resources(initial_all_secrets, all_secrets)
+    ddiff_configmaps = diff_resources(initial_all_configmaps, all_configmaps)
 
     expected_secrets_result = json.dumps({
         "type_changes": {
@@ -372,8 +380,8 @@ def test_scenario_2(core_api, namespace, secret_name, configmap_name):
     # Compare all secrets and configmaps after test
     all_secrets = get_all_resources_type(core_api, "secret")
     all_configmaps = get_all_resources_type(core_api, "configmap")
-    ddiff_secrets = DeepDiff(initial_all_secrets, all_secrets).to_json()
-    ddiff_configmaps = DeepDiff(initial_all_configmaps, all_configmaps).to_json()
+    ddiff_secrets = diff_resources(initial_all_secrets, all_secrets)
+    ddiff_configmaps = diff_resources(initial_all_configmaps, all_configmaps)
 
     expected_secrets_result = json.dumps({
         "dictionary_item_removed": [
@@ -445,8 +453,8 @@ def test_scenario_3(core_api, source_cluster_name, source_namespace, secret_name
     # Compare all secrets and configmaps after test
     all_secrets = get_all_resources_type(core_api, "secret")
     all_configmaps = get_all_resources_type(core_api, "configmap")
-    ddiff_secrets = DeepDiff(initial_all_secrets, all_secrets).to_json()
-    ddiff_configmaps = DeepDiff(initial_all_configmaps, all_configmaps).to_json()
+    ddiff_secrets = diff_resources(initial_all_secrets, all_secrets)
+    ddiff_configmaps = diff_resources(initial_all_configmaps, all_configmaps)
 
     expected_secrets_result = json.dumps({
         "type_changes": {
@@ -534,8 +542,8 @@ def test_scenario_4(core_api, namespace, secret_name, configmap_name):
     # Compare all secrets and configmaps after test
     all_secrets = get_all_resources_type(core_api, "secret")
     all_configmaps = get_all_resources_type(core_api, "configmap")
-    ddiff_secrets = DeepDiff(initial_all_secrets, all_secrets).to_json()
-    ddiff_configmaps = DeepDiff(initial_all_configmaps, all_configmaps).to_json()
+    ddiff_secrets = diff_resources(initial_all_secrets, all_secrets)
+    ddiff_configmaps = diff_resources(initial_all_configmaps, all_configmaps)
 
     expected_secrets_result = json.dumps({
         "dictionary_item_removed": [
@@ -595,112 +603,8 @@ def test_scenario_4(core_api, namespace, secret_name, configmap_name):
 
     log_info("Test scenario 4 completed.")
 
-def test_scenario_5(source_core_api, target_core_api, source_namespace, secret_name, configmap_name, source_cluster_name, target_cluster_name):
-    """
-    Test synchronization of a secret and configmap to a different cluster.
-    :param core_api: CoreV1Api instance for Kubernetes API interaction in the source cluster.
-    :param source_namespace: The namespace in the source cluster where the secret is created.
-    :param secret_name: The name of the secret to be synchronized.
-    :param source_cluster_name: Name of the source cluster (for verification purposes).
-    :param target_cluster_name: Name of the target cluster where the secret should be synchronized.
-    """
-    log_info("Test scenario 5 running...")
-
-    labels = {"keess.powerhrg.com/sync": "cluster"}
-    annotations = {"keess.powerhrg.com/clusters": target_cluster_name}
-
-    # Get all secrets and configmaps before test
-    initial_source_all_secrets = get_all_resources_type(source_core_api, "secret")
-    initial_source_all_configmaps = get_all_resources_type(source_core_api, "configmap")
-    initial_target_all_secrets = get_all_resources_type(target_core_api, "secret")
-    initial_target_all_configmaps = get_all_resources_type(target_core_api, "configmap")
-
-    # Apply labels and annotations to the secret for cross-cluster synchronization
-    apply_labels_and_annotations(source_core_api, source_namespace, secret_name, labels, annotations, 'secret')
-    apply_labels_and_annotations(source_core_api, source_namespace, configmap_name, labels, annotations, 'configmap')
-
-    log_info("Labels and annotations applied for cross-cluster synchronization. Waiting for synchronization to complete...")
-    time.sleep(WAIT_TIME)  # Adjust based on expected synchronization time
-
-    # Verify the presence of the secret in the target cluster
-    verify_resource_in_namespace(source_core_api, target_core_api, source_namespace, secret_name, 'secret', source_cluster_name, source_namespace)
-    verify_resource_in_namespace(source_core_api, target_core_api, source_namespace, configmap_name, 'configmap', source_cluster_name, source_namespace)
-
-    # Compare all secrets and configmaps after test
-    source_all_secrets = get_all_resources_type(source_core_api, "secret")
-    source_all_configmaps = get_all_resources_type(source_core_api, "configmap")
-    target_all_secrets = get_all_resources_type(target_core_api, "secret")
-    target_all_configmaps = get_all_resources_type(target_core_api, "configmap")
-    ddiff_source_secrets = DeepDiff(initial_source_all_secrets, source_all_secrets).to_json()
-    ddiff_source_configmaps = DeepDiff(initial_source_all_configmaps, source_all_configmaps).to_json()
-    ddiff_target_secrets = DeepDiff(initial_target_all_secrets, target_all_secrets).to_json()
-    ddiff_target_configmaps = DeepDiff(initial_target_all_configmaps, target_all_configmaps).to_json()
-
-    expected_source_secrets_result = json.dumps({
-        "type_changes": {
-            "root['test-namespace/new-test-secret']['metadata']['annotations']": {
-                "old_type": "NoneType",
-                "new_type": "dict",
-                "old_value": None,
-                "new_value": {"keess.powerhrg.com/clusters": "kind-destination-cluster"},
-            },
-            "root['test-namespace/new-test-secret']['metadata']['labels']": {
-                "old_type": "NoneType",
-                "new_type": "dict",
-                "old_value": None,
-                "new_value": {"keess.powerhrg.com/sync": "cluster"},
-            },
-        }
-    })
-    expected_source_configmaps_result = json.dumps({
-        "type_changes": {
-            "root['test-namespace/new-test-configmap']['metadata']['annotations']": {
-                "old_type": "NoneType",
-                "new_type": "dict",
-                "old_value": None,
-                "new_value": {"keess.powerhrg.com/clusters": "kind-destination-cluster"},
-            },
-            "root['test-namespace/new-test-configmap']['metadata']['labels']": {
-                "old_type": "NoneType",
-                "new_type": "dict",
-                "old_value": None,
-                "new_value": {"keess.powerhrg.com/sync": "cluster"},
-            },
-        }
-    })
-    expected_target_secrets_result = json.dumps({"dictionary_item_added": ["root['test-namespace/new-test-secret']"]})
-    expected_target_configmaps_result = json.dumps({"dictionary_item_added": ["root['test-namespace/new-test-configmap']"]})
-
-    diff_expected_source_secrets = compare_json(expected_source_secrets_result,ddiff_source_secrets)
-    diff_expected_source_configmaps = compare_json(expected_source_configmaps_result,ddiff_source_configmaps)
-    diff_expected_target_secrets = compare_json(expected_target_secrets_result,ddiff_target_secrets)
-    diff_expected_target_configmaps = compare_json(expected_target_configmaps_result,ddiff_target_configmaps)
-
-    if diff_expected_source_secrets != {}:
-        log_info(f"ddiff_source_secrets: \n{ddiff_source_secrets}")
-        log_error(f"There were unexpected changes in secrets in cluster '{source_cluster_name}': \n{diff_expected_source_secrets}")
-    if diff_expected_source_configmaps != {}:
-        log_info(f"ddiff_source_configmaps: \n{ddiff_source_configmaps}")
-        log_error(f"There were unexpected changes in configmaps in cluster '{source_cluster_name}': \n{diff_expected_source_configmaps}")
-    if diff_expected_target_secrets != {}:
-        log_info(f"ddiff_target_secrets: \n{ddiff_target_secrets}")
-        log_error(f"There were unexpected changes in secrets in cluster '{target_cluster_name}': \n{diff_expected_target_secrets}")
-    if diff_expected_target_configmaps != {}:
-        log_info(f"ddiff_target_configmaps: \n{ddiff_target_configmaps}")
-        log_error(f"There were unexpected changes in configmaps in cluster '{target_cluster_name}': \n{diff_expected_target_configmaps}")
-
-    log_info("Test scenario 5 completed.")
-
-def test_scenario_6(core_api):
-    # Scenario 6: Synchronize to all namespaces
-    # NOTE: never implemented, and main() does not call it -- this suite really
-    # runs scenarios 1-5. Implement it or drop it; don't read the numbering as
-    # coverage.
-    pass
-
 def main():
     source_cluster_name = "kind-source-cluster"
-    target_cluster_name = "kind-destination-cluster"
     source_namespace = "test-namespace"
     secret_name = "new-test-secret"
     configmap_name = "new-test-configmap"
@@ -708,13 +612,12 @@ def main():
     label_selector = "keess.powerhrg.com/testing=yes"
 
     source_core_api = get_k8s_client_for_cluster(source_cluster_name)
-    target_core_api = get_k8s_client_for_cluster(target_cluster_name)
 
     # Initial cleanup
-    cleanup_resources(source_core_api, target_core_api, source_namespace, destination_namespaces)
+    cleanup_resources(source_core_api, source_namespace, destination_namespaces)
 
     # Setup resources for tests
-    setup_resources_for_test(source_core_api, target_core_api, source_namespace, secret_name, configmap_name, destination_namespaces, label_selector)
+    setup_resources_for_test(source_core_api, source_namespace, secret_name, configmap_name, destination_namespaces, label_selector)
 
 
     # Execute test scenario 1
@@ -724,7 +627,7 @@ def main():
     test_scenario_2(source_core_api, source_namespace, secret_name, configmap_name)
 
     # Setup resources again
-    setup_resources_for_test(source_core_api, target_core_api, source_namespace, secret_name, configmap_name, destination_namespaces, label_selector)
+    setup_resources_for_test(source_core_api, source_namespace, secret_name, configmap_name, destination_namespaces, label_selector)
 
     # Execute test scenario 3
     test_scenario_3(source_core_api, source_cluster_name, source_namespace, secret_name, configmap_name, label_selector)
@@ -732,17 +635,13 @@ def main():
     # Execute test scenario 4
     test_scenario_4(source_core_api, source_namespace, secret_name, configmap_name)
 
-    # Cleanup
-    cleanup_resources(source_core_api, target_core_api, source_namespace, destination_namespaces)
-    # Setup resources for tests
-    setup_resources_for_test(source_core_api, target_core_api, source_namespace, secret_name, configmap_name, destination_namespaces, label_selector)
-
-    # Execute test scenario 5
-    test_scenario_5(source_core_api, target_core_api, source_namespace, secret_name, configmap_name, source_cluster_name, target_cluster_name)
-
-
     # Final cleanup
-    cleanup_resources(source_core_api, target_core_api, source_namespace, destination_namespaces)
+    cleanup_resources(source_core_api, source_namespace, destination_namespaces)
+
+    if error_count:
+        print(f"{RED}[FAILED] {error_count} error(s) logged, see [ERROR] lines above.{RESET}")
+        sys.exit(1)
+    log_success("All scenarios passed.")
 
 if __name__ == "__main__":
     main()
