@@ -198,12 +198,12 @@ def apply_labels_and_annotations(core_api, namespace, resource_name, labels, ann
     """
     Apply labels and annotations to a resource.
     """
-    metadata = client.V1ObjectMeta(labels=labels, annotations=annotations)
+    # A plain dict, not V1ObjectMeta: a None value removes the key in the patch, and
+    # since kubernetes 37 the pydantic models reject None in labels/annotations.
+    body = {"metadata": {"labels": labels, "annotations": annotations}}
     if resource_type == 'secret':
-        body = client.V1Secret(metadata=metadata)
         core_api.patch_namespaced_secret(resource_name, namespace, body)
     elif resource_type == 'configmap':
-        body = client.V1ConfigMap(metadata=metadata)
         core_api.patch_namespaced_config_map(resource_name, namespace, body)
     log_info(f"Applied labels and annotations to {resource_type} '{resource_name}' in namespace '{namespace}'.")
 
