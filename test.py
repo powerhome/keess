@@ -190,6 +190,15 @@ def get_all_resources_type(core_api, resource_type='secret'):
     except client.exceptions.ApiException as e:
         log_error(f"Failed to get all resources of kind '{resource_type}': {e}")
 
+def diff_resources(before, after):
+    """
+    Diff two get_all_resources_type snapshots, as JSON.
+    threshold_to_diff_deeper=0 keeps per-key results (dictionary_item_removed etc.). By
+    default DeepDiff reports the whole root as changed when the snapshots share under a
+    third of their keys, which happens on a near-empty cluster.
+    """
+    return DeepDiff(before, after, threshold_to_diff_deeper=0).to_json()
+
 def compare_json(json1, json2):
     return DeepDiff(json.loads(json1),json.loads(json2))
 
@@ -286,8 +295,8 @@ def test_scenario_1(core_api, source_cluster_name, namespace, secret_name, confi
     # Compare all secrets and configmaps after test
     all_secrets = get_all_resources_type(core_api, "secret")
     all_configmaps = get_all_resources_type(core_api, "configmap")
-    ddiff_secrets = DeepDiff(initial_all_secrets, all_secrets).to_json()
-    ddiff_configmaps = DeepDiff(initial_all_configmaps, all_configmaps).to_json()
+    ddiff_secrets = diff_resources(initial_all_secrets, all_secrets)
+    ddiff_configmaps = diff_resources(initial_all_configmaps, all_configmaps)
 
     expected_secrets_result = json.dumps({
         "type_changes": {
@@ -371,8 +380,8 @@ def test_scenario_2(core_api, namespace, secret_name, configmap_name):
     # Compare all secrets and configmaps after test
     all_secrets = get_all_resources_type(core_api, "secret")
     all_configmaps = get_all_resources_type(core_api, "configmap")
-    ddiff_secrets = DeepDiff(initial_all_secrets, all_secrets).to_json()
-    ddiff_configmaps = DeepDiff(initial_all_configmaps, all_configmaps).to_json()
+    ddiff_secrets = diff_resources(initial_all_secrets, all_secrets)
+    ddiff_configmaps = diff_resources(initial_all_configmaps, all_configmaps)
 
     expected_secrets_result = json.dumps({
         "dictionary_item_removed": [
@@ -444,8 +453,8 @@ def test_scenario_3(core_api, source_cluster_name, source_namespace, secret_name
     # Compare all secrets and configmaps after test
     all_secrets = get_all_resources_type(core_api, "secret")
     all_configmaps = get_all_resources_type(core_api, "configmap")
-    ddiff_secrets = DeepDiff(initial_all_secrets, all_secrets).to_json()
-    ddiff_configmaps = DeepDiff(initial_all_configmaps, all_configmaps).to_json()
+    ddiff_secrets = diff_resources(initial_all_secrets, all_secrets)
+    ddiff_configmaps = diff_resources(initial_all_configmaps, all_configmaps)
 
     expected_secrets_result = json.dumps({
         "type_changes": {
@@ -533,8 +542,8 @@ def test_scenario_4(core_api, namespace, secret_name, configmap_name):
     # Compare all secrets and configmaps after test
     all_secrets = get_all_resources_type(core_api, "secret")
     all_configmaps = get_all_resources_type(core_api, "configmap")
-    ddiff_secrets = DeepDiff(initial_all_secrets, all_secrets).to_json()
-    ddiff_configmaps = DeepDiff(initial_all_configmaps, all_configmaps).to_json()
+    ddiff_secrets = diff_resources(initial_all_secrets, all_secrets)
+    ddiff_configmaps = diff_resources(initial_all_configmaps, all_configmaps)
 
     expected_secrets_result = json.dumps({
         "dictionary_item_removed": [
