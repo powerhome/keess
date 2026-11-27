@@ -1,0 +1,10 @@
+# Single-node cluster for the Python e2e tests (namespace sync only).
+# Uses kind's default CNI; the *-cilium configs are for the Go e2e setup.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+networking:
+  # >= 10.128.0.0/9 dodges networks routed to Power VPN
+  podSubnet: "10.128.0.0/16"
+  serviceSubnet: "10.129.0.0/16"

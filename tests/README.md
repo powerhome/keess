@@ -81,14 +81,23 @@ You can also exclude tests with `!`: `ginkgo -v --label-filter '!secret'`.
 They should eventually be fully replaced by Go tests. They are important because they
 cover the namespace sync functionality, while Go e2e tests cover cluster sync.
 
-They will need the local clusters and keess to be up, just as the Go e2e tests.
+They only cover namespace sync, so they need a single cluster (`kind-source-cluster`) and
+Keess running against it. Keess can run anywhere that reaches the cluster: in the
+cluster, or on your machine.
+
+The lightest setup is one kind cluster without Cilium, with Keess on your machine:
 
 ```shell
+make create-python-e2e-cluster
+make run                # in another terminal
 make tests-python-e2e
 ```
 
-The run exits non-zero if any `[ERROR]` was logged. CI runs them on every PR (see
-`.github/workflows/e2e.yml`), on kind clusters set up with `make setup-local-clusters-with-keess`.
+They also run against the full setup from `make setup-local-clusters-with-keess`. Both
+setups create a cluster named `source-cluster`, so delete one before creating the other.
+
+The run exits non-zero if any `[ERROR]` was logged. CI runs them on every PR with the
+lightweight setup (see `.github/workflows/python-e2e.yml`).
 
 ## Source code organization and style
 

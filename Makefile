@@ -18,7 +18,7 @@ ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/arm64/arm64/;s/aarch64/arm64/'
 GOBASE := $(shell pwd)
 GOBIN := $(GOBASE)/bin
 
-.PHONY: build docker-build coverage run docker-run create-local-clusters delete-local-clusters install-cilium-cli install-cilium-to-clusters install-keess setup-local-clusters setup-local-clusters-with-keess local-docker-run tests tests-e2e tests-python-e2e tag-release bump-chart-version help
+.PHONY: build docker-build coverage run docker-run create-local-clusters create-python-e2e-cluster delete-local-clusters install-cilium-cli install-cilium-to-clusters install-keess setup-local-clusters setup-local-clusters-with-keess local-docker-run tests tests-e2e tests-python-e2e tag-release bump-chart-version help
 
 # Build the project
 build:
@@ -124,11 +124,16 @@ docker-run:
 
 # Target to start local kube clusters for testing purposes
 create-local-clusters:
-	kind create cluster --image=kindest/node:$(KIND_K8S_VERSION) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-1.yaml
-	kind create cluster --image=kindest/node:$(KIND_K8S_VERSION) -n destination-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-2.yaml
+	kind create cluster --image=kindest/node:$(KIND_K8S_VERSION) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-1-cilium.yaml
+	kind create cluster --image=kindest/node:$(KIND_K8S_VERSION) -n destination-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-2-cilium.yaml
 	KUBECONFIG=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) kind export kubeconfig -n source-cluster --internal
 	KUBECONFIG=$(LOCAL_INTERNAL_TEST_KUBECONFIG_FILE) kind export kubeconfig -n destination-cluster --internal
 
+
+# Single-node cluster (default CNI, no Cilium) for the Python e2e tests, which only
+# cover namespace sync. Run Keess against it with `make run`.
+create-python-e2e-cluster:
+	kind create cluster --image=kindest/node:$(KIND_K8S_VERSION) -n source-cluster --kubeconfig $(LOCAL_TEST_KUBECONFIG_FILE) --config tests/kind-config-python-e2e.yaml
 
 # Target to delete local kube clusters
 delete-local-clusters:
@@ -254,7 +259,7 @@ help:
 	@echo "setup-local-clusters-with-keess - Create 2 clusters locally with Keess running inside the clusters"
 	@echo "tests                           - Run Unit tests only"
 	@echo "tests-e2e                       - Run e2e tests (cluster sync focused, requires local clusters)"
-	@echo "tests-python-e2e                - Run python e2e tests using docker (namespace sync focused)"
+	@echo "tests-python-e2e                - Run python e2e tests using docker (namespace sync only, requires Keess running)"
 	@echo "tests-all                       - Run all tests (unit + e2e)"
 	@echo "delete-local-clusters           - Delete the 2 local clusters created with Kind"
 	@echo "tag-release                     - Tag and push a release (VERSION=x.y.z, or APP_VERSION=/CHART_VERSION=), triggering the GoReleaser image release"
@@ -263,6 +268,7 @@ help:
 	@echo "## Other Makefile commands:"
 	@echo "--------------------------------"
 	@echo "create-local-clusters           - Create 2 clusters locally using Kind"
+	@echo "create-python-e2e-cluster       - Create the single Kind cluster for the python e2e tests (no Cilium)"
 	@echo "install-cilium-cli              - Install Cilium CLI on the local machine"
 	@echo "install-cilium-to-clusters      - Install Cilium on the local clusters"
 	@echo "install-keess                   - Install Keess on local clusters using Helm"
