@@ -89,7 +89,7 @@ The lightest setup is one kind cluster without Cilium, with Keess on your machin
 
 ```shell
 make create-python-e2e-cluster
-make run                # in another terminal
+make run                # in another terminal, or: make run-background
 make tests-python-e2e
 ```
 
