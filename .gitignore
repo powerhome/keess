@@ -39,3 +39,6 @@ apiserver.local.config/**
 coverage.*
 localTestKubeconfig
 localInternalTestKubeconfig
+
+# graphify
+graphify-out/
