@@ -97,7 +97,7 @@ They also run against the full setup from `make setup-local-clusters-with-keess`
 setups create a cluster named `source-cluster`, so delete one before creating the other.
 
 The run exits non-zero if any `[ERROR]` was logged. CI runs them on every PR with the
-lightweight setup (see `.github/workflows/python-e2e.yml`).
+lightweight setup (the `python-e2e` job in `.github/workflows/ci.yml`).
 
 ## Source code organization and style
 
